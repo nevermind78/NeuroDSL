@@ -82,7 +82,6 @@ Open `demo.html` in your browser (via a local server) and step through the compu
 
 ## 🎥 See It in Action
 
-## 🎬 Démonstration
 
 <video width="100%" controls>
   <source src="html/NeuroDSL.mp4" type="video/mp4">
