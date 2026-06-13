@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Fibonacci DAG (n=10)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; }
+        #sidebar { width: 350px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+        #canvas-container { flex: 1; position: relative; overflow: hidden; background: #fdfdfd; }
+        svg { background: transparent; width: 100%; height: 100%; }
+        .node-rect { transition: all 0.3s ease; stroke-width: 2px; cursor: pointer; }
+        .edge-path { transition: all 0.3s ease; stroke: #cbd5e0; fill: none; stroke-width: 2px; }
+        .edge-fwd { stroke: #4299e1; stroke-width: 3px; }
+        .edge-bwd { stroke: #f56565; stroke-width: 3px; }
+        .edge-final { stroke: #00e676; stroke-width: 3px; }
+        .node-fwd { fill: #ebf8ff; stroke: #4299e1; }
+        .node-bwd { fill: #fff5f5; stroke: #f56565; }
+        .node-done { fill: #f0fff4; stroke: #48bb78; }
+        .node-final { fill: #00e676; stroke: #00c853; }
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        .btn { padding: 8px 12px; border-radius: 5px; border: 1px solid #ddd; cursor: pointer; background: #fff; font-size: 12px; }
+        .btn:hover { background: #f8f8f8; }
+        #log-panel { flex: 1; overflow-y: auto; font-family: monospace; font-size: 11px; border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 5px; }
+        .log-entry { margin-bottom: 4px; padding: 2px 5px; border-radius: 3px; }
+        .log-fwd { background: #ebf8ff; color: #2b6cb0; }
+        .log-bwd { background: #fff5f5; color: #c53030; }
+        .tooltip {
+            position: fixed;
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            max-width: 600px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            white-space: normal;
+            overflow-x: auto;
+        }
+        .tooltip pre {
+            margin: 4px 0;
+            white-space: pre;
+            font-family: 'Consolas', 'Courier New', monospace;
+            background: transparent;
+            color: inherit;
+            overflow-x: auto;
+        }
+        text {
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        #svg-container {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        #svg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            transition: transform 0.1s ease;
+        }
+        .zoom-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            z-index: 100;
+        }
+        .zoom-btn {
+            width: 30px;
+            height: 30px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>Fibonacci DAG (n=10)</h2>
+        <div class="controls">
+            <button class="btn" onclick="step(-1)">◀ Prev</button>
+            <button class="btn" onclick="togglePlay()" id="playBtn">Play</button>
+            <button class="btn" onclick="step(1)">Next ▶</button>
+        </div>
+        <div id="status" style="font-size: 12px; margin-bottom: 10px; color: #666;">Step: 0 / 0</div>
+        <div id="log-panel"></div>
+    </div>
+    <div id="canvas-container">
+        <div id="svg-container">
+            <svg id="svg-canvas" width="3670" height="560"></svg>
+        </div>
+        <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoomIn()">+</button>
+            <button class="zoom-btn" onclick="zoomOut()">−</button>
+            <button class="zoom-btn" onclick="zoomReset()">⟲</button>
+        </div>
+        <div id="tooltip" class="tooltip"></div>
+    </div>
+
+    <script>
+        const NODES = [{"h":70,"id":"f8","is_leaf":false,"is_param":false,"w":160,"x":2220,"y":365},{"h":70,"id":"f10","is_leaf":false,"is_param":false,"w":160,"x":2840,"y":365},{"h":70,"id":"f2","is_leaf":false,"is_param":false,"w":160,"x":360,"y":365},{"h":70,"id":"f7","is_leaf":false,"is_param":false,"w":160,"x":1910,"y":365},{"h":70,"id":"f0","is_leaf":true,"is_param":false,"w":160,"x":50,"y":290},{"h":70,"id":"f9","is_leaf":false,"is_param":false,"w":160,"x":2530,"y":365},{"h":70,"id":"sn","is_leaf":false,"is_param":false,"w":160,"x":3460,"y":365},{"h":70,"id":"f1","is_leaf":true,"is_param":false,"w":160,"x":50,"y":440},{"h":70,"id":"f5","is_leaf":false,"is_param":false,"w":160,"x":1290,"y":365},{"h":70,"id":"f4","is_leaf":false,"is_param":false,"w":160,"x":980,"y":365},{"h":70,"id":"f3","is_leaf":false,"is_param":false,"w":160,"x":670,"y":365},{"h":70,"id":"f6","is_leaf":false,"is_param":false,"w":160,"x":1600,"y":365},{"h":70,"id":"f11","is_leaf":false,"is_param":false,"w":160,"x":3150,"y":365}];
+        const EDGES = [["f6","f8"],["f7","f8"],["f8","f10"],["f9","f10"],["f0","f2"],["f1","f2"],["f5","f7"],["f6","f7"],["f7","f9"],["f8","f9"],["f0","sn"],["f3","sn"],["f5","sn"],["f7","sn"],["f9","sn"],["f11","sn"],["f3","f5"],["f4","f5"],["f2","f4"],["f3","f4"],["f1","f3"],["f2","f3"],["f4","f6"],["f5","f6"],["f9","f11"],["f10","f11"]];
+        const LOG = [{"node":"f2","phase":"forward","status":"starting","val":null},{"node":"f2","phase":"forward","status":"finished","val":"-0.5501, 1.1559, -0.9468, -1.4530"},{"node":"f3","phase":"forward","status":"starting","val":null},{"node":"f3","phase":"forward","status":"finished","val":"-0.3778, 1.2308, -0.9677, -1.7455"},{"node":"f4","phase":"forward","status":"starting","val":null},{"node":"f4","phase":"forward","status":"finished","val":"-0.4295, 1.2083, -0.9614, -1.6577"},{"node":"f5","phase":"forward","status":"starting","val":null},{"node":"f5","phase":"forward","status":"finished","val":"-0.4140, 1.2151, -0.9633, -1.6840"},{"node":"f6","phase":"forward","status":"starting","val":null},{"node":"f6","phase":"forward","status":"finished","val":"-0.4187, 1.2131, -0.9627, -1.6762"},{"node":"f7","phase":"forward","status":"starting","val":null},{"node":"f7","phase":"forward","status":"finished","val":"-0.4173, 1.2137, -0.9629, -1.6785"},{"node":"f8","phase":"forward","status":"starting","val":null},{"node":"f8","phase":"forward","status":"finished","val":"-0.4177, 1.2135, -0.9629, -1.6778"},{"node":"f9","phase":"forward","status":"starting","val":null},{"node":"f9","phase":"forward","status":"finished","val":"-0.4176, 1.2135, -0.9629, -1.6780"},{"node":"f10","phase":"forward","status":"starting","val":null},{"node":"f10","phase":"forward","status":"finished","val":"-0.4176, 1.2135, -0.9629, -1.6780"},{"node":"f11","phase":"forward","status":"starting","val":null},{"node":"f11","phase":"forward","status":"finished","val":"-0.4176, 1.2135, -0.9629, -1.6780"},{"node":"sn","phase":"forward","status":"starting","val":null},{"node":"sn","phase":"forward","status":"finished","val":"-3.9338, 6.6599, -5.6039, -7.6422"}];
+        const INITIAL_VALUES = {"f0":"[-1.8895, 0.5732, …]","f1":"[0.0240, 1.4056, …]","f10":"[-0.4176, 1.2135, …]","f11":"[-0.4176, 1.2135, …]","f2":"[-0.5501, 1.1559, …]","f3":"[-0.3778, 1.2308, …]","f4":"[-0.4295, 1.2083, …]","f5":"[-0.4140, 1.2151, …]","f6":"[-0.4187, 1.2131, …]","f7":"[-0.4173, 1.2137, …]","f8":"[-0.4177, 1.2135, …]","f9":"[-0.4176, 1.2135, …]","sn":"[-3.9338, 6.6599, …]"};
+        const FULL_VALUES = {"f0":"[-1.8895, 0.5732, -0.7843, 0.8219, 2.6336, -0.4110, -0.0378, -1.1138, 0.6103, -0.1102]","f1":"[0.0240, 1.4056, -1.0164, -2.4279, -1.1542, -0.5253, 0.8369, 1.4423, -1.2752, 1.2364]","f10":"[-0.4176, 1.2135, -0.9629, -1.6780, -0.2801, -0.4989, 0.6350, 0.8524, -0.8401, 0.9256]","f11":"[-0.4176, 1.2135, -0.9629, -1.6780, -0.2801, -0.4989, 0.6350, 0.8524, -0.8401, 0.9256]","f2":"[-0.5501, 1.1559, -0.9468, -1.4530, -0.0179, -0.4910, 0.5745, 0.6755, -0.7096, 0.8324]","f3":"[-0.3778, 1.2308, -0.9677, -1.7455, -0.3588, -0.5013, 0.6532, 0.9055, -0.8793, 0.9536]","f4":"[-0.4295, 1.2083, -0.9614, -1.6577, -0.2565, -0.4982, 0.6296, 0.8365, -0.8284, 0.9172]","f5":"[-0.4140, 1.2151, -0.9633, -1.6840, -0.2872, -0.4992, 0.6367, 0.8572, -0.8436, 0.9281]","f6":"[-0.4187, 1.2131, -0.9627, -1.6762, -0.2780, -0.4989, 0.6345, 0.8510, -0.8391, 0.9249]","f7":"[-0.4173, 1.2137, -0.9629, -1.6785, -0.2808, -0.4990, 0.6352, 0.8529, -0.8404, 0.9259]","f8":"[-0.4177, 1.2135, -0.9629, -1.6778, -0.2799, -0.4989, 0.6350, 0.8523, -0.8400, 0.9256]","f9":"[-0.4176, 1.2135, -0.9629, -1.6780, -0.2802, -0.4989, 0.6350, 0.8525, -0.8401, 0.9257]","sn":"[-3.9338, 6.6599, -5.6039, -7.6422, 1.1465, -2.9083, 3.1573, 3.2068, -3.6333, 4.5487]"};
+        const FORMULAS = {"f0":"f0","f1":"f1","f10":"f10 = 0.3·f8 + 0.7·f9","f11":"f11 = 0.3·f9 + 0.7·f10","f2":"f2 = 0.3·f0 + 0.7·f1","f3":"f3 = 0.3·f1 + 0.7·f2","f4":"f4 = 0.3·f2 + 0.7·f3","f5":"f5 = 0.3·f3 + 0.7·f4","f6":"f6 = 0.3·f4 + 0.7·f5","f7":"f7 = 0.3·f5 + 0.7·f6","f8":"f8 = 0.3·f6 + 0.7·f7","f9":"f9 = 0.3·f7 + 0.7·f8","sn":"sn = Σ(f0, f3, f5, f7, f9, f11)"};
+        const IS_LEAF = {"f0":true,"f1":true,"f10":false,"f11":false,"f2":false,"f3":false,"f4":false,"f5":false,"f6":false,"f7":false,"f8":false,"f9":false,"sn":false};
+
+        let currentStep = -1;
+        let playing = false;
+        let timer = null;
+        const svg = document.getElementById('svg-canvas');
+        const svgContainer = document.getElementById('svg-container');
+        const tooltip = document.getElementById('tooltip');
+
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isPanning = false;
+        let startPanX, startPanY;
+
+        function updateTransform() {
+            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        function zoomIn() { scale *= 1.2; updateTransform(); }
+        function zoomOut() { scale /= 1.2; updateTransform(); }
+        function zoomReset() { scale = 1; translateX = 0; translateY = 0; updateTransform(); }
+
+        svgContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = svgContainer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const factor = e.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = scale * factor;
+            const dx = mouseX - translateX;
+            const dy = mouseY - translateY;
+            translateX = mouseX - dx * (newScale / scale);
+            translateY = mouseY - dy * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        });
+
+        svgContainer.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                isPanning = true;
+                startPanX = e.clientX - translateX;
+                startPanY = e.clientY - translateY;
+                e.preventDefault();
+            }
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                translateX = e.clientX - startPanX;
+                translateY = e.clientY - startPanY;
+                updateTransform();
+            }
+        });
+        window.addEventListener('mouseup', () => { isPanning = false; });
+
+        const nodeValues = {};
+        for (let n of NODES) {
+            nodeValues[n.id] = { fwd: FULL_VALUES[n.id] || "?", bwd: "" };
+        }
+
+        function init() {
+            // Tracé intelligent des arêtes : contournement des nœuds
+            EDGES.forEach(e => {
+                const from = NODES.find(n => n.id === e[0]);
+                const to = NODES.find(n => n.id === e[1]);
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+
+                const x1 = from.x + from.w;
+                const y1 = from.y + from.h/2;
+                const x2 = to.x;
+                const y2 = to.y + to.h/2;
+
+                // Détermine le sens du contournement (au-dessus ou en dessous)
+                const dy = y2 - y1;
+                const goAbove = dy > 0; // si la destination est plus basse, on passe au-dessus
+                // Amplitude de la courbe proportionnelle à la distance verticale
+                const amplitude = Math.max(40, Math.abs(dy) * 0.5 + 20);
+                const cp1x = x1 + (x2 - x1) * 0.4;
+                const cp1y = y1 + (goAbove ? -amplitude : amplitude);
+                const cp2x = x2 - (x2 - x1) * 0.4;
+                const cp2y = y2 + (goAbove ? amplitude : -amplitude);
+
+                const d = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+                path.setAttribute("d", d);
+                path.setAttribute("class", "edge-path");
+                path.setAttribute("id", "edge-" + e[0] + "-" + e[1]);
+                svg.appendChild(path);
+            });
+
+            NODES.forEach(n => {
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttribute("x", n.x); rect.setAttribute("y", n.y);
+                rect.setAttribute("width", n.w); rect.setAttribute("height", n.h);
+                rect.setAttribute("rx", "6");
+                rect.setAttribute("class", "node-rect");
+                rect.setAttribute("id", "node-" + n.id);
+
+                if (n.is_param) {
+                    rect.setAttribute("style", "fill: #e2e8f0; stroke: #64748b;");
+                } else {
+                    rect.setAttribute("style", "fill: #ffffff; stroke: #cbd5e0;");
+                }
+
+                rect.addEventListener("mouseenter", (e) => {
+                    const vals = nodeValues[n.id];
+                    let msg = "<b>" + n.id + "</b>";
+                    if (vals.fwd !== "?") msg += "<br>forward: <pre>" + vals.fwd + "</pre>";
+                    if (vals.bwd) msg += "<br>backward: <pre>" + vals.bwd + "</pre>";
+                    const rect = e.target.getBoundingClientRect();
+                    tooltip.style.display = "block";
+                    tooltip.style.left = (rect.right + 15) + "px";
+                    tooltip.style.top = (rect.top - 10) + "px";
+                    tooltip.innerHTML = msg;
+                });
+                rect.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+
+                const formula = FORMULAS[n.id] || n.id;
+                const nameText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                nameText.setAttribute("x", n.x + n.w/2);
+                nameText.setAttribute("y", n.y + 18);
+                nameText.setAttribute("text-anchor", "middle");
+                nameText.setAttribute("style", "font-size:11px; font-weight:bold; fill: #1e293b;");
+                nameText.textContent = formula;
+
+                const fwdText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                fwdText.setAttribute("x", n.x + n.w/2);
+                fwdText.setAttribute("y", n.y + 40);
+                fwdText.setAttribute("text-anchor", "middle");
+                fwdText.setAttribute("id", "valtext-" + n.id);
+                fwdText.setAttribute("style", "font-size:10px; fill: #475569;");
+                if (n.is_leaf) {
+                    fwdText.textContent = INITIAL_VALUES[n.id] !== "?" ? INITIAL_VALUES[n.id] : "";
+                } else {
+                    fwdText.textContent = "";
+                }
+
+                const bwdText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                bwdText.setAttribute("x", n.x + n.w/2);
+                bwdText.setAttribute("y", n.y + 58);
+                bwdText.setAttribute("text-anchor", "middle");
+                bwdText.setAttribute("id", "gradtext-" + n.id);
+                bwdText.setAttribute("style", "font-size:10px; fill: #c53030;");
+                bwdText.textContent = "";
+
+                g.appendChild(rect);
+                g.appendChild(nameText);
+                g.appendChild(fwdText);
+                g.appendChild(bwdText);
+                svg.appendChild(g);
+            });
+        }
+
+        function step(dir) {
+            currentStep += dir;
+            if (currentStep < -1) currentStep = -1;
+            if (currentStep >= LOG.length) currentStep = LOG.length - 1;
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('status').textContent = "Step: " + (currentStep + 1) + " / " + LOG.length;
+
+            document.querySelectorAll('.node-rect').forEach(r => {
+                r.className.baseVal = 'node-rect';
+                const n = NODES.find(n => n.id === r.id.replace('node-', ''));
+                if (n) {
+                    r.setAttribute("style", n.is_param ? "fill: #e2e8f0; stroke: #64748b;" : "fill: #ffffff; stroke: #cbd5e0;");
+                }
+            });
+            document.querySelectorAll('.edge-path').forEach(e => { e.className.baseVal = 'edge-path'; });
+
+            for (let n of NODES) {
+                const vt = document.getElementById('valtext-' + n.id);
+                if (vt) {
+                    if (n.is_leaf) vt.textContent = INITIAL_VALUES[n.id] !== "?" ? INITIAL_VALUES[n.id] : "";
+                    else vt.textContent = "";
+                }
+                const gt = document.getElementById('gradtext-' + n.id);
+                if (gt) gt.textContent = "";
+                nodeValues[n.id] = { fwd: FULL_VALUES[n.id] || "?", bwd: "" };
+            }
+
+            if (currentStep === -1) {
+                document.getElementById('log-panel').innerHTML = '';
+                return;
+            }
+
+            let lastFinishedForwardNode = null;
+            for (let i = 0; i <= currentStep; i++) {
+                const ev = LOG[i];
+                const rect = document.getElementById('node-' + ev.node);
+                if (rect) {
+                    if (ev.status === 'starting') {
+                        rect.className.baseVal = ev.phase === 'forward' ? 'node-rect node-fwd' : 'node-rect node-bwd';
+                    } else {
+                        if (ev.phase === 'forward') {
+                            rect.className.baseVal = 'node-rect';
+                            lastFinishedForwardNode = ev.node;
+                            const vt = document.getElementById('valtext-' + ev.node);
+                            if (vt) {
+                                vt.textContent = INITIAL_VALUES[ev.node] || ev.val;
+                                vt.style.fill = "#475569";
+                            }
+                            nodeValues[ev.node].fwd = FULL_VALUES[ev.node] || ev.val;
+                        } else if (ev.phase === 'backward') {
+                            rect.className.baseVal = 'node-rect node-done';
+                            const gt = document.getElementById('gradtext-' + ev.node);
+                            if (gt) {
+                                gt.textContent = ev.val;
+                                gt.style.fill = "#c53030";
+                            }
+                            nodeValues[ev.node].bwd = ev.val;
+                        }
+                    }
+                }
+                EDGES.forEach(e => {
+                    if (e[1] === ev.node) {
+                        const edge = document.getElementById('edge-' + e[0] + '-' + e[1]);
+                        if (edge) {
+                            edge.className.baseVal = ev.phase === 'forward' ? 'edge-path edge-fwd' : 'edge-path edge-bwd';
+                        }
+                    }
+                });
+            }
+
+            if (lastFinishedForwardNode) {
+                const finalRect = document.getElementById('node-' + lastFinishedForwardNode);
+                if (finalRect) finalRect.className.baseVal = 'node-rect node-final';
+                EDGES.forEach(e => {
+                    if (e[1] === lastFinishedForwardNode) {
+                        const edge = document.getElementById('edge-' + e[0] + '-' + e[1]);
+                        if (edge) edge.className.baseVal = 'edge-path edge-final';
+                    }
+                });
+            }
+
+            const logPanel = document.getElementById('log-panel');
+            logPanel.innerHTML = LOG.slice(0, currentStep + 1).reverse().map(ev => 
+                '<div class="log-entry ' + (ev.phase === 'forward' ? 'log-fwd' : 'log-bwd') + '">' +
+                    '<b>' + ev.phase.toUpperCase() + '</b>: ' + ev.node + 
+                    ' (' + (ev.status === 'starting' ? 'Computing...' : 'Done: ' + ev.val) + ')' +
+                '</div>'
+            ).join('');
+        }
+
+        function togglePlay() {
+            playing = !playing;
+            document.getElementById('playBtn').textContent = playing ? 'Pause' : 'Play';
+            if (playing) {
+                timer = setInterval(() => {
+                    if (currentStep < LOG.length - 1) step(1);
+                    else togglePlay();
+                }, 500);
+            } else {
+                clearInterval(timer);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

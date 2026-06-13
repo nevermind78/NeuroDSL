@@ -21,7 +21,7 @@ training_frames/
 adds/
 
 # Fichiers de visualisation générés (si tu veux les garder, supprime cette ligne)
-*.html
+
 *.dot
 *.svg
 

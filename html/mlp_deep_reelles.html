@@ -1,0 +1,363 @@
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>MLP profond - valeurs réelles</title>
+    <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,sans-serif;background:#F8F7F4;color:#1A1916;padding:1rem}
+    h1{font-size:15px;font-weight:600;margin-bottom:1rem;color:#1A1916}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+    .panel{background:#fff;border:0.5px solid #E5E3DC;border-radius:10px;padding:1rem}
+    .panel-title{font-size:11px;font-weight:500;color:#888780;margin-bottom:.7rem;text-transform:uppercase;letter-spacing:.06em}
+    #graph-svg{width:100%;overflow:visible}
+    .badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500}
+    .badge-input{background:#E6F1FB;color:#185FA5}
+    .badge-param{background:#E7F5D8;color:#3B6D11}
+    .badge-computed{background:#F1EFE8;color:#888780}
+    .badge-output{background:#D8F0C8;color:#2A5A08}
+    .node-card{border:0.5px solid #E5E3DC;border-radius:7px;padding:.45rem .7rem;margin-bottom:.4rem;cursor:pointer;transition:border-color .12s,background .12s;background:#fff}
+    .node-card:hover{border-color:#B4B2A9;background:#F8F7F4}
+    .node-card.selected{border-color:#185FA5!important;background:#E6F1FB}
+    .node-card.active-demand{border-color:#3B6D11!important;background:#E7F5D8}
+    .node-name{font-size:13px;font-weight:500;color:#1A1916}
+    .node-val{font-size:11px;font-family:monospace;color:#888780;margin-top:2px}
+    .valid-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle}
+    .dot-valid{background:#639922}.dot-invalid{background:#E24B4A}.dot-param{background:#185FA5}
+    .rule-row{display:flex;align-items:baseline;gap:6px;font-size:11px;margin-bottom:3px;font-family:monospace}
+    .rule-lhs{font-weight:600;color:#1A1916}.rule-rhs{color:#888780}
+    .btn{background:#fff;border:0.5px solid #B4B2A9;border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;color:#1A1916;transition:background .12s}
+    .btn:hover{background:#F1EFE8}
+    .btn-primary{background:#E6F1FB;color:#185FA5;border-color:#185FA5}
+    .log-line{font-size:10px;font-family:monospace;color:#888780;padding:1px 0;line-height:1.5}
+    .log-line.info{color:#185FA5}.log-line.success{color:#3B6D11}.log-line.warn{color:#BA7517}
+    input[type=range]{width:100%;accent-color:#185FA5}
+    .slider-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}
+    .slider-row label{min-width:60px;color:#888780}
+    .slider-val{min-width:40px;font-family:monospace;font-size:11px;color:#1A1916}
+    </style>
+    </head>
+    <body>
+    <h1 id="graph-title"></h1>
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-title">Graphe de computation</div>
+        <svg id="graph-svg"></svg>
+      </div>
+      <div class="panel" style="display:flex;flex-direction:column;gap:.75rem">
+        <div>
+          <div class="panel-title">Nœud sélectionné</div>
+          <div id="node-detail" style="font-size:12px;color:#888780">Cliquer un nœud.</div>
+        </div>
+        <div>
+          <div class="panel-title">DSL — @addrules</div>
+          <div id="rules-display"></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-title">Paramètres d'entrée</div>
+        <div id="sliders"></div>
+        <div style="display:flex;gap:6px;margin-top:.7rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="runDemand()">&#9654; demand!(sortie)</button>
+          <button class="btn" onclick="resetGraph()">&#8635; Reset</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Log réactif</div>
+        <div id="log" style="max-height:170px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Datoms &amp; Atoms</div>
+      <div id="atoms-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.4rem"></div>
+    </div>
+    <script>
+    const GRAPH_DATA = JSON.parse(atob("eyJ0aXRsZSI6IlZhbGV1cnMgcsOpZWxsZXMiLCJjYW52YXMiOnsidyI6MTE5MiwiaCI6ODMyfSwiYXRvbXMiOnsiQTEiOnsia2luZCI6ImNvbXB1dGVkIiwiaXNfcGFyYW0iOmZhbHNlLCJsYWJlbCI6IkExIiwic3ViIjoicmVsdShIMSkiLCJpbml0X3ZhbCI6WzEuMDY5NDU0MDczOTA1OTQ0OCwxLjMwODY5MjMzNjA4MjQ1ODUsMC41NzU2NTcyNDg0OTcwMDkzLDEuNjIxMTMwNzA0ODc5NzYwN119LCJBMiI6eyJraW5kIjoiY29tcHV0ZWQiLCJpc19wYXJhbSI6ZmFsc2UsImxhYmVsIjoiQTIiLCJzdWIiOiJyZWx1KEgyKSIsImluaXRfdmFsIjpbMzQuNzE3MjEyNjc3MDAxOTUsMzYuNzEyNzU3MTEwNTk1NywzNy43MjM1NjAzMzMyNTE5NSwzOC41NTQ2NTMxNjc3MjQ2MV19LCJBMyI6eyJraW5kIjoiY29tcHV0ZWQiLCJpc19wYXJhbSI6ZmFsc2UsImxhYmVsIjoiQTMiLCJzdWIiOiJyZWx1KEgzKSIsImluaXRfdmFsIjpbNTQyLjk4NjYzMzMwMDc4MTIsNTc1LjIwODAwNzgxMjUsNTU4LjA4MDYyNzQ0MTQwNjIsNTc3LjU5MjU5MDMzMjAzMTJdfSwiSDEiOnsia2luZCI6ImNvbXB1dGVkIiwiaXNfcGFyYW0iOmZhbHNlLCJsYWJlbCI6IkgxIiwic3ViIjoibGluZWFyKFgsIFcxLCBiMSkiLCJpbml0X3ZhbCI6WzEuMDY5NDU0MDczOTA1OTQ0OCwxLjMwODY5MjMzNjA4MjQ1ODUsMC41NzU2NTcyNDg0OTcwMDkzLDEuNjIxMTMwNzA0ODc5NzYwN119LCJIMiI6eyJraW5kIjoiY29tcHV0ZWQiLCJpc19wYXJhbSI6ZmFsc2UsImxhYmVsIjoiSDIiLCJzdWIiOiJsaW5lYXIoQTEsIFcyLCBiMikiLCJpbml0X3ZhbCI6WzM0LjcxNzIxMjY3NzAwMTk1LDM2LjcxMjc1NzExMDU5NTcsMzcuNzIzNTYwMzMzMjUxOTUsMzguNTU0NjUzMTY3NzI0NjFdfSwiSDMiOnsia2luZCI6ImNvbXB1dGVkIiwiaXNfcGFyYW0iOmZhbHNlLCJsYWJlbCI6IkgzIiwic3ViIjoibGluZWFyKEEyLCBXMywgYjMpIiwiaW5pdF92YWwiOls1NDIuOTg2NjMzMzAwNzgxMiw1NzUuMjA4MDA3ODEyNSw1NTguMDgwNjI3NDQxNDA2Miw1NzcuNTkyNTkwMzMyMDMxMl19LCJXMSI6eyJraW5kIjoicGFyYW0iLCJpc19wYXJhbSI6dHJ1ZSwibGFiZWwiOiJXMSIsInN1YiI6InBhcmFtw6h0cmUiLCJpbml0X3ZhbCI6WzAuOTA5NjQ2ODA5MTAxMTA0NywwLjkwMjkyODU5MDc3NDUzNjEsMC40MTE5NTQ4MjAxNTYwOTc0LDAuNzEwOTg4NTgxMTgwNTcyNV19LCJXMiI6eyJraW5kIjoicGFyYW0iLCJpc19wYXJhbSI6dHJ1ZSwibGFiZWwiOiJXMiIsInN1YiI6InBhcmFtw6h0cmUiLCJpbml0X3ZhbCI6WzAuNzgyNTk4MTk3NDYwMTc0NiwwLjU4NjA2OTgyMjMxMTQwMTQsMC43NDY2ODI1MjQ2ODEwOTEzLDAuNDEyOTU5Njk0ODYyMzY1N119LCJXMyI6eyJraW5kIjoicGFyYW0iLCJpc19wYXJhbSI6dHJ1ZSwibGFiZWwiOiJXMyIsInN1YiI6InBhcmFtw6h0cmUiLCJpbml0X3ZhbCI6WzAuMTUxMzY2MTE0NjE2Mzk0MDQsMC44ODI1OTQxMDg1ODE1NDMsMC41OTcxODI1NzE4ODc5NywwLjk5OTcwOTAxMDEyNDIwNjVdfSwiVzQiOnsia2luZCI6InBhcmFtIiwiaXNfcGFyYW0iOnRydWUsImxhYmVsIjoiVzQiLCJzdWIiOiJwYXJhbcOodHJlIiwiaW5pdF92YWwiOlswLjA0NjkzNjg2OTYyMTI3Njg1NSwwLjU2NTM0MDkzNjE4MzkyOTQsMC4zNjcyMjcyNTYyOTgwNjUyLDAuNTY4OTI1NDQwMzExNDMxOV19LCJYIjp7ImtpbmQiOiJpbnB1dCIsImlzX3BhcmFtIjpmYWxzZSwibGFiZWwiOiJYIiwic3ViIjoiZW50csOpZSBzb3VyY2UiLCJpbml0X3ZhbCI6WzAuMzg1OTMzMDQxNTcyNTcwOCwwLjgxNjcyMzA0ODY4Njk4MTJdfSwiWSI6eyJraW5kIjoib3V0cHV0IiwiaXNfcGFyYW0iOmZhbHNlLCJsYWJlbCI6IlkiLCJzdWIiOiJsaW5lYXIoQTMsIFc0LCBiNCkiLCJpbml0X3ZhbCI6WzM5MTUuNDI0MDcyMjY1NjI1XX0sImIxIjp7ImtpbmQiOiJwYXJhbSIsImlzX3BhcmFtIjp0cnVlLCJsYWJlbCI6ImIxIiwic3ViIjoicGFyYW3DqHRyZSIsImluaXRfdmFsIjpbMC4zNzE3MzUyMTUxODcwNzI3NSwwLjcxNzk5OTU3NzUyMjI3NzgsMC4zNzMyMjUzOTA5MTExMDIzLDAuOTIyMzYxOTEwMzQzMTcwMl19LCJiMiI6eyJraW5kIjoicGFyYW0iLCJpc19wYXJhbSI6dHJ1ZSwibGFiZWwiOiJiMiIsInN1YiI6InBhcmFtw6h0cmUiLCJpbml0X3ZhbCI6WzAuNTMyMzAxMzY2MzI5MTkzMSwwLjgxNDQzNzI3MDE2NDQ4OTcsMC41ODEyNDk0NzU0NzkxMjYsMC42MTk5MzA2ODQ1NjY0OTc4XX0sImIzIjp7ImtpbmQiOiJwYXJhbSIsImlzX3BhcmFtIjp0cnVlLCJsYWJlbCI6ImIzIiwic3ViIjoicGFyYW3DqHRyZSIsImluaXRfdmFsIjpbMC4yNzk5MzUwNjE5MzE2MTAxLDAuMzExNjQwMzgxODEzMDQ5MywwLjY0MjA5MjI4NzU0MDQzNTgsMC45NDM1ODA4MDYyNTUzNDA2XX0sImI0Ijp7ImtpbmQiOiJwYXJhbSIsImlzX3BhcmFtIjp0cnVlLCJsYWJlbCI6ImI0Iiwic3ViIjoicGFyYW3DqHRyZSIsImluaXRfdmFsIjpbMC4zMTczMDE4MDk3ODc3NTAyNF19fSwicnVsZXMiOlt7Im91dCI6IkExIiwiaW5zIjpbIkgxIl0sIm9wIjoicmVsdSIsImRzbCI6IkExID0gcmVsdShIMSkifSx7Im91dCI6IkEyIiwiaW5zIjpbIkgyIl0sIm9wIjoicmVsdSIsImRzbCI6IkEyID0gcmVsdShIMikifSx7Im91dCI6IkEzIiwiaW5zIjpbIkgzIl0sIm9wIjoicmVsdSIsImRzbCI6IkEzID0gcmVsdShIMykifSx7Im91dCI6IkgxIiwiaW5zIjpbIlgiLCJXMSIsImIxIl0sIm9wIjoibGluZWFyIiwiZHNsIjoiSDEgPSBsaW5lYXIoWCwgVzEsIGIxKSJ9LHsib3V0IjoiSDIiLCJpbnMiOlsiQTEiLCJXMiIsImIyIl0sIm9wIjoibGluZWFyIiwiZHNsIjoiSDIgPSBsaW5lYXIoQTEsIFcyLCBiMikifSx7Im91dCI6IkgzIiwiaW5zIjpbIkEyIiwiVzMiLCJiMyJdLCJvcCI6ImxpbmVhciIsImRzbCI6IkgzID0gbGluZWFyKEEyLCBXMywgYjMpIn0seyJvdXQiOiJZIiwiaW5zIjpbIkEzIiwiVzQiLCJiNCJdLCJvcCI6ImxpbmVhciIsImRzbCI6IlkgPSBsaW5lYXIoQTMsIFc0LCBiNCkifV0sIm5vZGVzIjpbeyJpZCI6IkExIiwieCI6MzA4LCJ5IjozOTgsInciOjg0LCJoIjozNn0seyJpZCI6IkEyIiwieCI6NTk2LCJ5IjozOTgsInciOjg0LCJoIjozNn0seyJpZCI6IkEzIiwieCI6ODg0LCJ5IjozOTgsInciOjg0LCJoIjozNn0seyJpZCI6IkgxIiwieCI6MTY0LCJ5IjozOTgsInciOjg0LCJoIjozNn0seyJpZCI6IkgyIiwieCI6NDUyLCJ5IjozOTgsInciOjg0LCJoIjozNn0seyJpZCI6IkgzIiwieCI6NzQwLCJ5IjozOTgsInciOjg0LCJoIjozNn0seyJpZCI6IlcxIiwieCI6MjAsInkiOjQ2LCJ3Ijo4NCwiaCI6MzZ9LHsiaWQiOiJXMiIsIngiOjIwLCJ5IjoxMzQsInciOjg0LCJoIjozNn0seyJpZCI6IlczIiwieCI6MjAsInkiOjIyMiwidyI6ODQsImgiOjM2fSx7ImlkIjoiVzQiLCJ4IjoyMCwieSI6MzEwLCJ3Ijo4NCwiaCI6MzZ9LHsiaWQiOiJYIiwieCI6MjAsInkiOjM5OCwidyI6ODQsImgiOjM2fSx7ImlkIjoiWSIsIngiOjEwMjgsInkiOjM5OCwidyI6ODQsImgiOjM2LCJpc190YXJnZXQiOnRydWV9LHsiaWQiOiJiMSIsIngiOjIwLCJ5Ijo0ODYsInciOjg0LCJoIjozNn0seyJpZCI6ImIyIiwieCI6MjAsInkiOjU3NCwidyI6ODQsImgiOjM2fSx7ImlkIjoiYjMiLCJ4IjoyMCwieSI6NjYyLCJ3Ijo4NCwiaCI6MzZ9LHsiaWQiOiJiNCIsIngiOjIwLCJ5Ijo3NTAsInciOjg0LCJoIjozNn1dLCJlZGdlcyI6W1siSDEiLCJBMSJdLFsiSDMiLCJBMyJdLFsiSDIiLCJBMiJdLFsiQTMiLCJZIl0sWyJXNCIsIlkiXSxbImI0IiwiWSJdLFsiQTEiLCJIMiJdLFsiVzIiLCJIMiJdLFsiYjIiLCJIMiJdLFsiWCIsIkgxIl0sWyJXMSIsIkgxIl0sWyJiMSIsIkgxIl0sWyJBMiIsIkgzIl0sWyJXMyIsIkgzIl0sWyJiMyIsIkgzIl1dLCJwYXJhbXMiOnt9fQ=="));
+    const OPS = {
+      linear: function(ins, vals) {
+        var x = vals[0], w = vals[1], b = vals[2];
+        if (!b) {
+          var r = [];
+          for (var i = 0; i < Math.min(w.length, 4); i++) {
+            var s = 0;
+            for (var j = 0; j < x.length; j++) s += x[j] * (w[i] || 0);
+            r.push(s);
+          }
+          return [r];
+        }
+        return [b.map(function(bi, i) { return x.reduce(function(s,v) { return s + v * (w[i] || 0); }, 0) + bi; })];
+      },
+      matmul: function(ins, vals) {
+        const x = vals[0];
+        const w = vals[1];
+        if (!x || !w) return [[0]];
+        const out = [];
+        const outDim = Math.floor(w.length / x.length);
+        for (let j = 0; j < outDim; j++) {
+          let s = 0;
+          for (let i = 0; i < x.length; i++) {
+            s += x[i] * w[j * x.length + i];
+          }
+          out.push(s);
+        }
+        return [out];
+      },
+      rmsnorm: function(ins, vals) {
+        var x = vals[0], g = vals[1];
+        var rms = Math.sqrt(x.reduce(function(s,v) { return s + v*v; }, 0) / x.length + 1e-6);
+        return [x.map(function(v, i) { return (v / rms) * (g[i % g.length] || 1); })];
+      },
+      swiglu: function(ins, vals) {
+        var gate = vals[0], up = vals[1];
+        return [gate.map(function(g, i) { return g * (1/(1+Math.exp(-g))) * (up[i % up.length] || 0); })];
+      }
+    };
+    var atoms = {}, validSet = new Set(), computedOrder = [], selectedNode = null, logs = [], paramValues = {};
+    function initGraph() {
+      atoms = {};
+      validSet = new Set();
+      computedOrder = [];
+      selectedNode = null;
+      logs = [];
+      paramValues = {};
+      document.getElementById('graph-title').textContent = GRAPH_DATA.title;
+      for (var k in GRAPH_DATA.params) paramValues[k] = GRAPH_DATA.params[k].init;
+      for (var key in GRAPH_DATA.atoms) {
+        var a = GRAPH_DATA.atoms[key];
+        var initVal = Array.isArray(a.init_val) ? a.init_val : null;
+        atoms[key] = {
+          label: a.label,
+          kind: a.kind,
+          sub: a.sub,
+          is_param: a.is_param,
+          value: initVal,
+          valid: a.is_param
+        };
+        if (a.is_param) validSet.add(key);
+      }
+      renderAll();
+      addLog('Graphe "' + GRAPH_DATA.title + '" chargé', 'info');
+    }
+    function addLog(msg, type) {
+      logs.unshift({ msg: msg, type: type || '' });
+      if (logs.length > 50) logs.pop();
+      document.getElementById('log').innerHTML = logs.map(function(l) {
+        return '<div class="log-line ' + l.type + '">' + l.msg + '</div>';
+      }).join('');
+    }
+    function demandAtom(name, depth) {
+      if (validSet.has(name)) {
+        addLog('  '.repeat(depth) + '↩ :' + name + ' (cache valide)', 'success');
+        return atoms[name] && atoms[name].value;
+      }
+      var rule = GRAPH_DATA.rules.find(function(r) { return r.out === name; });
+      if (!rule) {
+        var a = atoms[name];
+        if (a && a.value !== null && a.value !== undefined) {
+          validSet.add(name);
+          computedOrder.push(name);
+          addLog('  '.repeat(depth) + '→ :' + name + ' = source injectée', 'info');
+          return a.value;
+        }
+        addLog('  '.repeat(depth) + '✗ :' + name + ' non défini!', 'warn');
+        return null;
+      }
+      addLog('  '.repeat(depth) + '⟳ demand!(:' + name + ') via @addrules', '');
+      var inputVals = rule.ins.map(function(inp) { return demandAtom(inp, depth + 1); });
+      var op = OPS[rule.op];
+      var result;
+      if (op) {
+        try { result = op(rule.ins, inputVals); } catch(e) { result = [[0]]; }
+      } else {
+        result = [inputVals[0] || [0]];
+      }
+      atoms[name] = atoms[name] || { label: name, kind: 'computed', sub: '', is_param: false };
+      atoms[name].value = result[0];
+      atoms[name].valid = true;
+      validSet.add(name);
+      computedOrder.push(name);
+      var valStr = result[0].slice(0, 3).map(function(v) {
+        return typeof v === 'number' ? v.toFixed(3) : v;
+      }).join(', ');
+      addLog('  '.repeat(depth) + '✓ :' + name + ' = [' + valStr + ']', 'success');
+      return atoms[name].value;
+    }
+    function runDemand() {
+      computedOrder = [];
+      var target = GRAPH_DATA.nodes.find(function(n) { return n.is_target; });
+      if (!target) { addLog('Aucun nœud de sortie trouvé.', 'warn'); return; }
+      addLog('--- demand!(:' + target.id + ') ---', 'info');
+      demandAtom(target.id, 0);
+      renderGraph();
+      renderAtoms();
+      renderDetail(selectedNode);
+    }
+    function resetGraph() {
+      for (var k in atoms) {
+        if (!atoms[k].is_param) {
+          atoms[k].value = Array.isArray(GRAPH_DATA.atoms[k]?.init_val) ? [...GRAPH_DATA.atoms[k].init_val] : null;
+        }
+      }
+      validSet = new Set();
+      for (var k in atoms) if (atoms[k].is_param) validSet.add(k);
+      computedOrder = [];
+      addLog('↺ Graphe réinitialisé (atomes invalidés)', 'warn');
+      renderGraph();
+      renderAtoms();
+    }
+    function onParamChange(key, val) {
+      paramValues[key] = +val;
+      if (atoms[key]) atoms[key].value = [+val];
+      invalidateDownstream(key);
+      addLog('⚡ :' + key + ' modifié → invalidation réactive', 'warn');
+      renderGraph();
+      renderAtoms();
+    }
+    function invalidateDownstream(name, visited = new Set()) {
+      if (visited.has(name)) return;
+      visited.add(name);
+      validSet.delete(name);
+      GRAPH_DATA.rules.forEach(function(r) {
+        if (r.ins.indexOf(name) !== -1) {
+          if (atoms[r.out]) atoms[r.out].valid = false;
+          invalidateDownstream(r.out, visited);
+        }
+      });
+    }
+    var KIND_COLOR  = { input:'#185FA5', param:'#3B6D11', output:'#2A5A08', computed:'#888780' };
+    var KIND_STROKE = { input:'#185FA5', param:'#3B6D11', output:'#3B6D11', computed:'#B4B2A9' };
+    function kindFill(k, valid) {
+      if (k === 'output') return valid ? '#D8F0C8' : '#F1EFE8';
+      if (k === 'param')  return '#E6F1FB';
+      if (k === 'input')  return valid ? '#E6F1FB' : '#F8F7F4';
+      return valid ? '#F1EFE8' : '#FAEEDA';
+    }
+    function renderGraph() {
+      var g = GRAPH_DATA;
+      var svg = document.getElementById('graph-svg');
+      svg.setAttribute('viewBox', '0 0 ' + g.canvas.w + ' ' + g.canvas.h);
+      var nodeMap = {};
+      g.nodes.forEach(function(n) { nodeMap[n.id] = n; });
+      var s = '<defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">' +
+              '<path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round"/></marker></defs>';
+      g.edges.forEach(function(e) {
+        var from = e[0], to = e[1];
+        var f = nodeMap[from], t = nodeMap[to];
+        if (!f || !t) return;
+        var active = computedOrder.indexOf(from) !== -1 && computedOrder.indexOf(to) !== -1;
+        var x1 = f.x + f.w, y1 = f.y + f.h / 2;
+        var x2 = t.x,       y2 = t.y + t.h / 2;
+        var mx = (x1 + x2) / 2;
+        var color = active ? '#185FA5' : '#B4B2A9';
+        var sw = active ? 1.5 : 0.8;
+        s += '<path d="M' + x1 + ' ' + y1 + ' C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '" fill="none" stroke="' + color + '" stroke-width="' + sw + '" marker-end="url(#arr)" opacity="' + (active ? 1 : 0.5) + '"/>';
+      });
+      g.nodes.forEach(function(n) {
+        var atom = atoms[n.id];
+        var valid = validSet.has(n.id) || (atom && atom.is_param);
+        var k = atom ? atom.kind : 'computed';
+        var fill = kindFill(k, valid);
+        var isSel = n.id === selectedNode;
+        var stroke = isSel ? '#185FA5' : (computedOrder.indexOf(n.id) !== -1 ? KIND_STROKE[k] : '#B4B2A9');
+        var sw = isSel ? 1.5 : 0.8;
+        var label = atom ? atom.label : n.id;
+        var hasVal = atom && atom.value !== null && atom.value !== undefined;
+        var valStr = hasVal ? '[' + atom.value.slice(0,2).map(function(v) { return typeof v==='number' ? v.toFixed(2) : v; }).join(',') + ']' : '';
+        // LIGNE CORRIGÉE : utilisation de guillemets simples autour du onclick et échappement de l'apostrophe
+        s += '<g style="cursor:pointer" onclick="selectNode(\'' + n.id + '\')">' +
+             '<rect x="' + n.x + '" y="' + n.y + '" width="' + n.w + '" height="' + n.h + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + sw + '"/>' +
+             '<circle cx="' + (n.x + 10) + '" cy="' + (n.y + 10) + '" r="3.5" fill="' + (valid ? KIND_COLOR[k] : '#E24B4A') + '"/>' +
+             '<text x="' + (n.x + n.w/2 + 3) + '" y="' + (n.y + (hasVal ? 13 : n.h/2)) + '" text-anchor="middle" dominant-baseline="central" style="font-size:11px;font-weight:600;fill:' + KIND_COLOR[k] + '">' + label + '</text>';
+        if (hasVal)
+          s += '<text x="' + (n.x + n.w/2) + '" y="' + (n.y + 26) + '" text-anchor="middle" dominant-baseline="central" style="font-size:9px;font-family:monospace;fill:#888780">' + valStr + '</text>';
+        s += '</g>';
+      });
+      svg.innerHTML = s;
+    }
+    function selectNode(id) {
+      selectedNode = (selectedNode === id) ? null : id;
+      renderGraph();
+      renderDetail(selectedNode);
+    }
+    function renderDetail(id) {
+      var el = document.getElementById('node-detail');
+      if (!id || !atoms[id]) {
+        el.innerHTML = '<span style="color:#B4B2A9">Cliquer un nœud.</span>';
+        return;
+      }
+      var atom = atoms[id];
+      var rule = GRAPH_DATA.rules.find(function(r) { return r.out === id; });
+      var valid = validSet.has(id) || atom.is_param;
+      var kindLabel = { input:'Entrée', param:'Paramètre', computed:'Calculé', output:'Sortie' }[atom.kind] || atom.kind;
+      var badgeClass = { input:'badge-input', param:'badge-param', computed:'badge-computed', output:'badge-output' }[atom.kind] || 'badge-computed';
+      var h = '<div style="font-size:13px;font-weight:600;margin-bottom:5px">' + atom.label + '</div>';
+      h += '<div style="margin-bottom:5px"><span class="badge ' + badgeClass + '">' + kindLabel + '</span> ';
+      h += '<span class="valid-dot ' + (valid ? 'dot-valid' : 'dot-invalid') + '"></span>';
+      h += '<span style="font-size:11px;color:#888780">' + (valid ? 'valide' : 'invalide') + '</span></div>';
+      h += '<div style="font-size:11px;color:#888780;margin-bottom:4px">' + atom.sub + '</div>';
+      if (Array.isArray(atom.value)) {
+        var vals = atom.value.slice(0,4).map(function(v) { return typeof v === 'number' ? v.toFixed(4) : v; }).join(', ');
+        h += '<div style="font-size:11px;font-family:monospace;background:#F1EFE8;border-radius:4px;padding:3px 6px;margin-bottom:5px">[' + vals + ']</div>';
+      } else if (atom.value !== null && atom.value !== undefined) {
+        h += '<div style="font-size:11px;font-family:monospace;background:#F1EFE8;border-radius:4px;padding:3px 6px;margin-bottom:5px">' + atom.value + '</div>';
+      }
+      if (rule) {
+        h += '<div style="font-size:10px;font-family:monospace;background:#F8F7F4;border-radius:4px;padding:3px 6px;color:#888780">' + rule.dsl + '</div>';
+        h += '<div style="font-size:11px;color:#B4B2A9;margin-top:3px">op: <b>' + rule.op + '</b> ← ' + rule.ins.join(', ') + '</div>';
+      }
+      el.innerHTML = h;
+    }
+    function renderRules() {
+      var h = '';
+      GRAPH_DATA.rules.forEach(function(r) {
+        h += '<div class="rule-row"><span class="rule-lhs">' + r.out + '</span><span style="color:#B4B2A9">=</span><span class="rule-rhs">' + r.dsl.replace(r.out + ' = ', '') + '</span></div>';
+      });
+      document.getElementById('rules-display').innerHTML = h;
+    }
+    function renderSliders() {
+      var h = '', params = GRAPH_DATA.params;
+      for (var key in params) {
+        var p = params[key];
+        var v = paramValues[key] !== undefined ? paramValues[key] : p.init;
+        var sid = 'sv_' + key.replace(/[^a-z0-9]/gi, '_');
+        // LIGNE CORRIGÉE : échappement des apostrophes dans onParamChange
+        h += '<div class="slider-row"><label>' + p.label + '</label>' +
+             '<input type="range" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '" value="' + v + '" ' +
+             'oninput="onParamChange(\'' + key.replace(/'/g, "\\'") + '\', this.value); document.getElementById(\'' + sid + '\').textContent = parseFloat(this.value).toFixed(2)">' +
+             '<span class="slider-val" id="' + sid + '">' + (+v).toFixed(2) + '</span></div>';
+      }
+document.getElementById('sliders').innerHTML = h || 'Aucun parametre defini';    }
+    function renderAtoms() {
+      var h = '';
+      for (var k in atoms) {
+        var a = atoms[k];
+        var valid = validSet.has(k) || a.is_param;
+        var kindLabel = { input:'Entrée', param:'Paramètre', computed:'Calculé', output:'Sortie' }[a.kind] || a.kind;
+        var badgeClass = { input:'badge-input', param:'badge-param', computed:'badge-computed', output:'badge-output' }[a.kind] || 'badge-computed';
+        var inOrder = computedOrder.indexOf(k) !== -1;
+        var valArr = Array.isArray(a.value) ? a.value : [];
+        var valStr = valArr.length > 0 ? '[' + valArr.slice(0,3).map(function(v) { return typeof v==='number' ? v.toFixed(3) : v; }).join(', ') + (valArr.length > 3 ? ' …' : '') + ']' : '—';
+        // LIGNE CORRIGÉE : onclick avec échappement
+        h += '<div class="node-card' + (k === selectedNode ? ' selected' : '') + (inOrder && !a.is_param ? ' active-demand' : '') + '" onclick="selectNode(\'' + k + '\')">' +
+             '<div style="display:flex;align-items:center;justify-content:space-between">' +
+             '<span class="node-name"><span class="valid-dot ' + (valid ? 'dot-valid' : 'dot-invalid') + '"></span>' + a.label + '</span>' +
+             '<span class="badge ' + badgeClass + '">' + kindLabel + '</span></div>' +
+             '<div class="node-val">' + valStr + '</div></div>';
+      }
+      document.getElementById('atoms-grid').innerHTML = h;
+    }
+    function renderAll() {
+      renderGraph();
+      renderRules();
+      renderSliders();
+      renderAtoms();
+      renderDetail(selectedNode);
+    }
+    initGraph();
+    </script>
+    </body>
+    </html>
+    
