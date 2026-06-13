@@ -82,11 +82,12 @@ Open `demo.html` in your browser (via a local server) and step through the compu
 
 ## 🎥 See It in Action
 
-<p align="center">
-  <img src="assets/viewer_demo.gif" width="85%" alt="NeuroDSL Viewer Demo">
-  <br>
-  <em>Forward (blue) and backward (red) passes — step through epochs, inspect gradients, watch the DAG evolve.</em>
-</p>
+## 🎬 Démonstration
+
+<video width="100%" controls>
+  <source src="html/NeuroDSL.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 > *“Imagine a graph that can think on its own, respond on its own, and recompute only what’s needed.”*
 
