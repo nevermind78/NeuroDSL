@@ -83,10 +83,7 @@ Open `demo.html` in your browser (via a local server) and step through the compu
 ## 🎥 See It in Action
 
 
-<video width="100%" controls>
-  <source src="html/NeuroDSL.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![NeuroDSL Demo](html/thumbnail.png)](html/NeuroDSL.mp4)
 
 > *“Imagine a graph that can think on its own, respond on its own, and recompute only what’s needed.”*
 
