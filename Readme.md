@@ -55,7 +55,8 @@ using NeuroDSL
 ## 🧪 Quick Start
 
 ```julia
-using NeuroDSL
+include("../src/NeuroDSL.jl")
+using .NeuroDSL
 
 # Build a dynamic graph
 g = NeuroDSL.JuliusGraph()
