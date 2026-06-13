@@ -83,7 +83,7 @@ Open `demo.html` in your browser (via a local server) and step through the compu
 ## 🎥 See It in Action
 
 
-[![NeuroDSL Demo](html/thumbnail.png)](html/NeuroDSL.mp4)
+[![NeuroDSL Demo](html/thumbnail.png)](html/NeuroDSL.gif)
 
 > *“Imagine a graph that can think on its own, respond on its own, and recompute only what’s needed.”*
 
