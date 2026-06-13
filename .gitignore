@@ -5,7 +5,7 @@ Manifest.toml
 # Fichiers volumineux (à garder en local seulement)
 *.mp4
 *.png
-*.gif
+
 *.json   # si ce sont des logs de debug
 
 # Temporaires
