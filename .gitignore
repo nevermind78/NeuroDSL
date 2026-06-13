@@ -1,0 +1,28 @@
+# Julia
+Manifest.toml
+*.ipynb_checkpoints
+
+# Fichiers volumineux (à garder en local seulement)
+*.mp4
+*.png
+*.gif
+*.json   # si ce sont des logs de debug
+
+# Temporaires
+*.log
+*.aux
+*.out
+
+# Environnement Julia
+LocalPreferences.toml
+
+# Dossiers de benchmarks/frames inutiles pour le dépôt public
+training_frames/
+adds/
+
+# Fichiers de visualisation générés (si tu veux les garder, supprime cette ligne)
+*.html
+*.dot
+*.svg
+
+src/all.txt
