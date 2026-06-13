@@ -49,6 +49,11 @@ Then in Julia:
 ```julia
 using NeuroDSL
 ```
+or 
+````julia
+include("../src/NeuroDSL.jl")
+using .NeuroDSL
+```
 
 ---
 
