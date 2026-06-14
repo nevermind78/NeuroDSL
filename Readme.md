@@ -50,7 +50,8 @@ Then in Julia:
 using NeuroDSL
 ```
 or 
-````julia
+
+```julia
 include("../src/NeuroDSL.jl")
 using .NeuroDSL
 ```
