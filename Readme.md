@@ -125,7 +125,7 @@ The interactive viewer makes these dynamic behaviors **visible** — ideal for d
 ```bibtex
 @article{neurodsl2026,
   title   = {NeuroDSL: A Dynamic Computational Graph Framework with Optimal Memory Planning},
-  author  = {Your Name},
+  author  = Abdallah Khemais,
   journal = {arXiv preprint arXiv:2606.XXXXX},
   year    = {2026}
 }
