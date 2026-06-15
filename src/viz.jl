@@ -4,10 +4,15 @@ using JSON, Printf
 # Types pour les snapshots d'entraînement
 # ═════════════════════════════════════════════════════════════════════════════
 mutable struct TrainingSnapshot
-    epoch :: Int
-    iter  :: Int
-    loss  :: Float32
-    log   :: ExecutionLog
+    epoch  :: Int
+    iter   :: Int
+    loss   :: Float32
+    log    :: ExecutionLog
+    params :: Dict{Symbol, AbstractArray{Float32}}
+    # Constructeur avec paramètres optionnel (params vide par défaut)
+    function TrainingSnapshot(epoch, iter, loss, log, params = Dict{Symbol, AbstractArray{Float32}}())
+        new(epoch, iter, loss, log, params)
+    end
 end
 
 mutable struct TrainingRecorder
@@ -127,7 +132,10 @@ function save_interactive_graph(graph::NeuroGraph, log::ExecutionLog,
 
     for (sym, nd) in graph.nodes[ns]
         k = string(sym)
-        init_vals[k]  = nd.value !== nothing ? format_tensor_short(nd.value) : "?"
+        init_vals[k] = nd.value !== nothing ? begin
+                                                    s = size(nd.value)
+                                                    "[" * join(s, "×") * "]"
+                                                end : "?"
         full_vals[k]  = nd.value !== nothing ? format_tensor_full(nd.value)  : "?"
         formulas[k]   = node_formula_text(graph, sym, ns)
         is_leaf_d[k]  = !haskey(rules_ns, sym)
@@ -238,6 +246,38 @@ body {
   overflow-x:auto;    /* ← ajout pour permettre le défilement horizontal */
   max-width:100%;      /* garantit que le pre ne dépasse pas la tooltip */
 }
+.tooltip-left, .tooltip-right {
+  position:fixed;
+  background:#1e2030;
+  color:#e5e7eb;
+  padding:12px 16px;
+  border-radius:12px;
+  font-size:12px;
+  pointer-events:none;
+  display:none;
+  z-index:9999;
+  max-width:600px;
+  max-height:70vh;
+  overflow:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+  border:1px solid #3b3f53;
+  font-family: 'Consolas', monospace;
+}
+.tooltip-left {
+  left: auto;
+  right: calc(100% + 14px);
+}
+.tooltip-right {
+  left: calc(100% + 14px);
+  right: auto;
+}
+.tooltip-left b, .tooltip-right b { color:#d4a373; }
+.tooltip-left pre, .tooltip-right pre {
+  margin:6px 0 0;
+  font-size:10px;
+  white-space:pre;
+  color:#d1d5db;
+}
 /* ── Zoom ────────────────────────────────────────────────────────────────── */
 .zoom-bar {
   position: absolute; bottom: 14px; right: 14px;
@@ -272,7 +312,8 @@ body {
     <button class="zoom-btn" onclick="zoomOut()" title="Zoom −">−</button>
     <button class="zoom-btn" onclick="zoomFit()" title="Fit">⊡</button>
   </div>
-  <div id="tooltip" class="tooltip"></div>
+  <div id="tooltip-left" class="tooltip-left"></div>
+  <div id="tooltip-right" class="tooltip-right"></div>
 </div>
 
 <script>
@@ -425,7 +466,11 @@ function trunc(s, max=24) { return s.length > max ? s.slice(0, max-1) + '…' : 
 const nodeVals = Object.fromEntries(
   NODES.map(n => [n.id, { fwd: FULL_VALS[n.id] || '?', bwd: '' }])
 );
-const tooltip = document.getElementById('tooltip');
+const tooltipLeft = document.getElementById('tooltip-left');
+const tooltipRight = document.getElementById('tooltip-right');
+
+let currentParamValues = {};
+let currentParamFull = {};
 
 // ── Construction initiale du SVG ──────────────────────────────────────────────
 function init() {
@@ -459,17 +504,31 @@ function init() {
 
     // Tooltip au survol
     rect.addEventListener('mouseenter', e => {
-      const v = nodeVals[n.id];
-      let htm = `<b>\${n.id}</b>`;
-      if (v.fwd && v.fwd !== '?') htm += `<br>fwd :<pre>\${v.fwd}</pre>`;
-      if (v.bwd)                   htm += `<br>grad :<pre>\${v.bwd}</pre>`;
-      tooltip.style.display = 'block';
-      const r = e.target.getBoundingClientRect();
-      tooltip.style.left = (r.right + 14) + 'px';
-      tooltip.style.top  = Math.max(8, r.top - 8) + 'px';
-      tooltip.innerHTML  = htm;
-    });
-    rect.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+    const v = nodeVals[n.id];
+    // Tooltip gauche : poids (version complète)
+    if (n.is_param && currentParamFull[n.id]) {
+        tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
+        tooltipLeft.style.display = 'block';
+        const r = e.target.getBoundingClientRect();
+        tooltipLeft.style.right = (window.innerWidth - r.left + 14) + 'px';
+        tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
+    } else {
+        tooltipLeft.style.display = 'none';
+    }
+    // Tooltip droite : forward + gradient
+    let rightHtml = "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
+    if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
+    tooltipRight.innerHTML = rightHtml;
+    tooltipRight.style.display = 'block';
+    const r = e.target.getBoundingClientRect();
+    tooltipRight.style.left = (r.right + 14) + 'px';
+    tooltipRight.style.top = Math.max(8, r.top - 8) + 'px';
+});
+rect.addEventListener('mouseleave', () => {
+    tooltipLeft.style.display = 'none';
+    tooltipRight.style.display = 'none';
+});
+    
 
     // Séparateur visuel entre formule et valeurs
     const sep = document.createElementNS(SVGNS, 'line');
@@ -533,7 +592,6 @@ function updateUI() {
     if (vt) vt.textContent = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
     const gt = document.getElementById(`grad-\${n.id}`);
     if (gt) gt.textContent = '';
-    nodeVals[n.id] = { fwd: FULL_VALS[n.id] || '?', bwd: '' };
   });
   EDGES.forEach(([s, d]) => setEC(s, d, 'edge-default', 'arr-default'));
 
@@ -671,7 +729,10 @@ function save_interactive_graph_animated(
 
     for (sym, nd) in graph.nodes[ns]
         k = string(sym)
-        init_vals[k]  = nd.value !== nothing ? format_tensor_short(nd.value) : "?"
+        init_vals[k] = nd.value !== nothing ? begin
+                                                      s = size(nd.value)
+                                                      "[" * join(s, "×") * "]"
+                                                  end : "?"
         full_vals[k]  = nd.value !== nothing ? format_tensor_full(nd.value)  : "?"
         formulas[k]   = node_formula_text(graph, sym, ns)
         is_leaf_d[k]  = !haskey(rules_ns, sym)
@@ -687,16 +748,18 @@ function save_interactive_graph_animated(
 
     # ── Snapshots → JSON ─────────────────────────────────────────────────────
     snaps_json = JSON.json([Dict(
-        :epoch => s.epoch,
-        :iter  => s.iter,
-        :loss  => Float64(s.loss),
-        :events => [Dict(
-            :node   => string(e[:node]),
-            :phase  => e[:phase],
-            :status => e[:status],
-            :val    => something(e[:value], "")
-        ) for e in s.log.events]
-    ) for s in snapshots])
+      :epoch => s.epoch,
+      :iter  => s.iter,
+      :loss  => Float64(s.loss),
+      :events => [Dict(
+          :node   => string(e[:node]),
+          :phase  => e[:phase],
+          :status => e[:status],
+          :val    => something(e[:value], "")
+      ) for e in s.log.events],
+      :params => Dict(string(k) => format_tensor_short(v) for (k,v) in s.params),
+      :params_full => Dict(string(k) => format_tensor_full(v) for (k,v) in s.params)
+  ) for s in snapshots])
 
     losses_json = JSON.json([Float64(l) for l in losses])
 
@@ -853,6 +916,38 @@ body {
 .tooltip pre { margin:5px 0 0; font-family:'Consolas',monospace; font-size:10px;
                white-space:pre; color:#d1d5db;
                overflow-x:auto; max-width:100%; }
+.tooltip-left, .tooltip-right {
+  position:fixed;
+  background:#1e2030;
+  color:#e5e7eb;
+  padding:12px 16px;
+  border-radius:12px;
+  font-size:12px;
+  pointer-events:none;
+  display:none;
+  z-index:9999;
+  max-width:600px;
+  max-height:70vh;
+  overflow:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+  border:1px solid #3b3f53;
+  font-family: 'Consolas', monospace;
+}
+.tooltip-left {
+  left: auto;
+  right: calc(100% + 14px);
+}
+.tooltip-right {
+  left: calc(100% + 14px);
+  right: auto;
+}
+.tooltip-left b, .tooltip-right b { color:#d4a373; }
+.tooltip-left pre, .tooltip-right pre {
+  margin:6px 0 0;
+  font-size:10px;
+  white-space:pre;
+  color:#d1d5db;
+}
 
 /* ── Zoom bar ────────────────────────────────────────────── */
 .zoom-bar {
@@ -923,7 +1018,8 @@ body {
       <button class="zoom-btn" onclick="zoomOut()">−</button>
       <button class="zoom-btn" onclick="zoomFit()">⊡</button>
     </div>
-    <div id="tooltip" class="tooltip"></div>
+    <div id="tooltip-left" class="tooltip-left"></div>
+    <div id="tooltip-right" class="tooltip-right"></div>
   </div>
 </div>
 
@@ -937,6 +1033,8 @@ const INIT_VALS   = $init_json;
 const FULL_VALS   = $full_json;
 const FORMULAS    = $formulas_json;
 const EPOCHS      = $epochs_json;
+
+
 
 // ── Layout Dagre ──────────────────────────────────────────────────────────────
 const NW = 185, NH = 72;
@@ -1002,8 +1100,10 @@ let currentSnapIdxInEpoch = 0;
 let stepIdx = -1;
 let playing = false;
 let timer = null;
+let hoveredNodeId = null;
 const nodeVals = Object.fromEntries(NODES.map(n=>[n.id,{fwd:'',bwd:''}]));
-const tooltip  = document.getElementById('tooltip');
+const tooltipLeft = document.getElementById('tooltip-left');
+const tooltipRight = document.getElementById('tooltip-right');
 
 const slider = document.getElementById('epochSlider');
 const epochInput = document.getElementById('epochInput');
@@ -1112,18 +1212,18 @@ function buildSVG() {
     rect.setAttribute('rx','8');
     rect.setAttribute('id',\`node-\${n.id}\`);
     rect.setAttribute('class','node-body '+(n.is_param?'node-param':'node-default'));
+    // Remplace ton ancien bloc rect.addEventListener par ceci :
     rect.addEventListener('mouseenter', e => {
-      const v = nodeVals[n.id];
-      let htm = \`<b>\${n.id}</b> <span style="color:#9ca3af;font-size:10px">\${FORMULAS[n.id]||''}</span>\`;
-      if (v.fwd) htm += \`<br>fwd :<pre>\${v.fwd}</pre>\`;
-      if (v.bwd) htm += \`<br>∇ :<pre>\${v.bwd}</pre>\`;
-      tooltip.style.display='block';
-      const r=e.target.getBoundingClientRect();
-      tooltip.style.left=(r.right+14)+'px';
-      tooltip.style.top=Math.max(8,r.top-8)+'px';
-      tooltip.innerHTML=htm;
+        hoveredNodeId = n.id;
+        updateTooltips(n.id, e.target);
     });
-    rect.addEventListener('mouseleave',()=>{tooltip.style.display='none';});
+
+    rect.addEventListener('mouseleave', () => {
+        hoveredNodeId = null;
+        tooltipLeft.style.display = 'none';
+        tooltipRight.style.display = 'none';
+    });
+    
     const sep=document.createElementNS(SVGNS,'line');
     sep.setAttribute('x1',n.x+10); sep.setAttribute('x2',n.x+n.w-10);
     sep.setAttribute('y1',n.y+28); sep.setAttribute('y2',n.y+28);
@@ -1153,10 +1253,54 @@ function setEC(s,d,cls,arr) {
            e.setAttribute('marker-end',\`url(#\${arr})\`); }
 }
 
+function updateTooltips(nodeId, rectElement) {
+    const v = nodeVals[nodeId];
+    const n = NMAP[nodeId];
+    const r = rectElement.getBoundingClientRect();
+
+    // Tooltip gauche (inchangé)
+    if (n.is_param && currentParamFull[nodeId]) {
+        tooltipLeft.innerHTML = "<b>📦 Poids (" + nodeId + ")</b><pre>" + currentParamFull[nodeId] + "</pre>";
+        tooltipLeft.style.display = 'block';
+        tooltipLeft.style.right = (window.innerWidth - r.left + 14) + 'px';
+        tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
+    } else {
+        tooltipLeft.style.display = 'none';
+    }
+
+    // Tooltip droit
+    let rightHtml = "";
+    if (n.is_param) {
+        // Pour les paramètres : afficher ||nom|| avec la valeur backward (norme)
+        rightHtml = "<b>||" + nodeId + "||</b><pre>" + (v.bwd || '?') + "</pre>";
+    } else if (v.fwd) {
+        rightHtml = "<b>➡️ Forward (" + nodeId + ")</b><pre>" + v.fwd + "</pre>";
+        if (v.bwd) {
+            rightHtml += "<b>🔻 Gradient (" + nodeId + ")</b><pre>" + v.bwd + "</pre>";
+        }
+    } else {
+        rightHtml = "<b>➡️ Forward (" + nodeId + ")</b><pre>?</pre>";
+    }
+    tooltipRight.innerHTML = rightHtml;
+    tooltipRight.style.display = 'block';
+    tooltipRight.style.left = (r.right + 14) + 'px';
+    tooltipRight.style.top = Math.max(8, r.top - 8) + 'px';
+}
+
+
 function renderStep() {
   const epochVal = EPOCHS[currentEpochIdx];
   const snap = epochSnapshots[epochVal][currentSnapIdxInEpoch];
   if (!snap) return;
+  currentParamValues = snap.params || {};
+  currentParamFull = snap.params_full || {};
+
+
+// Afficher les versions courtes des poids sur les nœuds
+for (let id in currentParamValues) {
+    const elem = document.getElementById("val-" + id);
+    if (elem) elem.textContent = currentParamValues[id];
+}
   document.getElementById('badge-epoch').textContent = \`Epoch \${snap.epoch}  |  iter \${snap.iter}\`;
   document.getElementById('badge-loss').textContent = \`Loss : \${snap.loss.toFixed(6)}\`;
   const total = snap.events.length;
@@ -1169,41 +1313,40 @@ function renderStep() {
     const gt = document.getElementById(\`grad-\${n.id}\`);
     if (vt) vt.textContent = n.is_leaf && INIT_VALS[n.id] !== '?' ? INIT_VALS[n.id] : '';
     if (gt) gt.textContent = '';
-    nodeVals[n.id] = { fwd: FULL_VALS[n.id]||'', bwd:'' };
-  });
+    });
   EDGES.forEach(([s,d]) => setEC(s,d,'edge-default','arr-default'));
 
   if (stepIdx < 0) { document.getElementById('log-panel').innerHTML=''; return; }
 
   let lastFwd = null;
-  for (let i=0; i<=stepIdx; i++) {
+  for (let i = 0; i <= stepIdx; i++) {
     const ev = snap.events[i];
     if (ev.status === 'starting') {
-      setNC(ev.node, ev.phase==='forward' ? 'node-fwd' : 'node-bwd');
+      setNC(ev.node, ev.phase === 'forward' ? 'node-fwd' : 'node-bwd');
     } else {
       if (ev.phase === 'forward') {
         setNC(ev.node, 'node-default');
         lastFwd = ev.node;
-        const vt = document.getElementById(\`val-\${ev.node}\`);
-        if (vt) vt.textContent = ev.val || '';
+        // Ne change plus le texte dans le nœud
         nodeVals[ev.node].fwd = ev.val || '';
-      } else {
+      } else { // phase === 'backward'
         setNC(ev.node, 'node-done');
-        const gt = document.getElementById(\`grad-\${ev.node}\`);
-        if (gt) gt.textContent = '∇ ' + (ev.val || '');
+        // Pas de mise à jour du texte du nœud non plus
         nodeVals[ev.node].bwd = ev.val || '';
       }
     }
-    EDGES.forEach(([s,d]) => {
-      if (d===ev.node) {
-        const [ec,ea] = ev.phase==='forward' ? ['edge-fwd','arr-fwd'] : ['edge-bwd','arr-bwd'];
-        setEC(s,d,ec,ea);
+    EDGES.forEach(([s, d]) => {
+      if (d === ev.node) {
+        const [ec, ea] = ev.phase === 'forward'
+          ? ['edge-fwd', 'arr-fwd']
+          : ['edge-bwd', 'arr-bwd'];
+        setEC(s, d, ec, ea);
       }
     });
   }
   if (lastFwd) {
     setNC(lastFwd, 'node-final');
-    EDGES.forEach(([s,d]) => { if(d===lastFwd) setEC(s,d,'edge-final','arr-final'); });
+    EDGES.forEach(([s, d]) => { if (d === lastFwd) setEC(s, d, 'edge-final', 'arr-final'); });
   }
   document.getElementById('log-panel').innerHTML =
     snap.events.slice(0,stepIdx+1).slice().reverse().map(ev =>
@@ -1212,6 +1355,11 @@ function renderStep() {
         \${ev.status==='starting' ? '→ …' : ': '+(ev.val||'')}
       </div>\`
     ).join('');
+
+    if (hoveredNodeId) {
+        const rectEl = document.getElementById(\`node-\${hoveredNodeId}\`);
+        if (rectEl) updateTooltips(hoveredNodeId, rectEl);
+    }
 }
 
 function stepSnap(dir) {

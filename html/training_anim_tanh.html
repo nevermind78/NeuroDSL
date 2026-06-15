@@ -220,22 +220,67 @@ const EPOCHS      = [1,10,50,100,200,500];
 
 // ── Layout Dagre ──────────────────────────────────────────────────────────────
 const NW = 185, NH = 72;
-const dg = new dagre.graphlib.Graph({ multigraph:false });
-dg.setGraph({ rankdir:'LR', nodesep:65, ranksep:110,
-              marginx:55, marginy:55, acyclicer:'greedy',
-              ranker:'network-simplex' });
-dg.setDefaultEdgeLabel(() => ({}));
-NODES_RAW.forEach(n => dg.setNode(n.id, { width:NW, height:NH }));
-EDGES.forEach(([s,d]) => dg.setEdge(s, d));
-dagre.layout(dg);
-const NODES = NODES_RAW.map(n => {
-  const dn = dg.node(n.id);
-  return { ...n, x:Math.round(dn.x-NW/2), y:Math.round(dn.y-NH/2), w:NW, h:NH };
-});
+function fallbackLayout(nodes, edges) {
+  const ids = nodes.map(n => n.id);
+  const parents = Object.fromEntries(ids.map(id => [id, []]));
+  const children = Object.fromEntries(ids.map(id => [id, []]));
+  edges.forEach(([s,d]) => {
+    if (children[s] && parents[d]) {
+      children[s].push(d);
+      parents[d].push(s);
+    }
+  });
+
+  const memo = {};
+  function rank(id) {
+    if (memo[id] !== undefined) return memo[id];
+    if (!parents[id] || parents[id].length === 0) return memo[id] = 0;
+    return memo[id] = 1 + Math.max(...parents[id].map(rank));
+  }
+
+  const layers = {};
+  ids.forEach(id => {
+    const r = rank(id);
+    if (!layers[r]) layers[r] = [];
+    layers[r].push(id);
+  });
+
+  const positioned = [];
+  const rankSep = 295, nodeSep = 100, margin = 55;
+  Object.keys(layers).map(Number).sort((a,b) => a-b).forEach(r => {
+    layers[r].sort((a,b) => a.localeCompare(b));
+    layers[r].forEach((id, i) => {
+      const n = nodes.find(nn => nn.id === id);
+      positioned.push({ ...n, x:margin + r*rankSep, y:margin + i*(NH+nodeSep), w:NW, h:NH });
+    });
+  });
+  return positioned;
+}
+
+let dg = null;
+let NODES;
+if (window.dagre && dagre.graphlib) {
+  dg = new dagre.graphlib.Graph({ multigraph:false });
+  dg.setGraph({ rankdir:'LR', nodesep:65, ranksep:110,
+                marginx:55, marginy:55, acyclicer:'greedy',
+                ranker:'network-simplex' });
+  dg.setDefaultEdgeLabel(() => ({}));
+  NODES_RAW.forEach(n => dg.setNode(n.id, { width:NW, height:NH }));
+  EDGES.forEach(([s,d]) => dg.setEdge(s, d));
+  dagre.layout(dg);
+  NODES = NODES_RAW.map(n => {
+    const dn = dg.node(n.id);
+    return { ...n, x:Math.round(dn.x-NW/2), y:Math.round(dn.y-NH/2), w:NW, h:NH };
+  });
+} else {
+  NODES = fallbackLayout(NODES_RAW, EDGES);
+}
 const NMAP = Object.fromEntries(NODES.map(n => [n.id, n]));
-const gi = dg.graph();
-const SW = Math.round(gi.width  || 800) + 110;
-const SH = Math.round(gi.height || 600) + 110;
+const maxX = Math.max(...NODES.map(n => n.x + n.w), 800);
+const maxY = Math.max(...NODES.map(n => n.y + n.h), 600);
+const gi = dg ? dg.graph() : { width:maxX, height:maxY };
+const SW = Math.round(gi.width  || maxX) + 110;
+const SH = Math.round(gi.height || maxY) + 110;
 const svgEl = document.getElementById('svg-canvas');
 svgEl.setAttribute('width', SW); svgEl.setAttribute('height', SH);
 
@@ -256,7 +301,7 @@ svgEl.appendChild(defs);
 
 // ── Edge path ────────────────────────────────────────────────────────────────
 function edgePts(src, dst) {
-  const ed = dg.edge(src, dst);
+  const ed = dg ? dg.edge(src, dst) : null;
   if (ed && ed.points && ed.points.length >= 2) return ed.points;
   const sn = NMAP[src], dn = NMAP[dst];
   if (!sn || !dn) return [];
@@ -337,6 +382,18 @@ function onEpochInputChange() {
 let lossChart = null;
 function buildLossChart() {
   if (!LOSSES.length) return;
+  if (!window.Chart) {
+    const wrap = document.getElementById('loss-chart-wrap');
+    const first = LOSSES[0];
+    const last = LOSSES[LOSSES.length-1];
+    wrap.innerHTML = `<div style="height:100%;display:flex;flex-direction:column;justify-content:center;gap:8px;color:#9ca3af;font-size:11px;line-height:1.4">
+      <div style="color:#d4a373;font-weight:700">Loss</div>
+      <div>début : ${first.toFixed(6)}</div>
+      <div>fin : ${last.toFixed(6)}</div>
+      <div style="color:#6b7280">Chart.js indisponible</div>
+    </div>`;
+    return;
+  }
   const ctx2 = document.getElementById('lossChart').getContext('2d');
   lossChart = new Chart(ctx2, {
     type:'line',
