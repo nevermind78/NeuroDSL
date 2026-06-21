@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Mini RNN with shared weights</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5; display: flex; height: 100vh; overflow: hidden;
+}
+#sidebar {
+  width: 290px; min-width: 290px; background: #fff;
+  border-right: 1px solid #e2e8f0; display: flex; flex-direction: column;
+  padding: 16px; gap: 10px; z-index: 10;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.07);
+}
+#sidebar h2 { font-size: 13px; color: #1e293b; font-weight: 700; line-height: 1.4; }
+.controls   { display: flex; gap: 6px; }
+.btn {
+  flex: 1; padding: 7px 4px; border-radius: 7px; border: 1px solid #e2e8f0;
+  cursor: pointer; background: #fff; font-size: 12px; font-weight: 500;
+  color: #334155; transition: all .15s;
+}
+.btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+#playBtn   { background: #3b82f6; color: #fff; border-color: #2563eb; }
+#playBtn:hover { background: #2563eb; }
+#status { font-size: 11px; color: #94a3b8; text-align: center; }
+#log-panel {
+  flex: 1; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 10px;
+  border: 1px solid #e2e8f0; padding: 8px; background: #fafafa; border-radius: 8px;
+}
+.log-entry { padding: 3px 6px; border-radius: 4px; margin-bottom: 2px; line-height: 1.5; }
+.log-fwd { background: #dbeafe; color: #1d4ed8; }
+.log-bwd { background: #fee2e2; color: #b91c1c; }
+#canvas-wrap {
+  flex: 1; position: relative; overflow: hidden;
+  background: #f8fafc;
+  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+#svg-canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: visible; }
+.node-body {
+  transition: all .2s ease; cursor: pointer;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.08));
+}
+.node-default { fill: #fff;    stroke: #cbd5e0; stroke-width: 1.5px; }
+.node-op {
+  fill: #2a2e3f; stroke: #d4a373; stroke-width: 1.2px;
+}
+.node-param   { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5px; stroke-dasharray: 5,3; }
+.node-fwd     { fill: #dbeafe; stroke: #3b82f6; stroke-width: 2.5px; }
+.node-bwd     { fill: #fee2e2; stroke: #ef4444; stroke-width: 2.5px; }
+.node-done    { fill: #dcfce7; stroke: #22c55e; stroke-width: 2px;   }
+.node-final   {
+  fill: #bbf7d0; stroke: #16a34a; stroke-width: 2.5px;
+  filter: drop-shadow(0 2px 8px rgba(22,163,74,.4));
+}
+.node-label { font-family: 'Consolas', monospace; font-size: 10.5px; font-weight: 700;
+              fill: #1e293b; pointer-events: none; }
+.node-val   { font-family: 'Consolas', monospace; font-size: 9.5px;  fill: #64748b;  pointer-events: none; }
+.node-grad  { font-family: 'Consolas', monospace; font-size: 9.5px;  fill: #ef4444;  pointer-events: none; }
+.edge         { fill: none; stroke-width: 1.5px; transition: all .2s ease; }
+.edge-default { stroke: #94a3b8; stroke-opacity: .5; }
+.edge-fwd     { stroke: #3b82f6; stroke-width: 2.5px; stroke-opacity: 1; }
+.edge-bwd     { stroke: #ef4444; stroke-width: 2.5px; stroke-opacity: 1; }
+.edge-final   { stroke: #16a34a; stroke-width: 2.5px; stroke-opacity: 1; }
+.tooltip {
+  position: fixed; background: #1e293b; color: #f1f5f9;
+  padding: 10px 14px; border-radius: 10px; font-size: 12px;
+  pointer-events: none; display: none; z-index: 9999;
+  max-width: 80vw; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+.tooltip b   { color: #7dd3fc; font-family: 'Consolas', monospace; }
+.tooltip pre {
+  margin:5px 0 0;
+  font-family:'Consolas',monospace; font-size:10px;
+  white-space:pre; color:#e2e8f0;
+  overflow-x:auto; max-width:100%;
+}
+.tooltip-left, .tooltip-right {
+  position: fixed;
+  background: #1e2030;
+  color: #e5e7eb;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: inherit;
+  pointer-events: none;
+  display: none;
+  z-index: 9999;
+  max-width: none !important;
+  width: max-content;
+  max-height: 70vh;
+  overflow: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  border: 1px solid #3b3f53;
+  font-family: 'Consolas', monospace;
+  word-break: normal;
+}
+.tooltip-left b, .tooltip-right b { color:#d4a373; }
+.tooltip-left pre, .tooltip-right pre {
+  margin:6px 0 0;
+  font-size: inherit;
+  white-space:pre;
+  word-break: normal;
+  color:#d1d5db;
+}
+.zoom-bar {
+  position: absolute; bottom: 14px; right: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.zoom-btn {
+  width: 34px; height: 34px; background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 8px; font-size: 17px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08); transition: background .1s; color: #334155;
+}
+.zoom-btn:hover { background: #f1f5f9; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>Mini RNN with shared weights</h2>
+  <div class="controls">
+    <button class="btn" onclick="step(-1)">◀ Prev</button>
+    <button class="btn" id="playBtn" onclick="togglePlay()">▶ Play</button>
+    <button class="btn" onclick="step(1)">Next ▶</button>
+    <button class="btn" onclick="reset()">↺ Reset</button>
+  </div>
+  <div id="status">Step : 0 / 0</div>
+  <div id="log-panel"></div>
+</div>
+
+<div id="canvas-wrap">
+  <svg id="svg-canvas"></svg>
+  <div class="zoom-bar">
+    <button class="zoom-btn" onclick="zoomIn()"  title="Zoom +">+</button>
+    <button class="zoom-btn" onclick="zoomOut()" title="Zoom −">−</button>
+    <button class="zoom-btn" onclick="zoomFit()" title="Fit">⊡</button>
+  </div>
+  <div id="tooltip-left" class="tooltip-left"></div>
+  <div id="tooltip-right" class="tooltip-right"></div>
+</div>
+
+<script>
+const NODES_RAW = [{"id":"Wxh","is_leaf":true,"is_op":false,"is_param":false},{"id":"bh","is_leaf":true,"is_op":false,"is_param":false},{"id":"Whh","is_leaf":true,"is_op":false,"is_param":false},{"id":"relu_11","is_leaf":false,"is_op":false,"is_param":false},{"id":"h0","is_leaf":true,"is_op":false,"is_param":false},{"id":"hidden_2","is_leaf":false,"is_op":false,"is_param":false},{"id":"add_5","is_leaf":false,"is_op":true,"is_param":false},{"id":"relu_6","is_leaf":false,"is_op":false,"is_param":false},{"id":"matmul_8","is_leaf":false,"is_op":false,"is_param":false},{"id":"matmul_1","is_leaf":false,"is_op":false,"is_param":false},{"id":"hidden_7","is_leaf":false,"is_op":false,"is_param":false},{"id":"hidden_12","is_leaf":false,"is_op":false,"is_param":false},{"id":"add_9","is_leaf":false,"is_op":true,"is_param":false},{"id":"matmul_0","is_leaf":false,"is_op":false,"is_param":false},{"id":"matmul_3","is_leaf":false,"is_op":false,"is_param":false},{"id":"add_10","is_leaf":false,"is_op":true,"is_param":false},{"id":"x1","is_leaf":true,"is_op":false,"is_param":false},{"id":"h2","is_leaf":false,"is_op":false,"is_param":false},{"id":"x2","is_leaf":true,"is_op":false,"is_param":false},{"id":"add_4","is_leaf":false,"is_op":true,"is_param":false}];
+const EDGES     = [["add_10","relu_11"],["h0","hidden_2"],["add_4","add_5"],["bh","add_5"],["add_5","relu_6"],["Whh","matmul_8"],["hidden_7","matmul_8"],["relu_6","hidden_7"],["Wxh","matmul_1"],["x1","matmul_1"],["relu_11","hidden_12"],["matmul_0","add_9"],["matmul_8","add_9"],["Wxh","matmul_0"],["x2","matmul_0"],["Whh","matmul_3"],["hidden_2","matmul_3"],["add_9","add_10"],["bh","add_10"],["hidden_12","h2"],["matmul_1","add_4"],["matmul_3","add_4"]];
+const LOG       = [{"node":"matmul_0","phase":"forward","status":"starting","val":null},{"node":"matmul_0","phase":"forward","status":"finished","val":"0.2618, -1.3254"},{"node":"matmul_1","phase":"forward","status":"starting","val":null},{"node":"matmul_1","phase":"forward","status":"finished","val":"0.4822, -0.5278"},{"node":"hidden_2","phase":"forward","status":"starting","val":null},{"node":"hidden_2","phase":"forward","status":"finished","val":"0.0000, 0.0000"},{"node":"matmul_3","phase":"forward","status":"starting","val":null},{"node":"matmul_3","phase":"forward","status":"finished","val":"0.0000, 0.0000"},{"node":"add_4","phase":"forward","status":"starting","val":null},{"node":"add_4","phase":"forward","status":"finished","val":"0.4822, -0.5278"},{"node":"add_5","phase":"forward","status":"starting","val":null},{"node":"add_5","phase":"forward","status":"finished","val":"1.1567, -2.1102"},{"node":"relu_6","phase":"forward","status":"starting","val":null},{"node":"relu_6","phase":"forward","status":"finished","val":"1.1567, 0.0000"},{"node":"hidden_7","phase":"forward","status":"starting","val":null},{"node":"hidden_7","phase":"forward","status":"finished","val":"1.1567, 0.0000"},{"node":"matmul_8","phase":"forward","status":"starting","val":null},{"node":"matmul_8","phase":"forward","status":"finished","val":"-0.6700, -1.8554"},{"node":"add_9","phase":"forward","status":"starting","val":null},{"node":"add_9","phase":"forward","status":"finished","val":"-0.4082, -3.1808"},{"node":"add_10","phase":"forward","status":"starting","val":null},{"node":"add_10","phase":"forward","status":"finished","val":"0.2663, -4.7631"},{"node":"relu_11","phase":"forward","status":"starting","val":null},{"node":"relu_11","phase":"forward","status":"finished","val":"0.2663, 0.0000"},{"node":"hidden_12","phase":"forward","status":"starting","val":null},{"node":"hidden_12","phase":"forward","status":"finished","val":"0.2663, 0.0000"},{"node":"h2","phase":"forward","status":"starting","val":null},{"node":"h2","phase":"forward","status":"finished","val":"0.2663, 0.0000"}];
+const INIT_VALS = {"Whh":"[2×2]","Wxh":"[2×2]","add_10":"[2×1]","add_4":"[2×1]","add_5":"[2×1]","add_9":"[2×1]","bh":"[2]","h0":"[2]","h2":"[2×1]","hidden_12":"[2×1]","hidden_2":"[2]","hidden_7":"[2×1]","matmul_0":"[2×1]","matmul_1":"[2×1]","matmul_3":"[2×1]","matmul_8":"[2×1]","relu_11":"[2×1]","relu_6":"[2×1]","x1":"[2]","x2":"[2]"};
+const FULL_VALS = {"Whh":"[-0.5793  -0.6987\n -1.6040  -1.2731]","Wxh":"[-0.3766  -0.7650\n 0.5131  -0.6813]","add_10":"[0.2663\n -4.7631]","add_4":"[0.4822\n -0.5278]","add_5":"[1.1567\n -2.1102]","add_9":"[-0.4082\n -3.1808]","bh":"[0.6745, -1.5823]","h0":"[0.0000, 0.0000]","h2":"[0.2663\n 0.0000]","hidden_12":"[0.2663\n 0.0000]","hidden_2":"[0.0000, 0.0000]","hidden_7":"[1.1567\n 0.0000]","matmul_0":"[0.2618\n -1.3254]","matmul_1":"[0.4822\n -0.5278]","matmul_3":"[0.0000\n 0.0000]","matmul_8":"[-0.6700\n -1.8554]","relu_11":"[0.2663\n 0.0000]","relu_6":"[1.1567\n 0.0000]","x1":"[-1.1282, -0.0749]","x2":"[-1.8369, 0.5621]"};
+const FORMULAS  = {"Whh":"Whh","Wxh":"Wxh","add_10":"add_10 = add_9 + bh","add_4":"add_4 = matmul_1 + matmul_3","add_5":"add_5 = add_4 + bh","add_9":"add_9 = matmul_0 + matmul_8","bh":"bh","h0":"h0","h2":"h2 = identity(…)","hidden_12":"hidden(2)","hidden_2":"hidden(0)","hidden_7":"hidden(1)","matmul_0":"matmul_0 = matmul(Wxh, x2)","matmul_1":"matmul_1 = matmul(Wxh, x1)","matmul_3":"matmul_3 = matmul(Whh, hidden(0))","matmul_8":"matmul_8 = matmul(Whh, hidden(1))","relu_11":"relu_11 = relu(add_10)","relu_6":"relu_6 = relu(add_5)","x1":"x1","x2":"x2"};
+const SHORT_LABELS = {"Whh":"Whh","Wxh":"Wxh","add_10":"add","add_4":"add","add_5":"add","add_9":"add","bh":"bh","h0":"h0","h2":"identity","hidden_12":"hidden(2)","hidden_2":"hidden(0)","hidden_7":"hidden(1)","matmul_0":"matmul","matmul_1":"matmul","matmul_3":"matmul","matmul_8":"matmul","relu_11":"relu","relu_6":"relu","x1":"x1","x2":"x2"};
+
+const NH = 56;
+function estimateTextWidth(text, fontSize) {
+    if (!text) return 60;
+    const charWidth = fontSize * 0.6;
+    return Math.max(60, text.length * charWidth + 20);
+}
+const labelFontSize = 10.5;
+
+const dg = new dagre.graphlib.Graph({ multigraph: false });
+dg.setGraph({
+  rankdir  : 'LR',
+  nodesep  : 65,
+  ranksep  : 110,
+  marginx  : 55,
+  marginy  : 55,
+  edgesep  : 25,
+  acyclicer: 'greedy',
+  ranker   : 'network-simplex'
+});
+dg.setDefaultEdgeLabel(() => ({}));
+
+NODES_RAW.forEach(n => {
+    const label = SHORT_LABELS[n.id] || n.id;
+    const w = estimateTextWidth(label, labelFontSize);
+    dg.setNode(n.id, { width: w, height: NH });
+});
+EDGES.forEach(([s, d]) => dg.setEdge(s, d));
+dagre.layout(dg);
+
+const NODES = NODES_RAW.map(n => {
+  const dn = dg.node(n.id);
+  return { ...n, x: Math.round(dn.x - dn.width/2), y: Math.round(dn.y - NH/2), w: dn.width, h: NH };
+});
+const NMAP = Object.fromEntries(NODES.map(n => [n.id, n]));
+
+const gi = dg.graph();
+const SW = Math.round(gi.width  || 800) + 110;
+const SH = Math.round(gi.height || 600) + 110;
+
+const svgEl = document.getElementById('svg-canvas');
+svgEl.setAttribute('width',  SW);
+svgEl.setAttribute('height', SH);
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const defs  = document.createElementNS(SVGNS, 'defs');
+[
+  ['arr-default', '#94a3b8'],
+  ['arr-fwd',     '#3b82f6'],
+  ['arr-bwd',     '#ef4444'],
+  ['arr-final',   '#16a34a'],
+].forEach(([id, color]) => {
+  const m = document.createElementNS(SVGNS, 'marker');
+  m.setAttribute('id',           id);
+  m.setAttribute('markerWidth',  '9');
+  m.setAttribute('markerHeight', '7');
+  m.setAttribute('refX',         '9');
+  m.setAttribute('refY',         '3.5');
+  m.setAttribute('orient',       'auto');
+  const p = document.createElementNS(SVGNS, 'polygon');
+  p.setAttribute('points', '0 0, 9 3.5, 0 7');
+  p.setAttribute('fill',   color);
+  m.appendChild(p); defs.appendChild(m);
+});
+svgEl.appendChild(defs);
+
+function edgePts(src, dst) {
+  const ed = dg.edge(src, dst);
+  if (ed && ed.points && ed.points.length >= 2) return ed.points;
+  const sn = NMAP[src], dn = NMAP[dst];
+  if (!sn || !dn) return [];
+  const sx = sn.x + sn.w/2, sy = sn.y + sn.h/2;
+  const dx = dn.x + dn.w/2, dy = dn.y + dn.h/2;
+  const intersect = (rx, ry, rw, rh, x1, y1, x2, y2) => {
+    const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
+    const pts = [];
+    if (y1 !== y2) {
+      const t = (top - y1) / (y2 - y1);
+      if (t >= 0 && t <= 1) {
+        const xi = x1 + t * (x2 - x1);
+        if (xi >= left && xi <= right) pts.push({x: xi, y: top});
+      }
+    }
+    if (y1 !== y2) {
+      const t = (bottom - y1) / (y2 - y1);
+      if (t >= 0 && t <= 1) {
+        const xi = x1 + t * (x2 - x1);
+        if (xi >= left && xi <= right) pts.push({x: xi, y: bottom});
+      }
+    }
+    if (x1 !== x2) {
+      const t = (left - x1) / (x2 - x1);
+      if (t >= 0 && t <= 1) {
+        const yi = y1 + t * (y2 - y1);
+        if (yi >= top && yi <= bottom) pts.push({x: left, y: yi});
+      }
+    }
+    if (x1 !== x2) {
+      const t = (right - x1) / (x2 - x1);
+      if (t >= 0 && t <= 1) {
+        const yi = y1 + t * (y2 - y1);
+        if (yi >= top && yi <= bottom) pts.push({x: right, y: yi});
+      }
+    }
+    if (pts.length === 0) return {x: x1, y: y1};
+    pts.sort((a,b) => (a.x-x1)**2 + (a.y-y1)**2 - (b.x-x1)**2 + (b.y-y1)**2);
+    return pts[0];
+  };
+  const start = intersect(sn.x, sn.y, sn.w, sn.h, sx, sy, dx, dy);
+  const end   = intersect(dn.x, dn.y, dn.w, dn.h, dx, dy, sx, sy);
+  return [start, end];
+}
+function polylinePath(pts) {
+  if (!pts || pts.length < 2) return '';
+  if (pts.length === 2) {
+    const dx = pts[1].x - pts[0].x;
+    const dy = pts[1].y - pts[0].y;
+    return 'M ' + pts[0].x + ' ' + pts[0].y + ' Q ' + (pts[0].x + dx/2) + ' ' + (pts[0].y + dy/2) + ', ' + pts[1].x + ' ' + pts[1].y;
+  }
+  let d = 'M ' + pts[0].x + ' ' + pts[0].y;
+  for (let i = 1; i < pts.length; i++) d += ' L ' + pts[i].x + ' ' + pts[i].y;
+  return d;
+}
+function trunc(s, max=35) { return s.length > max ? s.slice(0, max-1) + '…' : s; }
+
+const nodeVals = Object.fromEntries(
+  NODES.map(n => [n.id, { fwd: FULL_VALS[n.id] || '?', bwd: '' }])
+);
+const tooltipLeft = document.getElementById('tooltip-left');
+const tooltipRight = document.getElementById('tooltip-right');
+
+let currentParamValues = {};
+let currentParamFull = {};
+
+function init() {
+  const eLayer = document.createElementNS(SVGNS, 'g');
+  eLayer.id = 'edge-layer';
+  EDGES.forEach(([s, d]) => {
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('d',          polylinePath(edgePts(s, d)));
+    path.setAttribute('class',      'edge edge-default');
+    path.setAttribute('id',         'edge-' + s + '-' + d);
+    path.setAttribute('marker-end', 'url(#arr-default)');
+    eLayer.appendChild(path);
+  });
+  svgEl.appendChild(eLayer);
+
+  const nLayer = document.createElementNS(SVGNS, 'g');
+  nLayer.id = 'node-layer';
+
+  NODES.forEach(n => {
+    const g = document.createElementNS(SVGNS, 'g');
+    const rect = document.createElementNS(SVGNS, 'rect');
+    rect.setAttribute('x',      n.x);  rect.setAttribute('y',      n.y);
+    rect.setAttribute('width',  n.w);  rect.setAttribute('height', n.h);
+    rect.setAttribute('rx',     '8');
+    rect.setAttribute('id',     'node-' + n.id);
+
+    let cls = 'node-body ';
+    cls += n.is_param ? 'node-param' : 'node-default';
+    if (n.is_op) cls += ' node-op';
+    rect.setAttribute('class', cls);
+
+    rect.addEventListener('mouseenter', e => {
+      const bbox = rect.getBBox();
+      const ctm = svgEl.getScreenCTM();
+      const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
+      const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
+      const stl = tl.matrixTransform(ctm);
+      const sbr = br.matrixTransform(ctm);
+      const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
+      const baseFontSize = 12 * sc;
+      tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      const pad = Math.max(8, 12 * sc / 1.5);
+      tooltipLeft.style.padding = pad + 'px';
+      tooltipRight.style.padding = pad + 'px';
+      const v = nodeVals[n.id];
+      if (n.is_param && currentParamFull[n.id]) {
+          tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
+          tooltipLeft.style.display = 'block';
+          let leftPosLeft = r.left - tooltipLeft.offsetWidth - 14;
+          if (leftPosLeft < 0) leftPosLeft = r.right + 14;
+          tooltipLeft.style.left = leftPosLeft + 'px';
+          tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
+      } else {
+          tooltipLeft.style.display = 'none';
+      }
+
+      let rightHtml = "";
+      if (FORMULAS[n.id] && FORMULAS[n.id] !== n.id) {
+          rightHtml += "<b>📐 Formule</b><pre>" + FORMULAS[n.id] + "</pre>";
+      }
+      rightHtml += "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
+      if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
+      tooltipRight.innerHTML = rightHtml;
+      tooltipRight.style.display = 'block';
+
+      const realWidth = tooltipRight.offsetWidth;
+      const realHeight = tooltipRight.offsetHeight;
+      let leftPos = r.right + 14;
+      let topPos = Math.max(8, r.top - 8);
+      if (leftPos + realWidth > window.innerWidth) {
+          leftPos = r.left - realWidth - 14;
+          if (leftPos < 0) leftPos = 14;
+      }
+      if (topPos + realHeight > window.innerHeight) {
+          topPos = window.innerHeight - realHeight - 14;
+      }
+      tooltipRight.style.left = leftPos + 'px';
+      tooltipRight.style.top = topPos + 'px';
+    });
+    rect.addEventListener('mouseleave', () => {
+        tooltipLeft.style.display = 'none';
+        tooltipRight.style.display = 'none';
+    });
+
+    const sep = document.createElementNS(SVGNS, 'line');
+    sep.setAttribute('x1', n.x + 10);      sep.setAttribute('x2', n.x + n.w - 10);
+    sep.setAttribute('y1', n.y + 30);      sep.setAttribute('y2', n.y + 30);
+    sep.setAttribute('stroke', '#e2e8f0'); sep.setAttribute('stroke-width', '1');
+    sep.setAttribute('pointer-events', 'none');
+    const mkT = (id, dy, cls) => {
+      const t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', n.x + n.w / 2); t.setAttribute('y', n.y + dy);
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('class', cls);
+      if (id) t.setAttribute('id', id);
+      return t;
+    };
+    const tLabel = mkT(null,             21, 'node-label');
+    tLabel.textContent = trunc(SHORT_LABELS[n.id] || n.id);
+    const tVal  = mkT('val-' + n.id,  44, 'node-val');
+    tVal.textContent   = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
+    const tGrad = mkT('grad-' + n.id, 60, 'node-grad');
+    tGrad.textContent  = '';
+    g.append(rect, sep, tLabel, tVal, tGrad);
+    nLayer.appendChild(g);
+  });
+  svgEl.appendChild(nLayer);
+}
+
+function setNC(id, cls) {
+  const r = document.getElementById('node-' + id);
+  if (r) {
+    let fullCls = 'node-body ' + cls;
+    const n = NMAP[id];
+    if (n && n.is_op) fullCls += ' node-op';
+    r.setAttribute('class', fullCls);
+  }
+}
+function setEC(s, d, cls, arr) {
+  const e = document.getElementById('edge-' + s + '-' + d);
+  if (e) {
+    e.setAttribute('class',      'edge ' + cls);
+    e.setAttribute('marker-end', 'url(#' + arr + ')');
+  }
+}
+
+let step_i = -1, playing = false, timer = null;
+
+function step(dir) {
+  step_i = Math.max(-1, Math.min(LOG.length - 1, step_i + dir));
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('status').textContent = 'Step : ' + (step_i + 1) + ' / ' + LOG.length;
+  NODES.forEach(n => {
+    setNC(n.id, n.is_param ? 'node-param' : 'node-default');
+    const vt = document.getElementById('val-' + n.id);
+    if (vt) vt.textContent = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
+    const gt = document.getElementById('grad-' + n.id);
+    if (gt) gt.textContent = '';
+  });
+  EDGES.forEach(([s, d]) => setEC(s, d, 'edge-default', 'arr-default'));
+  if (step_i === -1) { document.getElementById('log-panel').innerHTML = ''; return; }
+  let lastFwd = null;
+  for (let i = 0; i <= step_i; i++) {
+    const ev = LOG[i];
+    if (ev.status === 'starting') {
+      setNC(ev.node, ev.phase === 'forward' ? 'node-fwd' : 'node-bwd');
+    } else {
+      if (ev.phase === 'forward') {
+        setNC(ev.node, 'node-default');
+        lastFwd = ev.node;
+        const vt = document.getElementById('val-' + ev.node);
+        if (vt) vt.textContent = INIT_VALS[ev.node] || ev.val || '';
+        nodeVals[ev.node].fwd = FULL_VALS[ev.node] || ev.val;
+      } else {
+        setNC(ev.node, 'node-done');
+        const gt = document.getElementById('grad-' + ev.node);
+        if (gt) gt.textContent = ev.val || '';
+        nodeVals[ev.node].bwd = ev.val || '';
+      }
+    }
+    EDGES.forEach(([s, d]) => {
+      if (d === ev.node) {
+        const [ec, ea] = ev.phase === 'forward'
+          ? ['edge-fwd', 'arr-fwd']
+          : ['edge-bwd', 'arr-bwd'];
+        setEC(s, d, ec, ea);
+      }
+    });
+  }
+  if (lastFwd) {
+    setNC(lastFwd, 'node-final');
+    EDGES.forEach(([s, d]) => { if (d === lastFwd) setEC(s, d, 'edge-final', 'arr-final'); });
+  }
+  document.getElementById('log-panel').innerHTML =
+    LOG.slice(0, step_i + 1).slice().reverse().map(ev =>
+      '<div class="log-entry log-' + ev.phase + '">' +
+      '<b>' + ev.phase.toUpperCase() + '</b> ' + ev.node + ' ' +
+      (ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')) +
+      '</div>'
+    ).join('');
+}
+
+function togglePlay() {
+  playing = !playing;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = playing ? '⏸ Pause' : '▶ Play';
+  if (playing) {
+    timer = setInterval(() => {
+      if (step_i < LOG.length - 1) step(1);
+      else { playing = false; clearInterval(timer); btn.textContent = '▶ Play'; }
+    }, 500);
+  } else clearInterval(timer);
+}
+
+function reset() {
+  step_i = -1;
+  playing = false;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '▶ Play';
+  if (timer) clearInterval(timer);
+  updateUI();
+}
+
+let sc = 1, tx = 0, ty = 0, pan = false, px = 0, py = 0;
+const wrap = document.getElementById('canvas-wrap');
+function applyT() { svgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + sc + ')'; }
+function zoomIn()  { sc *= 1.2; applyT(); }
+function zoomOut() { sc /= 1.2; applyT(); }
+function zoomFit() {
+  const ww = wrap.clientWidth, wh = wrap.clientHeight;
+  sc = Math.min(ww / SW, wh / SH) * 0.9;
+  tx = (ww - SW * sc) / 2;
+  ty = (wh - SH * sc) / 2;
+  applyT();
+}
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r  = wrap.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const f  = e.deltaY > 0 ? 0.9 : 1.1;
+  const ns2 = sc * f;
+  tx = mx - (mx - tx) * (ns2 / sc);
+  ty = my - (my - ty) * (ns2 / sc);
+  sc = ns2; applyT();
+}, { passive: false });
+
+wrap.addEventListener('mousedown', e => {
+  if (e.button === 0) {
+    pan = true; px = e.clientX - tx; py = e.clientY - ty;
+    svgEl.style.cursor = 'grabbing'; e.preventDefault();
+  }
+});
+window.addEventListener('mousemove', e => {
+  if (pan) { tx = e.clientX - px; ty = e.clientY - py; applyT(); }
+});
+window.addEventListener('mouseup', () => { pan = false; svgEl.style.cursor = ''; });
+
+init();
+requestAnimationFrame(zoomFit);
+</script>
+</body>
+</html>
