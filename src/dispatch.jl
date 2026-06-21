@@ -54,7 +54,7 @@ function _infer_output_shape(op::Symbol, inputs, attrs)
         return (size(X, 1), size(W, 1))
     elseif op == :hcat_heads
         return (size(inputs[1], 1), sum(size(x, 2) for x in inputs))
-    elseif op in (:add, :mul, :rmsnorm, :swiglu, :softmax,:scale_mask, :rope, :dropout, :relu, :wsum, :nsum, :tanh, :identity,:scale_add)
+    elseif op in (:add, :mul, :rmsnorm, :swiglu, :softmax,:scale_mask, :rope, :dropout, :relu, :wsum, :nsum, :tanh, :identity,:scale_add,:linear2)
         return size(inputs[1])
     elseif op == :embedding
         E, idx = inputs[1], inputs[2]
