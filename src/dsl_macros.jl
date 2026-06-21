@@ -6,38 +6,24 @@ macro rule(args...); end
 macro snapshot(args...); end
 
 
-
-# ── Macro @defop (sucre syntaxique minimal) ───────────────────────────
-#macro defop(name, lambda_expr)
-    #:( NeuroDSL.register_op!($(QuoteNode(name)), $(esc(lambda_expr))) )
-#end
-
-
 macro defop(op_sym, body_expr)
     if body_expr.head == :(=)
-        # Forme courte : out = rhs
-        # L'utilisateur écrit attrs[:w1], attrs[:w2] etc. directement dans rhs
         lhs = body_expr.args[1]   # out
-        rhs = body_expr.args[2]   # expression complète
-        # Création de la lambda : (dev, out, inputs, attrs, out_sym, nd, ctx) -> rhs
-        lambda = Expr(:->, Expr(:tuple, :dev, :out, :inputs, :attrs, :out_sym, :nd, :ctx), rhs)
+        rhs = body_expr.args[2]
+        # Important : écrire le résultat dans out
+        lambda_body = :( @. $lhs = $rhs )
+        lambda = Expr(:->, Expr(:tuple, :dev, :out, :inputs, :attrs, :out_sym, :nd, :ctx), lambda_body)
     elseif body_expr.head == :->
-        # Forme lambda explicite : (dev, out, inputs, attrs, ...) -> corps
         lambda = body_expr
     elseif body_expr.head == :block
-        # Bloc begin...end (déjà une séquence d'instructions)
         lambda = Expr(:->, Expr(:tuple, :dev, :out, :inputs, :attrs, :out_sym, :nd, :ctx), body_expr)
     else
         error("Syntaxe invalide. Utilisez `out = ...` ou `(dev,out,inputs,attrs,...)->...`")
     end
 
-    # Construction de l'appel à NeuroDSL.register_op!
     register_call = Expr(:call, Expr(:., :NeuroDSL, QuoteNode(:register_op!)), QuoteNode(op_sym), lambda)
-    println_call = Expr(:call, :println, "✅ Op :$(op_sym) enregistré")
-
-    esc(Expr(:block, register_call, println_call))
+    esc(register_call)
 end
-
 
 
 
@@ -166,6 +152,15 @@ end
 
 function process_operator_call_full(op, pos_args, kw_args, bsym)
     attrs_expr = Expr(:call, :Dict, [Expr(:call, :(=>), QuoteNode(k), v) for (k,v) in kw_args]...)
+    # Chercher l'expression correspondant à :factor dans kw_args
+    factor_expr = nothing
+    for (k, v) in kw_args
+        if k == :factor
+            factor_expr = v
+            break
+        end
+    end
+
     quote
         local in_syms = Symbol[$(pos_args...)]
         local key = ($(QuoteNode(op)), in_syms...)
@@ -176,8 +171,30 @@ function process_operator_call_full(op, pos_args, kw_args, bsym)
             addrule!($(bsym).graph, GraphRule(
                 out_sym, in_syms, $(QuoteNode(op));
                 namespace = $(bsym).namespace,
-                attrs = $attrs_expr   # <-- suppression du esc
+                attrs = $attrs_expr
             ))
+            # Génération du label lisible
+            local in_labels = [get($(bsym).graph.nodes[$(bsym).namespace][s].aux_data, :label, string(s)) for s in in_syms]
+            local lhs_labels = [occursin(" = ", l) ? split(l, " = "; limit=2)[1] : l for l in in_labels]
+            local op_str = $(QuoteNode(op))
+            local expr_str = if op_str == :wsum
+                string(out_sym, " = ", join(lhs_labels, " + "))
+            elseif op_str == :nsum
+                string(out_sym, " = nsum(", join(lhs_labels, ", "), ")")
+            elseif op_str == :identity
+                in_labels[1]
+            elseif op_str == :add
+                string(out_sym, " = ", join(lhs_labels, " + "))
+            elseif op_str == :scale_add
+                $(if factor_expr !== nothing
+                    :(string(out_sym, " = ", $factor_expr, "·", lhs_labels[1], " + ", lhs_labels[2]))
+                else
+                    :(string(out_sym, " = scale_add(", join(lhs_labels, ", "), ")"))
+                end)
+            else
+                string(out_sym, " = ", op_str, "(", join(lhs_labels, ", "), ")")
+            end
+            $(bsym).graph.nodes[$(bsym).namespace][out_sym].aux_data[:label] = expr_str
             $(bsym).memo[key] = out_sym
             out_sym
         end
@@ -355,10 +372,19 @@ function call_rule(builder::GraphBuilder, fname::Symbol, args...)
     end
     func = builder.rules[fname]
     result = func(builder, args...)
+    
+    # Si le résultat est une feuille constante, ne pas créer de nœud identity
+    if result in (:one, :zero)   # ajoutez ici toutes vos constantes
+        builder.memo[key] = result
+        return result
+    end
+    
+    # Créer un nœud identity pour les résultats calculés
     call_sym = Symbol(fname, "_", length(builder.memo))
     addrule!(builder.graph, GraphRule(call_sym, Symbol[result], :identity; namespace=builder.namespace))
     label = string(fname, "(", join(args, ", "), ")")
     builder.graph.nodes[builder.namespace][call_sym].aux_data[:label] = label
+    builder.graph.nodes[builder.namespace][call_sym].aux_data[:is_rule] = true   
     builder.memo[key] = call_sym
     return call_sym
 end

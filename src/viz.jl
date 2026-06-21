@@ -9,7 +9,6 @@ mutable struct TrainingSnapshot
     loss   :: Float32
     log    :: ExecutionLog
     params :: Dict{Symbol, AbstractArray{Float32}}
-    # Constructeur avec paramètres optionnel (params vide par défaut)
     function TrainingSnapshot(epoch, iter, loss, log, params = Dict{Symbol, AbstractArray{Float32}}())
         new(epoch, iter, loss, log, params)
     end
@@ -29,7 +28,7 @@ function should_capture(rec::TrainingRecorder, epoch::Int)
 end
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Utilitaires de formatage (identiques pour les deux versions)
+# Utilitaires de formatage
 # ═════════════════════════════════════════════════════════════════════════════
 function format_tensor_short(value)
     try
@@ -82,7 +81,6 @@ function node_formula_text(graph::NeuroGraph, sym::Symbol, ns::Symbol)
     op   = rule.op
     inputs = rule.inputs
 
-    # Helper pour obtenir un nom lisible
     function label_of(s::Symbol)
         nd = get(graph.nodes[ns], s, nothing)
         if nd !== nothing
@@ -92,7 +90,6 @@ function node_formula_text(graph::NeuroGraph, sym::Symbol, ns::Symbol)
         end
     end
 
-    # Pour les opérateurs, on ne met PAS le nom du nœud (ex: wsum_56) en préfixe
     if op == :linear
         X, W, b = inputs[1], inputs[2], inputs[3]
         return "Linear($X,$W,$b)"
@@ -116,17 +113,19 @@ function node_formula_text(graph::NeuroGraph, sym::Symbol, ns::Symbol)
     elseif op == :fused_matmul_relu
         A, B = inputs[1], inputs[2]
         return "ReLU($(label_of(A))·$(label_of(B)))"
+    elseif op == :scale_add
+        a, b = inputs[1], inputs[2]
+        factor = get(rule.attrs, :factor, 0)
+        return "$factor·$(label_of(a)) + $(label_of(b))"
     else
-        # Pour tout autre opérateur, on garde l'ancien format
         return "$sym = $op(…)"
     end
 end
-# ── Nouvel utilitaire : détermine si un nœud est un opérateur interne ──
+
 function is_operator_node(sym::Symbol)
     name = string(sym)
     return startswith(name, "wsum_") || startswith(name, "nsum_") ||
-           startswith(name, "identity_") || startswith(name, "add_") ||
-           startswith(name, "scale_add_") ||
+           startswith(name, "add_") || startswith(name, "scale_add_") ||
            name in ("wsum", "nsum", "identity", "add", "scale_add")
 end
 
@@ -138,7 +137,6 @@ function save_interactive_graph(graph::NeuroGraph, log::ExecutionLog,
     ns       = graph.active_ns
     rules_ns = get(graph.rules, ns, Dict{Symbol,Any}())
 
-    # ── Log ────────────────────────────────────────────────────────────────────
     log_json = JSON.json([Dict(
         :node   => e[:node],
         :phase  => e[:phase],
@@ -146,12 +144,12 @@ function save_interactive_graph(graph::NeuroGraph, log::ExecutionLog,
         :val    => e[:value]
     ) for e in log.events])
 
-    # ── Nœuds ──────────────────────────────────────────────────────────────────
     init_vals  = Dict{String,String}()
     full_vals  = Dict{String,String}()
     formulas   = Dict{String,String}()
     is_leaf_d  = Dict{String,Bool}()
     is_param_d = Dict{String,Bool}()
+    is_rule_d  = Dict{String,Bool}()
 
     for (sym, nd) in graph.nodes[ns]
         k = string(sym)
@@ -163,9 +161,27 @@ function save_interactive_graph(graph::NeuroGraph, log::ExecutionLog,
         formulas[k]   = get(nd.aux_data, :label, node_formula_text(graph, sym, ns))
         is_leaf_d[k]  = !haskey(rules_ns, sym)
         is_param_d[k] = nd.is_param
+        is_rule_d[k]  = haskey(nd.aux_data, :is_rule) && nd.aux_data[:is_rule]
     end
 
-    # ── Arêtes ─────────────────────────────────────────────────────────────────
+    short_labels = Dict{String,String}()
+    for (sym, nd) in graph.nodes[ns]
+        k = string(sym)
+        if is_rule_d[k]
+            short_labels[k] = formulas[k]
+        elseif haskey(rules_ns, sym)
+            op = rules_ns[sym].op
+            if op in (:wsum, :nsum, :add, :identity, :relu, :tanh, :matmul, :fused_matmul_relu, :scale_add)
+                short_labels[k] = string(op)
+            else
+                short_labels[k] = formulas[k]
+            end
+        else
+            short_labels[k] = formulas[k]
+        end
+    end
+    short_labels_json = JSON.json(short_labels)
+
     edges = Tuple{Symbol,Symbol}[]
     for (out_sym, rule) in rules_ns
         for inp in rule.inputs
@@ -173,19 +189,16 @@ function save_interactive_graph(graph::NeuroGraph, log::ExecutionLog,
         end
     end
 
-    # ── JSON ───────────────────────────────────────────────────────────────────
-    # Chaque nœud reçoit la propriété :is_op (true si opérateur)
     nodes_json    = JSON.json([Dict(:id => string(s),
                                    :is_param => is_param_d[string(s)],
                                    :is_leaf  => is_leaf_d[string(s)],
-                                   :is_op    => is_operator_node(s))
+                                   :is_op    => is_operator_node(s) && !is_rule_d[string(s)])
                                for s in keys(graph.nodes[ns])])
     edges_json    = JSON.json([[string(a), string(b)] for (a, b) in edges])
     init_json     = JSON.json(init_vals)
     full_json     = JSON.json(full_vals)
     formulas_json = JSON.json(formulas)
 
-    # ── HTML ───────────────────────────────────────────────────────────────────
     html = """
 <!DOCTYPE html>
 <html lang="fr">
@@ -236,10 +249,7 @@ body {
 }
 .node-default { fill: #fff;    stroke: #cbd5e0; stroke-width: 1.5px; }
 .node-op {
-  fill: #2a2e3f;           /* fond sombre */
-  stroke: #d4a373;         /* bordure couleur accent */
-  stroke-width: 1.2px;
-  /* stroke-dasharray supprimé → bordure continue */
+  fill: #2a2e3f; stroke: #d4a373; stroke-width: 1.2px;
 }
 .node-param   { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5px; stroke-dasharray: 5,3; }
 .node-fwd     { fill: #dbeafe; stroke: #3b82f6; stroke-width: 2.5px; }
@@ -262,7 +272,7 @@ body {
   position: fixed; background: #1e293b; color: #f1f5f9;
   padding: 10px 14px; border-radius: 10px; font-size: 12px;
   pointer-events: none; display: none; z-index: 9999;
-  max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  max-width: 80vw; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
 .tooltip b   { color: #7dd3fc; font-family: 'Consolas', monospace; }
 .tooltip pre {
@@ -272,29 +282,30 @@ body {
   overflow-x:auto; max-width:100%;
 }
 .tooltip-left, .tooltip-right {
-  position:fixed;
-  background:#1e2030;
-  color:#e5e7eb;
-  padding:12px 16px;
-  border-radius:12px;
+  position: fixed;
+  background: #1e2030;
+  color: #e5e7eb;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: inherit;
-  pointer-events:none;
-  display:none;
-  z-index:9999;
-  max-width:600px;
-  max-height:70vh;
-  overflow:auto;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
-  border:1px solid #3b3f53;
+  pointer-events: none;
+  display: none;
+  z-index: 9999;
+  max-width: none !important;
+  width: max-content;
+  max-height: 70vh;
+  overflow: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  border: 1px solid #3b3f53;
   font-family: 'Consolas', monospace;
+  word-break: normal;
 }
-.tooltip-left { left: auto; right: calc(100% + 14px); }
-.tooltip-right { left: calc(100% + 14px); right: auto; }
 .tooltip-left b, .tooltip-right b { color:#d4a373; }
 .tooltip-left pre, .tooltip-right pre {
   margin:6px 0 0;
   font-size: inherit;
   white-space:pre;
+  word-break: normal;
   color:#d1d5db;
 }
 .zoom-bar {
@@ -318,6 +329,7 @@ body {
     <button class="btn" onclick="step(-1)">◀ Prev</button>
     <button class="btn" id="playBtn" onclick="togglePlay()">▶ Play</button>
     <button class="btn" onclick="step(1)">Next ▶</button>
+    <button class="btn" onclick="reset()">↺ Reset</button>
   </div>
   <div id="status">Step : 0 / 0</div>
   <div id="log-panel"></div>
@@ -341,8 +353,16 @@ const LOG       = $log_json;
 const INIT_VALS = $init_json;
 const FULL_VALS = $full_json;
 const FORMULAS  = $formulas_json;
+const SHORT_LABELS = $short_labels_json;
 
-const NW = 240, NH = 72;
+const NH = 56;
+function estimateTextWidth(text, fontSize) {
+    if (!text) return 60;
+    const charWidth = fontSize * 0.6;
+    return Math.max(60, text.length * charWidth + 20);
+}
+const labelFontSize = 10.5;
+
 const dg = new dagre.graphlib.Graph({ multigraph: false });
 dg.setGraph({
   rankdir  : 'LR',
@@ -356,13 +376,17 @@ dg.setGraph({
 });
 dg.setDefaultEdgeLabel(() => ({}));
 
-NODES_RAW.forEach(n => dg.setNode(n.id, { width: NW, height: NH }));
+NODES_RAW.forEach(n => {
+    const label = SHORT_LABELS[n.id] || n.id;
+    const w = estimateTextWidth(label, labelFontSize);
+    dg.setNode(n.id, { width: w, height: NH });
+});
 EDGES.forEach(([s, d]) => dg.setEdge(s, d));
 dagre.layout(dg);
 
 const NODES = NODES_RAW.map(n => {
   const dn = dg.node(n.id);
-  return { ...n, x: Math.round(dn.x - NW/2), y: Math.round(dn.y - NH/2), w: NW, h: NH };
+  return { ...n, x: Math.round(dn.x - dn.width/2), y: Math.round(dn.y - NH/2), w: dn.width, h: NH };
 });
 const NMAP = Object.fromEntries(NODES.map(n => [n.id, n]));
 
@@ -447,10 +471,10 @@ function polylinePath(pts) {
   if (pts.length === 2) {
     const dx = pts[1].x - pts[0].x;
     const dy = pts[1].y - pts[0].y;
-    return `M \${pts[0].x} \${pts[0].y} Q \${pts[0].x + dx/2} \${pts[0].y + dy/2}, \${pts[1].x} \${pts[1].y}`;
+    return 'M ' + pts[0].x + ' ' + pts[0].y + ' Q ' + (pts[0].x + dx/2) + ' ' + (pts[0].y + dy/2) + ', ' + pts[1].x + ' ' + pts[1].y;
   }
-  let d = `M \${pts[0].x} \${pts[0].y}`;
-  for (let i = 1; i < pts.length; i++) d += ` L \${pts[i].x} \${pts[i].y}`;
+  let d = 'M ' + pts[0].x + ' ' + pts[0].y;
+  for (let i = 1; i < pts.length; i++) d += ' L ' + pts[i].x + ' ' + pts[i].y;
   return d;
 }
 function trunc(s, max=35) { return s.length > max ? s.slice(0, max-1) + '…' : s; }
@@ -471,7 +495,7 @@ function init() {
     const path = document.createElementNS(SVGNS, 'path');
     path.setAttribute('d',          polylinePath(edgePts(s, d)));
     path.setAttribute('class',      'edge edge-default');
-    path.setAttribute('id',         `edge-\${s}-\${d}`);
+    path.setAttribute('id',         'edge-' + s + '-' + d);
     path.setAttribute('marker-end', 'url(#arr-default)');
     eLayer.appendChild(path);
   });
@@ -486,48 +510,67 @@ function init() {
     rect.setAttribute('x',      n.x);  rect.setAttribute('y',      n.y);
     rect.setAttribute('width',  n.w);  rect.setAttribute('height', n.h);
     rect.setAttribute('rx',     '8');
-    rect.setAttribute('id',     `node-\${n.id}`);
+    rect.setAttribute('id',     'node-' + n.id);
 
-    // Construction de la classe : node-body + classe de base + éventuellement node-op
     let cls = 'node-body ';
     cls += n.is_param ? 'node-param' : 'node-default';
     if (n.is_op) cls += ' node-op';
     rect.setAttribute('class', cls);
 
     rect.addEventListener('mouseenter', e => {
-    const bbox = rect.getBBox();
-    const ctm = svgEl.getScreenCTM();
-    const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
-    const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
-    const stl = tl.matrixTransform(ctm);
-    const sbr = br.matrixTransform(ctm);
-    const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
-    const baseFontSize = 12 * sc;
-    tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
-    tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
-    const pad = Math.max(8, 12 * sc / 1.5);
-    tooltipLeft.style.padding = pad + 'px';
-    tooltipRight.style.padding = pad + 'px';
-    const v = nodeVals[n.id];
-    if (n.is_param && currentParamFull[n.id]) {
-        tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
-        tooltipLeft.style.display = 'block';
-        tooltipLeft.style.right = (window.innerWidth - r.left + 14) + 'px';
-        tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
-    } else {
+      const bbox = rect.getBBox();
+      const ctm = svgEl.getScreenCTM();
+      const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
+      const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
+      const stl = tl.matrixTransform(ctm);
+      const sbr = br.matrixTransform(ctm);
+      const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
+      const baseFontSize = 12 * sc;
+      tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      const pad = Math.max(8, 12 * sc / 1.5);
+      tooltipLeft.style.padding = pad + 'px';
+      tooltipRight.style.padding = pad + 'px';
+      const v = nodeVals[n.id];
+      if (n.is_param && currentParamFull[n.id]) {
+          tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
+          tooltipLeft.style.display = 'block';
+          let leftPosLeft = r.left - tooltipLeft.offsetWidth - 14;
+          if (leftPosLeft < 0) leftPosLeft = r.right + 14;
+          tooltipLeft.style.left = leftPosLeft + 'px';
+          tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
+      } else {
+          tooltipLeft.style.display = 'none';
+      }
+
+      let rightHtml = "";
+      if (FORMULAS[n.id] && FORMULAS[n.id] !== n.id) {
+          rightHtml += "<b>📐 Formule</b><pre>" + FORMULAS[n.id] + "</pre>";
+      }
+      rightHtml += "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
+      if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
+      tooltipRight.innerHTML = rightHtml;
+      tooltipRight.style.display = 'block';
+
+      const realWidth = tooltipRight.offsetWidth;
+      const realHeight = tooltipRight.offsetHeight;
+      let leftPos = r.right + 14;
+      let topPos = Math.max(8, r.top - 8);
+      if (leftPos + realWidth > window.innerWidth) {
+          leftPos = r.left - realWidth - 14;
+          if (leftPos < 0) leftPos = 14;
+      }
+      if (topPos + realHeight > window.innerHeight) {
+          topPos = window.innerHeight - realHeight - 14;
+      }
+      tooltipRight.style.left = leftPos + 'px';
+      tooltipRight.style.top = topPos + 'px';
+    });
+    rect.addEventListener('mouseleave', () => {
         tooltipLeft.style.display = 'none';
-    }
-    let rightHtml = "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
-    if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
-    tooltipRight.innerHTML = rightHtml;
-    tooltipRight.style.display = 'block';
-    tooltipRight.style.left = (r.right + 14) + 'px';
-    tooltipRight.style.top = Math.max(8, r.top - 8) + 'px';
-});
-rect.addEventListener('mouseleave', () => {
-    tooltipLeft.style.display = 'none';
-    tooltipRight.style.display = 'none';
-});
+        tooltipRight.style.display = 'none';
+    });
+
     const sep = document.createElementNS(SVGNS, 'line');
     sep.setAttribute('x1', n.x + 10);      sep.setAttribute('x2', n.x + n.w - 10);
     sep.setAttribute('y1', n.y + 30);      sep.setAttribute('y2', n.y + 30);
@@ -541,10 +584,10 @@ rect.addEventListener('mouseleave', () => {
       return t;
     };
     const tLabel = mkT(null,             21, 'node-label');
-    tLabel.textContent = trunc(FORMULAS[n.id] || n.id);
-    const tVal  = mkT(`val-\${n.id}`,  44, 'node-val');
+    tLabel.textContent = trunc(SHORT_LABELS[n.id] || n.id);
+    const tVal  = mkT('val-' + n.id,  44, 'node-val');
     tVal.textContent   = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
-    const tGrad = mkT(`grad-\${n.id}`, 60, 'node-grad');
+    const tGrad = mkT('grad-' + n.id, 60, 'node-grad');
     tGrad.textContent  = '';
     g.append(rect, sep, tLabel, tVal, tGrad);
     nLayer.appendChild(g);
@@ -562,10 +605,10 @@ function setNC(id, cls) {
   }
 }
 function setEC(s, d, cls, arr) {
-  const e = document.getElementById(`edge-\${s}-\${d}`);
+  const e = document.getElementById('edge-' + s + '-' + d);
   if (e) {
-    e.setAttribute('class',      `edge \${cls}`);
-    e.setAttribute('marker-end', `url(#\${arr})`);
+    e.setAttribute('class',      'edge ' + cls);
+    e.setAttribute('marker-end', 'url(#' + arr + ')');
   }
 }
 
@@ -577,12 +620,12 @@ function step(dir) {
 }
 
 function updateUI() {
-  document.getElementById('status').textContent = `Step : \${step_i + 1} / \${LOG.length}`;
+  document.getElementById('status').textContent = 'Step : ' + (step_i + 1) + ' / ' + LOG.length;
   NODES.forEach(n => {
     setNC(n.id, n.is_param ? 'node-param' : 'node-default');
-    const vt = document.getElementById(`val-\${n.id}`);
+    const vt = document.getElementById('val-' + n.id);
     if (vt) vt.textContent = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
-    const gt = document.getElementById(`grad-\${n.id}`);
+    const gt = document.getElementById('grad-' + n.id);
     if (gt) gt.textContent = '';
   });
   EDGES.forEach(([s, d]) => setEC(s, d, 'edge-default', 'arr-default'));
@@ -596,12 +639,12 @@ function updateUI() {
       if (ev.phase === 'forward') {
         setNC(ev.node, 'node-default');
         lastFwd = ev.node;
-        const vt = document.getElementById(`val-\${ev.node}`);
+        const vt = document.getElementById('val-' + ev.node);
         if (vt) vt.textContent = INIT_VALS[ev.node] || ev.val || '';
         nodeVals[ev.node].fwd = FULL_VALS[ev.node] || ev.val;
       } else {
         setNC(ev.node, 'node-done');
-        const gt = document.getElementById(`grad-\${ev.node}`);
+        const gt = document.getElementById('grad-' + ev.node);
         if (gt) gt.textContent = ev.val || '';
         nodeVals[ev.node].bwd = ev.val || '';
       }
@@ -621,10 +664,10 @@ function updateUI() {
   }
   document.getElementById('log-panel').innerHTML =
     LOG.slice(0, step_i + 1).slice().reverse().map(ev =>
-      `<div class="log-entry log-\${ev.phase}">` +
-      `<b>\${ev.phase.toUpperCase()}</b> \${ev.node} ` +
-      `\${ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')}` +
-      `</div>`
+      '<div class="log-entry log-' + ev.phase + '">' +
+      '<b>' + ev.phase.toUpperCase() + '</b> ' + ev.node + ' ' +
+      (ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')) +
+      '</div>'
     ).join('');
 }
 
@@ -640,9 +683,18 @@ function togglePlay() {
   } else clearInterval(timer);
 }
 
+function reset() {
+  step_i = -1;
+  playing = false;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '▶ Play';
+  if (timer) clearInterval(timer);
+  updateUI();
+}
+
 let sc = 1, tx = 0, ty = 0, pan = false, px = 0, py = 0;
 const wrap = document.getElementById('canvas-wrap');
-function applyT() { svgEl.style.transform = `translate(\${tx}px,\${ty}px) scale(\${sc})`; }
+function applyT() { svgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + sc + ')'; }
 function zoomIn()  { sc *= 1.2; applyT(); }
 function zoomOut() { sc /= 1.2; applyT(); }
 function zoomFit() {
@@ -683,7 +735,7 @@ requestAnimationFrame(zoomFit);
 """
 
     write(filepath, html)
-    println("✅ Interactive Trace exporté → $filepath")
+    println("✅ Interactive Trace exported → $filepath")
 end
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -704,6 +756,7 @@ function save_interactive_graph_animated(
     formulas   = Dict{String,String}()
     is_leaf_d  = Dict{String,Bool}()
     is_param_d = Dict{String,Bool}()
+    is_rule_d  = Dict{String,Bool}()
 
     for (sym, nd) in graph.nodes[ns]
         k = string(sym)
@@ -715,7 +768,26 @@ function save_interactive_graph_animated(
         formulas[k]   = get(nd.aux_data, :label, node_formula_text(graph, sym, ns))
         is_leaf_d[k]  = !haskey(rules_ns, sym)
         is_param_d[k] = nd.is_param
+        is_rule_d[k]  = haskey(nd.aux_data, :is_rule) && nd.aux_data[:is_rule]
     end
+
+    short_labels = Dict{String,String}()
+    for (sym, nd) in graph.nodes[ns]
+        k = string(sym)
+        if is_rule_d[k]
+            short_labels[k] = formulas[k]
+        elseif haskey(rules_ns, sym)
+            op = rules_ns[sym].op
+            if op in (:wsum, :nsum, :add, :identity, :relu, :tanh, :matmul, :fused_matmul_relu, :scale_add)
+                short_labels[k] = string(op)
+            else
+                short_labels[k] = formulas[k]
+            end
+        else
+            short_labels[k] = formulas[k]
+        end
+    end
+    short_labels_json = JSON.json(short_labels)
 
     edges = Tuple{Symbol,Symbol}[]
     for (out_sym, rule) in rules_ns
@@ -743,7 +815,7 @@ function save_interactive_graph_animated(
     nodes_json    = JSON.json([Dict(:id => string(s),
                                    :is_param => is_param_d[string(s)],
                                    :is_leaf  => is_leaf_d[string(s)],
-                                   :is_op    => is_operator_node(s))
+                                   :is_op    => is_operator_node(s) && !is_rule_d[string(s)])
                                for s in keys(graph.nodes[ns])])
     edges_json    = JSON.json([[string(a), string(b)] for (a, b) in edges])
     init_json     = JSON.json(init_vals)
@@ -844,10 +916,7 @@ body {
              filter:drop-shadow(0 1px 4px rgba(0,0,0,.2)); }
 .node-default { fill:#1e2030; stroke:#3b3f53;  stroke-width:1.5px; }
 .node-op {
-  fill: #2a2e3f;           /* fond sombre */
-  stroke: #d4a373;         /* bordure couleur accent */
-  stroke-width: 1.2px;
-  /* stroke-dasharray supprimé → bordure continue */
+  fill: #2a2e3f; stroke: #d4a373; stroke-width: 1.2px;
 }
 .node-param   { fill:#232636; stroke:#4b5268;  stroke-width:1.5px; stroke-dasharray:5,3; }
 .node-fwd     { fill:#1a2530; stroke:#7aa2f7;  stroke-width:2.5px; }
@@ -868,7 +937,7 @@ body {
   position:fixed; background:#1e2030; color:#e5e7eb;
   padding:10px 14px; border-radius:10px; font-size:12px;
   pointer-events:none; display:none; z-index:9999;
-  max-width:600px;
+  max-width: 80vw; width: max-content;
   box-shadow:0 8px 24px rgba(0,0,0,.5);
   border:1px solid #3b3f53;
   overflow-x:auto;
@@ -878,29 +947,30 @@ body {
                white-space:pre; color:#d1d5db;
                overflow-x:auto; max-width:100%; }
 .tooltip-left, .tooltip-right {
-  position:fixed;
-  background:#1e2030;
-  color:#e5e7eb;
-  padding:12px 16px;
-  border-radius:12px;
+  position: fixed;
+  background: #1e2030;
+  color: #e5e7eb;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: inherit;
-  pointer-events:none;
-  display:none;
-  z-index:9999;
-  max-width:600px;
-  max-height:70vh;
-  overflow:auto;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
-  border:1px solid #3b3f53;
+  pointer-events: none;
+  display: none;
+  z-index: 9999;
+  max-width: none !important;
+  width: max-content;
+  max-height: 70vh;
+  overflow: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  border: 1px solid #3b3f53;
   font-family: 'Consolas', monospace;
+  word-break: normal;
 }
-.tooltip-left { left: auto; right: calc(100% + 14px); }
-.tooltip-right { left: calc(100% + 14px); right: auto; }
 .tooltip-left b, .tooltip-right b { color:#d4a373; }
 .tooltip-left pre, .tooltip-right pre {
   margin:6px 0 0;
   font-size: inherit;
   white-space:pre;
+  word-break: normal;
   color:#d1d5db;
 }
 .zoom-bar {
@@ -938,6 +1008,7 @@ body {
     <button class="btn" onclick="stepSnap(-1)">◀ Étape</button>
     <button class="btn primary" id="playBtn" onclick="togglePlay()">▶ Play</button>
     <button class="btn" onclick="stepSnap(1)">Étape ▶</button>
+    <button class="btn" onclick="reset()">↺ Reset</button>
     <span id="stepStatus">–</span>
   </div>
 </div>
@@ -977,20 +1048,32 @@ const LOSSES      = $losses_json;
 const INIT_VALS   = $init_json;
 const FULL_VALS   = $full_json;
 const FORMULAS    = $formulas_json;
+const SHORT_LABELS = $short_labels_json;
 const EPOCHS      = $epochs_json;
 
-const NW = 240, NH = 72;
+const NH = 56;
+function estimateTextWidth(text, fontSize) {
+    if (!text) return 60;
+    const charWidth = fontSize * 0.6;
+    return Math.max(60, text.length * charWidth + 20);
+}
+const labelFontSize = 10.5;
+
 const dg = new dagre.graphlib.Graph({ multigraph:false });
 dg.setGraph({ rankdir:'LR', nodesep:65, ranksep:110,
               marginx:55, marginy:55, acyclicer:'greedy',
               ranker:'network-simplex' });
 dg.setDefaultEdgeLabel(() => ({}));
-NODES_RAW.forEach(n => dg.setNode(n.id, { width:NW, height:NH }));
+NODES_RAW.forEach(n => {
+    const label = SHORT_LABELS[n.id] || n.id;
+    const w = estimateTextWidth(label, labelFontSize);
+    dg.setNode(n.id, { width: w, height: NH });
+});
 EDGES.forEach(([s,d]) => dg.setEdge(s, d));
 dagre.layout(dg);
 const NODES = NODES_RAW.map(n => {
   const dn = dg.node(n.id);
-  return { ...n, x:Math.round(dn.x-NW/2), y:Math.round(dn.y-NH/2), w:NW, h:NH };
+  return { ...n, x:Math.round(dn.x - dn.width/2), y:Math.round(dn.y - NH/2), w: dn.width, h: NH };
 });
 const NMAP = Object.fromEntries(NODES.map(n => [n.id, n]));
 const gi = dg.graph();
@@ -1023,8 +1106,8 @@ function edgePts(src, dst) {
 }
 function polylinePath(pts) {
   if (!pts || pts.length < 2) return '';
-  let d = \`M \${pts[0].x} \${pts[0].y}\`;
-  for (let i=1; i<pts.length; i++) d += \` L \${pts[i].x} \${pts[i].y}\`;
+  let d = 'M ' + pts[0].x + ' ' + pts[0].y;
+  for (let i=1; i<pts.length; i++) d += ' L ' + pts[i].x + ' ' + pts[i].y;
   return d;
 }
 function trunc(s, max=35) { return s.length>max ? s.slice(0,max-1)+'…' : s; }
@@ -1132,7 +1215,7 @@ function buildSVG() {
     const path = document.createElementNS(SVGNS,'path');
     path.setAttribute('d', polylinePath(edgePts(s,d)));
     path.setAttribute('class','edge edge-default');
-    path.setAttribute('id',\`edge-\${s}-\${d}\`);
+    path.setAttribute('id','edge-' + s + '-' + d);
     path.setAttribute('marker-end','url(#arr-default)');
     eLayer.appendChild(path);
   });
@@ -1144,9 +1227,8 @@ function buildSVG() {
     rect.setAttribute('x',n.x); rect.setAttribute('y',n.y);
     rect.setAttribute('width',n.w); rect.setAttribute('height',n.h);
     rect.setAttribute('rx','8');
-    rect.setAttribute('id',\`node-\${n.id}\`);
+    rect.setAttribute('id','node-' + n.id);
 
-    // Construction de la classe avec node-op si opérateur
     let cls = 'node-body ';
     cls += n.is_param ? 'node-param' : 'node-default';
     if (n.is_op) cls += ' node-op';
@@ -1173,9 +1255,9 @@ function buildSVG() {
       t.setAttribute('text-anchor','middle'); t.setAttribute('class',cls);
       if(id) t.setAttribute('id',id); return t;
     };
-    const tL=mkT(null,20,'node-label'); tL.textContent=trunc(FORMULAS[n.id]||n.id);
-    const tV=mkT(\`val-\${n.id}\`,44,'node-val');  tV.textContent='';
-    const tG=mkT(\`grad-\${n.id}\`,60,'node-grad'); tG.textContent='';
+    const tL=mkT(null,20,'node-label'); tL.textContent=trunc(SHORT_LABELS[n.id]||n.id);
+    const tV=mkT('val-' + n.id,44,'node-val');  tV.textContent='';
+    const tG=mkT('grad-' + n.id,60,'node-grad'); tG.textContent='';
     g.append(rect,sep,tL,tV,tG); nLayer.appendChild(g);
   });
   svgEl.appendChild(nLayer);
@@ -1191,9 +1273,9 @@ function setNC(id, cls) {
   }
 }
 function setEC(s,d,cls,arr) {
-  const e = document.getElementById(`edge-\${s}-\${d}`);
-  if (e) { e.setAttribute('class',\`edge \${cls}\`);
-           e.setAttribute('marker-end',\`url(#\${arr})\`); }
+  const e = document.getElementById('edge-' + s + '-' + d);
+  if (e) { e.setAttribute('class','edge ' + cls);
+           e.setAttribute('marker-end','url(#' + arr + ')'); }
 }
 
 function updateTooltips(nodeId, rectElement) {
@@ -1216,27 +1298,43 @@ function updateTooltips(nodeId, rectElement) {
     if (n.is_param && currentParamFull[nodeId]) {
         tooltipLeft.innerHTML = "<b>📦 Poids (" + nodeId + ")</b><pre>" + currentParamFull[nodeId] + "</pre>";
         tooltipLeft.style.display = 'block';
-        tooltipLeft.style.right = (window.innerWidth - r.left + 14) + 'px';
+        let leftPosLeft = r.left - tooltipLeft.offsetWidth - 14;
+        if (leftPosLeft < 0) leftPosLeft = r.right + 14;
+        tooltipLeft.style.left = leftPosLeft + 'px';
         tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
     } else {
         tooltipLeft.style.display = 'none';
     }
 
-    // 🔥 Utilise FULL_VALS en fallback si le log n'a pas encore fourni la valeur
     let fwdVal = v.fwd && v.fwd !== '' ? v.fwd : (FULL_VALS[nodeId] || '?');
     let rightHtml = "";
+    if (FORMULAS[nodeId] && FORMULAS[nodeId] !== nodeId) {
+        rightHtml += "<b>📐 Formule</b><pre>" + FORMULAS[nodeId] + "</pre>";
+    }
     if (n.is_param) {
-        rightHtml = "<b>||" + nodeId + "||</b><pre>" + (v.bwd || fwdVal) + "</pre>";
+        rightHtml += "<b>||" + nodeId + "||</b><pre>" + (v.bwd || fwdVal) + "</pre>";
     } else if (fwdVal) {
-        rightHtml = "<b>➡️ Forward (" + nodeId + ")</b><pre>" + fwdVal + "</pre>";
+        rightHtml += "<b>➡️ Forward (" + nodeId + ")</b><pre>" + fwdVal + "</pre>";
         if (v.bwd) rightHtml += "<b>🔻 Gradient (" + nodeId + ")</b><pre>" + v.bwd + "</pre>";
     } else {
-        rightHtml = "<b>➡️ Forward (" + nodeId + ")</b><pre>?</pre>";
+        rightHtml += "<b>➡️ Forward (" + nodeId + ")</b><pre>?</pre>";
     }
     tooltipRight.innerHTML = rightHtml;
     tooltipRight.style.display = 'block';
-    tooltipRight.style.left = (r.right + 14) + 'px';
-    tooltipRight.style.top = Math.max(8, r.top - 8) + 'px';
+
+    const realWidth = tooltipRight.offsetWidth;
+    const realHeight = tooltipRight.offsetHeight;
+    let leftPos = r.right + 14;
+    let topPos = Math.max(8, r.top - 8);
+    if (leftPos + realWidth > window.innerWidth) {
+        leftPos = r.left - realWidth - 14;
+        if (leftPos < 0) leftPos = 14;
+    }
+    if (topPos + realHeight > window.innerHeight) {
+        topPos = window.innerHeight - realHeight - 14;
+    }
+    tooltipRight.style.left = leftPos + 'px';
+    tooltipRight.style.top = topPos + 'px';
 }
 
 function renderStep() {
@@ -1249,16 +1347,16 @@ function renderStep() {
     const elem = document.getElementById("val-" + id);
     if (elem) elem.textContent = currentParamValues[id];
   }
-  document.getElementById('badge-epoch').textContent = \`Epoch \${snap.epoch}  |  iter \${snap.iter}\`;
-  document.getElementById('badge-loss').textContent = \`Loss : \${snap.loss.toFixed(6)}\`;
+  document.getElementById('badge-epoch').textContent = 'Epoch ' + snap.epoch + '  |  iter ' + snap.iter;
+  document.getElementById('badge-loss').textContent = 'Loss : ' + snap.loss.toFixed(6);
   const total = snap.events.length;
   document.getElementById('stepStatus').textContent =
-    stepIdx < 0 ? \`0 / \${total}\` : \`\${stepIdx+1} / \${total}\`;
+    stepIdx < 0 ? '0 / ' + total : (stepIdx+1) + ' / ' + total;
 
   NODES.forEach(n => {
     setNC(n.id, n.is_param ? 'node-param' : 'node-default');
-    const vt = document.getElementById(\`val-\${n.id}\`);
-    const gt = document.getElementById(\`grad-\${n.id}\`);
+    const vt = document.getElementById('val-' + n.id);
+    const gt = document.getElementById('grad-' + n.id);
     if (vt) vt.textContent = n.is_leaf && INIT_VALS[n.id] !== '?' ? INIT_VALS[n.id] : '';
     if (gt) gt.textContent = '';
   });
@@ -1296,14 +1394,14 @@ function renderStep() {
   }
   document.getElementById('log-panel').innerHTML =
     snap.events.slice(0,stepIdx+1).slice().reverse().map(ev =>
-      \`<div class="log-entry log-\${ev.phase}">
-        <b>\${ev.phase.toUpperCase()}</b> \${ev.node}
-        \${ev.status==='starting' ? '→ …' : ': '+(ev.val||'')}
-      </div>\`
+      '<div class="log-entry log-' + ev.phase + '">' +
+      '<b>' + ev.phase.toUpperCase() + '</b> ' + ev.node + ' ' +
+      (ev.status === 'starting' ? '→ …' : ': ' + (ev.val || '')) +
+      '</div>'
     ).join('');
 
     if (hoveredNodeId) {
-        const rectEl = document.getElementById(\`node-\${hoveredNodeId}\`);
+        const rectEl = document.getElementById('node-' + hoveredNodeId);
         if (rectEl) updateTooltips(hoveredNodeId, rectEl);
     }
 }
@@ -1352,6 +1450,16 @@ function togglePlay() {
   } else { clearInterval(timer); }
 }
 
+function reset() {
+  stepIdx = -1;
+  playing = false;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '▶ Play';
+  btn.classList.add('primary');
+  if (timer) clearInterval(timer);
+  renderStep();
+}
+
 // ── Redimensionnement sidebar (largeur) ──
 const sidebar = document.getElementById('sidebar');
 const handleW = document.getElementById('resizeHandle');
@@ -1390,7 +1498,7 @@ document.addEventListener('mouseup', () => { isResizingH = false; });
 // ── Pan & Zoom ──
 let sc=1,tx=0,ty=0,pan=false,px=0,py=0;
 const wrap=document.getElementById('canvas-wrap');
-function applyT(){ svgEl.style.transform=\`translate(\${tx}px,\${ty}px) scale(\${sc})\`; }
+function applyT(){ svgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + sc + ')'; }
 function zoomIn(){ sc*=1.2; applyT(); }
 function zoomOut(){ sc/=1.2; applyT(); }
 function zoomFit(){

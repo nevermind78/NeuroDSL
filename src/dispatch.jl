@@ -430,7 +430,7 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
 end
 
 const CUSTOM_OPS = Dict{Symbol,Function}()
-register_op!(name::Symbol, fn::Function) = (CUSTOM_OPS[name] = fn; println("✅ Op :$name enregistré"))
+register_op!(name::Symbol, fn::Function) = (CUSTOM_OPS[name] = fn; println("✅ Op :$name registered"))
 
 _unwrap_value(v::T) where {T} = v
 
