@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Fibonacci DAG (n=5, scalars)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5; display: flex; height: 100vh; overflow: hidden;
+}
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+#sidebar {
+  width: 290px; min-width: 290px; background: #fff;
+  border-right: 1px solid #e2e8f0; display: flex; flex-direction: column;
+  padding: 16px; gap: 10px; z-index: 10;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.07);
+}
+#sidebar h2 { font-size: 13px; color: #1e293b; font-weight: 700; line-height: 1.4; }
+.controls   { display: flex; gap: 6px; }
+.btn {
+  flex: 1; padding: 7px 4px; border-radius: 7px; border: 1px solid #e2e8f0;
+  cursor: pointer; background: #fff; font-size: 12px; font-weight: 500;
+  color: #334155; transition: all .15s;
+}
+.btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+#playBtn   { background: #3b82f6; color: #fff; border-color: #2563eb; }
+#playBtn:hover { background: #2563eb; }
+#status { font-size: 11px; color: #94a3b8; text-align: center; }
+#log-panel {
+  flex: 1; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 10px;
+  border: 1px solid #e2e8f0; padding: 8px; background: #fafafa; border-radius: 8px;
+}
+.log-entry { padding: 3px 6px; border-radius: 4px; margin-bottom: 2px; line-height: 1.5; }
+.log-fwd { background: #dbeafe; color: #1d4ed8; }
+.log-bwd { background: #fee2e2; color: #b91c1c; }
+/* ── Canvas ──────────────────────────────────────────────────────────────── */
+#canvas-wrap {
+  flex: 1; position: relative; overflow: hidden;
+  background: #f8fafc;
+  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+#svg-canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: visible; }
+/* ── Nœuds ───────────────────────────────────────────────────────────────── */
+.node-body {
+  transition: all .2s ease; cursor: pointer;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.08));
+}
+.node-default { fill: #fff;    stroke: #cbd5e0; stroke-width: 1.5px; }
+.node-param   { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5px; stroke-dasharray: 5,3; }
+.node-fwd     { fill: #dbeafe; stroke: #3b82f6; stroke-width: 2.5px; }
+.node-bwd     { fill: #fee2e2; stroke: #ef4444; stroke-width: 2.5px; }
+.node-done    { fill: #dcfce7; stroke: #22c55e; stroke-width: 2px;   }
+.node-final   {
+  fill: #bbf7d0; stroke: #16a34a; stroke-width: 2.5px;
+  filter: drop-shadow(0 2px 8px rgba(22,163,74,.4));
+}
+.node-label { font-family: 'Consolas', monospace; font-size: 10.5px; font-weight: 700;
+              fill: #1e293b; pointer-events: none; }
+.node-val   { font-family: 'Consolas', monospace; font-size: 9.5px;  fill: #64748b;  pointer-events: none; }
+.node-grad  { font-family: 'Consolas', monospace; font-size: 9.5px;  fill: #ef4444;  pointer-events: none; }
+/* ── Arêtes ──────────────────────────────────────────────────────────────── */
+.edge         { fill: none; stroke-width: 1.5px; transition: all .2s ease; }
+.edge-default { stroke: #94a3b8; stroke-opacity: .5; }
+.edge-fwd     { stroke: #3b82f6; stroke-width: 2.5px; stroke-opacity: 1; }
+.edge-bwd     { stroke: #ef4444; stroke-width: 2.5px; stroke-opacity: 1; }
+.edge-final   { stroke: #16a34a; stroke-width: 2.5px; stroke-opacity: 1; }
+/* ── Tooltip ─────────────────────────────────────────────────────────────── */
+.tooltip {
+  position: fixed; background: #1e293b; color: #f1f5f9;
+  padding: 10px 14px; border-radius: 10px; font-size: 12px;
+  pointer-events: none; display: none; z-index: 9999;
+  max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+.tooltip b   { color: #7dd3fc; font-family: 'Consolas', monospace; }
+.tooltip pre {
+  margin:5px 0 0;
+  font-family:'Consolas',monospace; font-size:10px;
+  white-space:pre; color:#e2e8f0;
+  overflow-x:auto;    /* ← ajout pour permettre le défilement horizontal */
+  max-width:100%;      /* garantit que le pre ne dépasse pas la tooltip */
+}
+.tooltip-left, .tooltip-right {
+  position:fixed;
+  background:#1e2030;
+  color:#e5e7eb;
+  padding:12px 16px;
+  border-radius:12px;
+  font-size: inherit;
+  pointer-events:none;
+  display:none;
+  z-index:9999;
+  max-width:600px;
+  max-height:70vh;
+  overflow:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+  border:1px solid #3b3f53;
+  font-family: 'Consolas', monospace;
+}
+.tooltip-left {
+  left: auto;
+  right: calc(100% + 14px);
+}
+.tooltip-right {
+  left: calc(100% + 14px);
+  right: auto;
+}
+.tooltip-left b, .tooltip-right b { color:#d4a373; }
+.tooltip-left pre, .tooltip-right pre {
+  margin:6px 0 0;
+  font-size: inherit;
+  white-space:pre;
+  color:#d1d5db;
+}
+/* ── Zoom ────────────────────────────────────────────────────────────────── */
+.zoom-bar {
+  position: absolute; bottom: 14px; right: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.zoom-btn {
+  width: 34px; height: 34px; background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 8px; font-size: 17px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08); transition: background .1s; color: #334155;
+}
+.zoom-btn:hover { background: #f1f5f9; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>Fibonacci DAG (n=5, scalars)</h2>
+  <div class="controls">
+    <button class="btn" onclick="step(-1)">◀ Prev</button>
+    <button class="btn" id="playBtn" onclick="togglePlay()">▶ Play</button>
+    <button class="btn" onclick="step(1)">Next ▶</button>
+  </div>
+  <div id="status">Step : 0 / 0</div>
+  <div id="log-panel"></div>
+</div>
+
+<div id="canvas-wrap">
+  <svg id="svg-canvas"></svg>
+  <div class="zoom-bar">
+    <button class="zoom-btn" onclick="zoomIn()"  title="Zoom +">+</button>
+    <button class="zoom-btn" onclick="zoomOut()" title="Zoom −">−</button>
+    <button class="zoom-btn" onclick="zoomFit()" title="Fit">⊡</button>
+  </div>
+  <div id="tooltip-left" class="tooltip-left"></div>
+  <div id="tooltip-right" class="tooltip-right"></div>
+</div>
+
+<script>
+// ── Données injectées depuis Julia ────────────────────────────────────────────
+const NODES_RAW = [{"id":"f12","is_leaf":false,"is_param":false},{"id":"f8","is_leaf":false,"is_param":false},{"id":"f10","is_leaf":false,"is_param":false},{"id":"f2","is_leaf":false,"is_param":false},{"id":"f7","is_leaf":false,"is_param":false},{"id":"f0","is_leaf":true,"is_param":false},{"id":"f9","is_leaf":false,"is_param":false},{"id":"sn","is_leaf":false,"is_param":false},{"id":"f1","is_leaf":true,"is_param":false},{"id":"f5","is_leaf":false,"is_param":false},{"id":"f4","is_leaf":false,"is_param":false},{"id":"f3","is_leaf":false,"is_param":false},{"id":"f13","is_leaf":false,"is_param":false},{"id":"f6","is_leaf":false,"is_param":false},{"id":"f11","is_leaf":false,"is_param":false}];
+const EDGES     = [["f10","f12"],["f11","f12"],["f6","f8"],["f7","f8"],["f8","f10"],["f9","f10"],["f0","f2"],["f1","f2"],["f5","f7"],["f6","f7"],["f7","f9"],["f8","f9"],["f0","sn"],["f2","sn"],["f4","sn"],["f6","sn"],["f8","sn"],["f10","sn"],["f12","sn"],["f3","f5"],["f4","f5"],["f2","f4"],["f3","f4"],["f1","f3"],["f2","f3"],["f11","f13"],["f12","f13"],["f4","f6"],["f5","f6"],["f9","f11"],["f10","f11"]];
+const LOG       = [{"node":"f2","phase":"forward","status":"starting","val":null},{"node":"f2","phase":"forward","status":"finished","val":"1.7000"},{"node":"f3","phase":"forward","status":"starting","val":null},{"node":"f3","phase":"forward","status":"finished","val":"1.7900"},{"node":"f4","phase":"forward","status":"starting","val":null},{"node":"f4","phase":"forward","status":"finished","val":"1.7630"},{"node":"f5","phase":"forward","status":"starting","val":null},{"node":"f5","phase":"forward","status":"finished","val":"1.7711"},{"node":"f6","phase":"forward","status":"starting","val":null},{"node":"f6","phase":"forward","status":"finished","val":"1.7687"},{"node":"f7","phase":"forward","status":"starting","val":null},{"node":"f7","phase":"forward","status":"finished","val":"1.7694"},{"node":"f8","phase":"forward","status":"starting","val":null},{"node":"f8","phase":"forward","status":"finished","val":"1.7692"},{"node":"f9","phase":"forward","status":"starting","val":null},{"node":"f9","phase":"forward","status":"finished","val":"1.7692"},{"node":"f10","phase":"forward","status":"starting","val":null},{"node":"f10","phase":"forward","status":"finished","val":"1.7692"},{"node":"f11","phase":"forward","status":"starting","val":null},{"node":"f11","phase":"forward","status":"finished","val":"1.7692"},{"node":"f12","phase":"forward","status":"starting","val":null},{"node":"f12","phase":"forward","status":"finished","val":"1.7692"},{"node":"sn","phase":"forward","status":"starting","val":null},{"node":"sn","phase":"forward","status":"finished","val":"11.5393"},{"node":"f13","phase":"forward","status":"starting","val":null},{"node":"f13","phase":"forward","status":"finished","val":"1.7692"}];
+const INIT_VALS = {"f0":"[1]","f1":"[1]","f10":"[1]","f11":"[1]","f12":"[1]","f13":"[1]","f2":"[1]","f3":"[1]","f4":"[1]","f5":"[1]","f6":"[1]","f7":"[1]","f8":"[1]","f9":"[1]","sn":"[1]"};
+const FULL_VALS = {"f0":"[1.0000]","f1":"[2.0000]","f10":"[1.7692]","f11":"[1.7692]","f12":"[1.7692]","f13":"[1.7692]","f2":"[1.7000]","f3":"[1.7900]","f4":"[1.7630]","f5":"[1.7711]","f6":"[1.7687]","f7":"[1.7694]","f8":"[1.7692]","f9":"[1.7692]","sn":"[11.5393]"};
+const FORMULAS  = {"f0":"f0","f1":"f1","f10":"f10 = 0.3·f8+0.7·f9","f11":"f11 = 0.3·f9+0.7·f10","f12":"f12 = 0.3·f10+0.7·f11","f13":"f13 = 0.3·f11+0.7·f12","f2":"f2 = 0.3·f0+0.7·f1","f3":"f3 = 0.3·f1+0.7·f2","f4":"f4 = 0.3·f2+0.7·f3","f5":"f5 = 0.3·f3+0.7·f4","f6":"f6 = 0.3·f4+0.7·f5","f7":"f7 = 0.3·f5+0.7·f6","f8":"f8 = 0.3·f6+0.7·f7","f9":"f9 = 0.3·f7+0.7·f8","sn":"sn = Σ(f0,f2,f4,f6,f8,f10,f12)"};
+
+// ── Layout via Dagre.js (algorithme Sugiyama / dot de Graphviz) ───────────────
+const NW = 185, NH = 72;          // dimensions d'un nœud (px)
+
+const dg = new dagre.graphlib.Graph({ multigraph: false });
+dg.setGraph({
+  rankdir  : 'LR',   // gauche → droite comme graphviz dot par défaut
+  nodesep  : 65,     // espace vertical entre nœuds du même rang
+  ranksep  : 110,    // espace horizontal entre rangs
+  marginx  : 55,
+  marginy  : 55,
+  edgesep  : 25,     // espace minimal entre deux arêtes parallèles
+  acyclicer: 'greedy',
+  ranker   : 'network-simplex'   // meilleur algorithme de rangement
+});
+dg.setDefaultEdgeLabel(() => ({}));
+
+NODES_RAW.forEach(n => dg.setNode(n.id, { width: NW, height: NH }));
+EDGES.forEach(([s, d]) => dg.setEdge(s, d));
+
+dagre.layout(dg);   // ← tout le calcul Sugiyama se passe ici
+
+// Conversion coin supérieur-gauche (Dagre donne le centre)
+const NODES = NODES_RAW.map(n => {
+  const dn = dg.node(n.id);
+  return { ...n, x: Math.round(dn.x - NW/2), y: Math.round(dn.y - NH/2), w: NW, h: NH };
+});
+const NMAP = Object.fromEntries(NODES.map(n => [n.id, n]));
+
+// Dimensions totales du SVG
+const gi = dg.graph();
+const SW = Math.round(gi.width  || 800) + 110;
+const SH = Math.round(gi.height || 600) + 110;
+
+const svgEl = document.getElementById('svg-canvas');
+svgEl.setAttribute('width',  SW);
+svgEl.setAttribute('height', SH);
+
+// ── Marqueurs de flèche ───────────────────────────────────────────────────────
+const SVGNS = 'http://www.w3.org/2000/svg';
+const defs  = document.createElementNS(SVGNS, 'defs');
+[
+  ['arr-default', '#94a3b8'],
+  ['arr-fwd',     '#3b82f6'],
+  ['arr-bwd',     '#ef4444'],
+  ['arr-final',   '#16a34a'],
+].forEach(([id, color]) => {
+  const m = document.createElementNS(SVGNS, 'marker');
+  m.setAttribute('id',           id);
+  m.setAttribute('markerWidth',  '9');
+  m.setAttribute('markerHeight', '7');
+  m.setAttribute('refX',         '9');
+  m.setAttribute('refY',         '3.5');
+  m.setAttribute('orient',       'auto');
+  const p = document.createElementNS(SVGNS, 'polygon');
+  p.setAttribute('points', '0 0, 9 3.5, 0 7');
+  p.setAttribute('fill',   color);
+  m.appendChild(p); defs.appendChild(m);
+});
+svgEl.appendChild(defs);
+
+// ── Points d'une arête : waypoints Dagre (déjà correctement placés) ─────────
+function edgePts(src, dst) {
+  const ed = dg.edge(src, dst);             // waypoints calculés par Dagre
+  if (ed && ed.points && ed.points.length >= 2) {
+    // Les waypoints commencent sur le bord du nœud source et finissent sur le bord du nœud destination
+    return ed.points;
+  }
+  // Fallback : calculer l'intersection entre le segment centre‑centre et les rectangles
+  const sn = NMAP[src], dn = NMAP[dst];
+  if (!sn || !dn) return [];
+  const sx = sn.x + sn.w/2, sy = sn.y + sn.h/2;
+  const dx = dn.x + dn.w/2, dy = dn.y + dn.h/2;
+  // Fonction pour trouver l'intersection d'un rayon avec un rectangle (bords)
+  const intersect = (rx, ry, rw, rh, x1, y1, x2, y2) => {
+    const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
+    const pts = [];
+    // Haut
+    if (y1 !== y2) {
+      const t = (top - y1) / (y2 - y1);
+      if (t >= 0 && t <= 1) {
+        const xi = x1 + t * (x2 - x1);
+        if (xi >= left && xi <= right) pts.push({x: xi, y: top});
+      }
+    }
+    // Bas
+    if (y1 !== y2) {
+      const t = (bottom - y1) / (y2 - y1);
+      if (t >= 0 && t <= 1) {
+        const xi = x1 + t * (x2 - x1);
+        if (xi >= left && xi <= right) pts.push({x: xi, y: bottom});
+      }
+    }
+    // Gauche
+    if (x1 !== x2) {
+      const t = (left - x1) / (x2 - x1);
+      if (t >= 0 && t <= 1) {
+        const yi = y1 + t * (y2 - y1);
+        if (yi >= top && yi <= bottom) pts.push({x: left, y: yi});
+      }
+    }
+    // Droite
+    if (x1 !== x2) {
+      const t = (right - x1) / (x2 - x1);
+      if (t >= 0 && t <= 1) {
+        const yi = y1 + t * (y2 - y1);
+        if (yi >= top && yi <= bottom) pts.push({x: right, y: yi});
+      }
+    }
+    // Prendre le point le plus proche de (x1,y1) (source)
+    if (pts.length === 0) return {x: x1, y: y1};
+    pts.sort((a,b) => (a.x-x1)**2 + (a.y-y1)**2 - (b.x-x1)**2 + (b.y-y1)**2);
+    return pts[0];
+  };
+  const start = intersect(sn.x, sn.y, sn.w, sn.h, sx, sy, dx, dy);
+  const end   = intersect(dn.x, dn.y, dn.w, dn.h, dx, dy, sx, sy);
+  return [start, end];
+}
+
+// ── Tracé d'une ligne brisée (ou courbe si suffisamment de points) ──────────
+function polylinePath(pts) {
+  if (!pts || pts.length < 2) return '';
+  // Si seulement 2 points, utiliser une courbe quadratique simple
+  if (pts.length === 2) {
+    const dx = pts[1].x - pts[0].x;
+    const dy = pts[1].y - pts[0].y;
+    return `M ${pts[0].x} ${pts[0].y} Q ${pts[0].x + dx/2} ${pts[0].y + dy/2}, ${pts[1].x} ${pts[1].y}`;
+  }
+  // Pour plus de 2 points, ligne brisée (les angles seront adoucis par stroke-linejoin:round)
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    d += ` L ${pts[i].x} ${pts[i].y}`;
+  }
+  return d;
+}
+
+function trunc(s, max=24) { return s.length > max ? s.slice(0, max-1) + '…' : s; }
+
+// ── État partagé ──────────────────────────────────────────────────────────────
+const nodeVals = Object.fromEntries(
+  NODES.map(n => [n.id, { fwd: FULL_VALS[n.id] || '?', bwd: '' }])
+);
+const tooltipLeft = document.getElementById('tooltip-left');
+const tooltipRight = document.getElementById('tooltip-right');
+
+let currentParamValues = {};
+let currentParamFull = {};
+
+// ── Construction initiale du SVG ──────────────────────────────────────────────
+function init() {
+  // Couche arêtes (z-order bas, sous les nœuds)
+  const eLayer = document.createElementNS(SVGNS, 'g');
+  eLayer.id = 'edge-layer';
+  EDGES.forEach(([s, d]) => {
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('d',          polylinePath(edgePts(s, d)));
+    path.setAttribute('class',      'edge edge-default');
+    path.setAttribute('id',         `edge-${s}-${d}`);
+    path.setAttribute('marker-end', 'url(#arr-default)');
+    eLayer.appendChild(path);
+  });
+  svgEl.appendChild(eLayer);
+
+  // Couche nœuds
+  const nLayer = document.createElementNS(SVGNS, 'g');
+  nLayer.id = 'node-layer';
+
+  NODES.forEach(n => {
+    const g = document.createElementNS(SVGNS, 'g');
+
+    // Rectangle principal
+    const rect = document.createElementNS(SVGNS, 'rect');
+    rect.setAttribute('x',      n.x);  rect.setAttribute('y',      n.y);
+    rect.setAttribute('width',  n.w);  rect.setAttribute('height', n.h);
+    rect.setAttribute('rx',     '8');
+    rect.setAttribute('id',     `node-${n.id}`);
+    rect.setAttribute('class',  'node-body ' + (n.is_param ? 'node-param' : 'node-default'));
+
+    // Tooltip au survol
+    rect.addEventListener('mouseenter', e => {
+    // 🔹 Calcul de la position en tenant compte du zoom/pan
+    const bbox = rect.getBBox();
+    const ctm = svgEl.getScreenCTM();
+    const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
+    const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
+    const stl = tl.matrixTransform(ctm);
+    const sbr = br.matrixTransform(ctm);
+    const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
+
+    // 🔹 Taille adaptative au zoom
+    const baseFontSize = 12 * sc;
+    tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+    tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+    const pad = Math.max(8, 12 * sc / 1.5);
+    tooltipLeft.style.padding = pad + 'px';
+    tooltipRight.style.padding = pad + 'px';
+
+    const v = nodeVals[n.id];
+    if (n.is_param && currentParamFull[n.id]) {
+        tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
+        tooltipLeft.style.display = 'block';
+        tooltipLeft.style.right = (window.innerWidth - r.left + 14) + 'px';
+        tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
+    } else {
+        tooltipLeft.style.display = 'none';
+    }
+    let rightHtml = "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
+    if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
+    tooltipRight.innerHTML = rightHtml;
+    tooltipRight.style.display = 'block';
+    tooltipRight.style.left = (r.right + 14) + 'px';
+    tooltipRight.style.top = Math.max(8, r.top - 8) + 'px';
+});
+rect.addEventListener('mouseleave', () => {
+    tooltipLeft.style.display = 'none';
+    tooltipRight.style.display = 'none';
+});
+    
+
+    // Séparateur visuel entre formule et valeurs
+    const sep = document.createElementNS(SVGNS, 'line');
+    sep.setAttribute('x1', n.x + 10);      sep.setAttribute('x2', n.x + n.w - 10);
+    sep.setAttribute('y1', n.y + 30);      sep.setAttribute('y2', n.y + 30);
+    sep.setAttribute('stroke', '#e2e8f0'); sep.setAttribute('stroke-width', '1');
+    sep.setAttribute('pointer-events', 'none');
+
+    // Textes
+    const mkT = (id, dy, cls) => {
+      const t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', n.x + n.w / 2); t.setAttribute('y', n.y + dy);
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('class', cls);
+      if (id) t.setAttribute('id', id);
+      return t;
+    };
+
+    const tLabel = mkT(null,             21, 'node-label');
+    tLabel.textContent = trunc(FORMULAS[n.id] || n.id);
+
+    const tVal  = mkT(`val-${n.id}`,  44, 'node-val');
+    tVal.textContent   = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
+
+    const tGrad = mkT(`grad-${n.id}`, 60, 'node-grad');
+    tGrad.textContent  = '';
+
+    g.append(rect, sep, tLabel, tVal, tGrad);
+    nLayer.appendChild(g);
+  });
+  svgEl.appendChild(nLayer);
+}
+
+// ── Helpers de mise à jour ────────────────────────────────────────────────────
+function setNC(id, cls) {
+  const r = document.getElementById(`node-${id}`);
+  if (r) r.setAttribute('class', `node-body ${cls}`);
+}
+function setEC(s, d, cls, arr) {
+  const e = document.getElementById(`edge-${s}-${d}`);
+  if (e) {
+    e.setAttribute('class',      `edge ${cls}`);
+    e.setAttribute('marker-end', `url(#${arr})`);
+  }
+}
+
+// ── Lecture pas à pas ─────────────────────────────────────────────────────────
+let step_i = -1, playing = false, timer = null;
+
+function step(dir) {
+  step_i = Math.max(-1, Math.min(LOG.length - 1, step_i + dir));
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('status').textContent = `Step : ${step_i + 1} / ${LOG.length}`;
+
+  // Remise à zéro de l'affichage
+  NODES.forEach(n => {
+    setNC(n.id, n.is_param ? 'node-param' : 'node-default');
+    const vt = document.getElementById(`val-${n.id}`);
+    if (vt) vt.textContent = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
+    const gt = document.getElementById(`grad-${n.id}`);
+    if (gt) gt.textContent = '';
+  });
+  EDGES.forEach(([s, d]) => setEC(s, d, 'edge-default', 'arr-default'));
+
+  if (step_i === -1) { document.getElementById('log-panel').innerHTML = ''; return; }
+
+  // Rejeu des évènements jusqu'à step_i
+  let lastFwd = null;
+  for (let i = 0; i <= step_i; i++) {
+    const ev = LOG[i];
+    if (ev.status === 'starting') {
+      setNC(ev.node, ev.phase === 'forward' ? 'node-fwd' : 'node-bwd');
+    } else {
+      if (ev.phase === 'forward') {
+        setNC(ev.node, 'node-default');
+        lastFwd = ev.node;
+        const vt = document.getElementById(`val-${ev.node}`);
+        if (vt) vt.textContent = INIT_VALS[ev.node] || ev.val || '';
+        nodeVals[ev.node].fwd = FULL_VALS[ev.node] || ev.val;
+      } else {
+        setNC(ev.node, 'node-done');
+        const gt = document.getElementById(`grad-${ev.node}`);
+        if (gt) gt.textContent = ev.val || '';
+        nodeVals[ev.node].bwd = ev.val || '';
+      }
+    }
+    // Colorier les arêtes entrantes du nœud actif
+    EDGES.forEach(([s, d]) => {
+      if (d === ev.node) {
+        const [ec, ea] = ev.phase === 'forward'
+          ? ['edge-fwd', 'arr-fwd']
+          : ['edge-bwd', 'arr-bwd'];
+        setEC(s, d, ec, ea);
+      }
+    });
+  }
+
+  // Dernier nœud forward calculé → surbrillance verte
+  if (lastFwd) {
+    setNC(lastFwd, 'node-final');
+    EDGES.forEach(([s, d]) => {
+      if (d === lastFwd) setEC(s, d, 'edge-final', 'arr-final');
+    });
+  }
+
+  // Panneau de log (ordre chronologique inversé)
+  document.getElementById('log-panel').innerHTML =
+    LOG.slice(0, step_i + 1).slice().reverse().map(ev =>
+      `<div class="log-entry log-${ev.phase}">` +
+      `<b>${ev.phase.toUpperCase()}</b> ${ev.node} ` +
+      `${ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')}` +
+      `</div>`
+    ).join('');
+}
+
+function togglePlay() {
+  playing = !playing;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = playing ? '⏸ Pause' : '▶ Play';
+  if (playing) {
+    timer = setInterval(() => {
+      if (step_i < LOG.length - 1) step(1);
+      else { playing = false; clearInterval(timer); btn.textContent = '▶ Play'; }
+    }, 500);
+  } else clearInterval(timer);
+}
+
+// ── Pan & Zoom ────────────────────────────────────────────────────────────────
+let sc = 1, tx = 0, ty = 0, pan = false, px = 0, py = 0;
+const wrap = document.getElementById('canvas-wrap');
+
+function applyT() { svgEl.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; }
+function zoomIn()  { sc *= 1.2; applyT(); }
+function zoomOut() { sc /= 1.2; applyT(); }
+function zoomFit() {
+  const ww = wrap.clientWidth, wh = wrap.clientHeight;
+  sc = Math.min(ww / SW, wh / SH) * 0.9;
+  tx = (ww - SW * sc) / 2;
+  ty = (wh - SH * sc) / 2;
+  applyT();
+}
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r  = wrap.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const f  = e.deltaY > 0 ? 0.9 : 1.1;
+  const ns2 = sc * f;
+  tx = mx - (mx - tx) * (ns2 / sc);
+  ty = my - (my - ty) * (ns2 / sc);
+  sc = ns2; applyT();
+}, { passive: false });
+
+wrap.addEventListener('mousedown', e => {
+  if (e.button === 0) {
+    pan = true; px = e.clientX - tx; py = e.clientY - ty;
+    svgEl.style.cursor = 'grabbing'; e.preventDefault();
+  }
+});
+window.addEventListener('mousemove', e => {
+  if (pan) { tx = e.clientX - px; ty = e.clientY - py; applyT(); }
+});
+window.addEventListener('mouseup', () => { pan = false; svgEl.style.cursor = ''; });
+
+// ── Démarrage ─────────────────────────────────────────────────────────────────
+init();
+requestAnimationFrame(zoomFit);   // auto-fit initial après rendu
+</script>
+</body>
+</html>

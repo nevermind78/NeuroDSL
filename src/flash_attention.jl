@@ -110,9 +110,9 @@ function flash_attn_bwd_cpu!(dQ::AbstractMatrix{Float32},
 end
 
 # ----- Dispatch CPU ------------------------------------------------------------
-#function flash_attn_fwd!(::Backend.CPUDevice, out, Q, K, V, d_head; causal=true)
-    #flash_attn_fwd_cpu_simple!(out, Q, K, V, d_head; causal=causal)
-#end
+function flash_attn_fwd!(::Backend.CPUDevice, out, Q, K, V, d_head; causal=true)
+    flash_attn_fwd_cpu_simple!(out, Q, K, V, d_head; causal=causal)
+end
 function flash_attn_fwd!(::Backend.CUDADevice, out, Q, K, V, d_head; causal=true)
     N     = size(Q, 1)
     scale = 1f0 / sqrt(Float32(d_head))
@@ -133,9 +133,9 @@ function flash_attn_fwd!(::Backend.CUDADevice, out, Q, K, V, d_head; causal=true
     return out, l_dummy, m_dummy
 end
 
-#function flash_attn_bwd!(::Backend.CPUDevice, dQ, dK, dV, dout, Q, K, V, out, l, m, d_head; causal=true)
-    #flash_attn_bwd_cpu!(dQ, dK, dV, dout, Q, K, V, out, l, m, d_head; causal=causal)
-#end
+function flash_attn_bwd!(::Backend.CPUDevice, dQ, dK, dV, dout, Q, K, V, out, l, m, d_head; causal=true)
+    flash_attn_bwd_cpu!(dQ, dK, dV, dout, Q, K, V, out, l, m, d_head; causal=causal)
+end
 function flash_attn_bwd!(::Backend.CUDADevice, dQ, dK, dV, dout,
                           Q, K, V, out, l, m, d_head; causal=true)
     N, _  = size(Q)

@@ -1,0 +1,63 @@
+============================================================
+  FINAL RESULTS (mean ± std over 50 successful runs)
+============================================================
+  Run 1 : Acc P1: 53.5% → P3: 89.5% | Gain: +35.9 points
+  Run 2 : Acc P1: 47.3% → P3: 87.9% | Gain: +40.6 points
+  Run 3 : Acc P1: 49.6% → P3: 89.3% | Gain: +39.6 points
+  Run 4 : Acc P1: 64.3% → P3: 85.7% | Gain: +21.5 points
+  Run 5 : Acc P1: 53.9% → P3: 87.5% | Gain: +33.6 points
+  Run 6 : Acc P1: 66.2% → P3: 86.7% | Gain: +20.5 points
+  Run 7 : Acc P1: 46.9% → P3: 84.8% | Gain: +37.9 points
+  Run 8 : Acc P1: 58.6% → P3: 85.5% | Gain: +27.0 points
+  Run 9 : Acc P1: 53.1% → P3: 88.5% | Gain: +35.4 points
+  Run 10 : Acc P1: 55.5% → P3: 86.1% | Gain: +30.7 points
+  Run 11 : Acc P1: 67.0% → P3: 87.9% | Gain: +20.9 points
+  Run 12 : Acc P1: 57.6% → P3: 86.7% | Gain: +29.1 points
+  Run 13 : Acc P1: 61.5% → P3: 85.5% | Gain: +24.0 points
+  Run 14 : Acc P1: 53.5% → P3: 87.3% | Gain: +33.8 points
+  Run 15 : Acc P1: 57.2% → P3: 86.9% | Gain: +29.7 points
+  Run 16 : Acc P1: 56.8% → P3: 87.1% | Gain: +30.3 points
+  Run 17 : Acc P1: 59.4% → P3: 88.1% | Gain: +28.7 points
+  Run 18 : Acc P1: 53.5% → P3: 86.7% | Gain: +33.2 points
+  Run 19 : Acc P1: 62.3% → P3: 88.1% | Gain: +25.8 points
+  Run 20 : Acc P1: 48.8% → P3: 86.5% | Gain: +37.7 points
+  Run 21 : Acc P1: 63.7% → P3: 84.0% | Gain: +20.3 points
+  Run 22 : Acc P1: 65.4% → P3: 86.9% | Gain: +21.5 points
+  Run 23 : Acc P1: 58.0% → P3: 88.1% | Gain: +30.1 points
+  Run 24 : Acc P1: 53.3% → P3: 88.1% | Gain: +34.8 points
+  Run 25 : Acc P1: 54.7% → P3: 88.3% | Gain: +33.6 points
+  Run 26 : Acc P1: 63.3% → P3: 84.2% | Gain: +20.9 points
+  Run 27 : Acc P1: 54.7% → P3: 87.9% | Gain: +33.2 points
+  Run 28 : Acc P1: 51.4% → P3: 86.7% | Gain: +35.4 points
+  Run 29 : Acc P1: 46.7% → P3: 84.2% | Gain: +37.5 points
+  Run 30 : Acc P1: 51.0% → P3: 87.5% | Gain: +36.5 points
+  Run 31 : Acc P1: 51.6% → P3: 87.9% | Gain: +36.3 points
+  Run 32 : Acc P1: 61.9% → P3: 86.1% | Gain: +24.2 points
+  Run 33 : Acc P1: 56.6% → P3: 85.4% | Gain: +28.7 points
+  Run 34 : Acc P1: 49.8% → P3: 87.1% | Gain: +37.3 points
+  Run 35 : Acc P1: 53.9% → P3: 87.7% | Gain: +33.8 points
+  Run 36 : Acc P1: 55.3% → P3: 86.3% | Gain: +31.1 points
+  Run 37 : Acc P1: 51.4% → P3: 84.4% | Gain: +33.0 points
+  Run 38 : Acc P1: 52.5% → P3: 87.3% | Gain: +34.8 points
+  Run 39 : Acc P1: 62.3% → P3: 89.5% | Gain: +27.1 points
+  Run 40 : Acc P1: 52.1% → P3: 86.1% | Gain: +34.0 points
+  Run 41 : Acc P1: 54.3% → P3: 87.5% | Gain: +33.2 points
+  Run 42 : Acc P1: 49.6% → P3: 87.5% | Gain: +37.9 points
+  Run 43 : Acc P1: 49.6% → P3: 87.1% | Gain: +37.5 points
+  Run 44 : Acc P1: 58.6% → P3: 89.1% | Gain: +30.5 points
+  Run 45 : Acc P1: 60.4% → P3: 86.7% | Gain: +26.4 points
+  Run 46 : Acc P1: 60.4% → P3: 87.5% | Gain: +27.1 points
+  Run 47 : Acc P1: 67.0% → P3: 88.7% | Gain: +21.7 points
+  Run 48 : Acc P1: 55.9% → P3: 86.5% | Gain: +30.7 points
+  Run 49 : Acc P1: 65.8% → P3: 87.5% | Gain: +21.7 points
+  Run 50 : Acc P1: 49.2% → P3: 86.9% | Gain: +37.7 points
+  ─────────────────────────────────────────────
+  Accuracy P1 : 56.1% ± 5.7%
+  Accuracy P3 : 87.0% ± 1.3%
+  Gain        : +30.9 points
+  Loss P1     : 0.3094 ± 0.0920
+  Loss P3     : 0.1013 ± 0.0084
+
+  Total runs attempted : 82
+  Successful runs      : 50
+  Success rate         : 61%

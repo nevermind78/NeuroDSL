@@ -519,7 +519,9 @@ if Backend.CUDA_AVAILABLE
 end
 
 # ── Cross-entropy optimisée (GPU sans copie, CPU sans allocations excessives) ──
-function cross_entropy_loss(logits::AbstractMatrix{Float32}, labels::AbstractVector{<:Integer})
+function cross_entropy_loss(logits::AbstractMatrix{Float32}, labels::AbstractVector)
+    lb = Int.(vec(labels))
+
     if Backend.CUDA_AVAILABLE && logits isa CUDA.CuArray
         max_vals = maximum(logits, dims=2)
         shifted = logits .- max_vals
@@ -541,7 +543,9 @@ function cross_entropy_loss(logits::AbstractMatrix{Float32}, labels::AbstractVec
     end
 end
 
-function cross_entropy_grad(logits::AbstractMatrix{Float32}, labels::AbstractVector{<:Integer})
+function cross_entropy_grad(logits::AbstractMatrix{Float32}, labels::AbstractVector)
+    lb = Int.(vec(labels))
+
     if Backend.CUDA_AVAILABLE && logits isa CUDA.CuArray
         max_vals = maximum(logits, dims=2)
         shifted = logits .- max_vals

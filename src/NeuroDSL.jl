@@ -18,6 +18,8 @@ include("mixed_precision.jl")
 include("macros.jl")
 include("layers.jl")
 include("viz.jl")
+include("dsl_macros.jl")
+include("backward_sparse.jl")
 
 
 export NeuroGraph, GraphNode, GraphRule, CtxStore
@@ -42,4 +44,5 @@ export ExecutionLog, log_event!
 export save_interactive_graph, graph_to_json
 export TrainingSnapshot, TrainingRecorder, should_capture
 export save_interactive_graph_animated
+export @neuro, @rule, @node, @snapshot,@defop, GraphBuilder, call_rule, record_snapshot!
 end

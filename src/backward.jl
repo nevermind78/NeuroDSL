@@ -123,26 +123,20 @@ if Backend.CUDA_AVAILABLE
     end
 end
 
-GRAD_RULES[:embedding] = (dev,dy,ctx,inputs) -> begin
-    E,idx = inputs[1],inputs[2]
+GRAD_RULES[:embedding] = (dev, dy, ctx, inputs) -> begin
+    E = inputs[1]
+    idx = ctx[:idx]  # Déjà des Int
     dE = _buf_zeros!(ctx, :_buf_dE, dev, size(E))
     dE .= 0f0
-    if dev isa Backend.CPUDevice
-        idx_cpu = collect(Int, Backend.to_cpu(idx))
-        for (row_out,row_E) in enumerate(vec(idx_cpu))
-            dE[row_E,:] .+= dy[row_out,:]
-        end
-    else
-        N_batch = length(idx); D_emb = size(E, 2)
-        if N_batch > 0 && D_emb > 0
-            total_elements = N_batch * D_emb
-            threads = min(256, total_elements)
-            blocks  = cld(total_elements, threads)
-            idx_cuda = Backend.to_device(dev, ctx[:idx])
-            @cuda threads=threads blocks=blocks _embedding_bwd_kernel!(
-                dE, dy, idx_cuda, D_emb, N_batch)
-        end
+    # 🔧 Toujours utiliser le CPU pour l'embedding backward (évite atomic_add GPU)
+    idx_cpu = collect(Int, idx)
+    dE_cpu = Array(dE)
+    dy_cpu = Array(dy)
+    for (row_out, row_E) in enumerate(idx_cpu)
+        dE_cpu[row_E, :] .+= dy_cpu[row_out, :]
     end
+    # Recopier sur le device
+    dE .= Backend.to_device(dev, dE_cpu)
     (dE, nothing)
 end
 
@@ -192,6 +186,13 @@ GRAD_RULES[:fused_matmul_relu] = (dev, dy, ctx, inputs) -> begin
     (dA, dB)
 end
 
+GRAD_RULES[:cross_entropy] = (dev, dy, ctx, inputs) -> begin
+    logits = ctx[:logits]
+    labels = vec(ctx[:labels])  # S'assurer que c'est un vecteur
+    dlogits = cross_entropy_grad(logits, labels)
+    dlogits .*= dy[1]
+    (dlogits, nothing)
+end
 
 """
     backward_graph!(g, loss_sym; ctx_store, namespace)
@@ -199,7 +200,12 @@ end
 function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
                          ctx_store::CtxStore=CtxStore(), namespace=g.active_ns,
                          full::Bool=true,
+                         sparse::Bool = false,
                          log::Union{Nothing, ExecutionLog}=nothing)
+
+    if sparse
+        return backward_graph_sparse!(g, loss_sym; ctx_store=ctx_store, namespace=namespace)
+    end
     ns = namespace
 
     if full

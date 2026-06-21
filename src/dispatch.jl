@@ -54,7 +54,7 @@ function _infer_output_shape(op::Symbol, inputs, attrs)
         return (size(X, 1), size(W, 1))
     elseif op == :hcat_heads
         return (size(inputs[1], 1), sum(size(x, 2) for x in inputs))
-    elseif op in (:add, :mul, :rmsnorm, :swiglu, :softmax,:scale_mask, :rope, :dropout, :relu, :wsum, :nsum, :tanh)
+    elseif op in (:add, :mul, :rmsnorm, :swiglu, :softmax,:scale_mask, :rope, :dropout, :relu, :wsum, :nsum, :tanh, :identity,:scale_add)
         return size(inputs[1])
     elseif op == :embedding
         E, idx = inputs[1], inputs[2]
@@ -63,6 +63,10 @@ function _infer_output_shape(op::Symbol, inputs, attrs)
         return (1,)
     elseif op == :slice_cols
         return (size(inputs[1], 1), attrs[:end_col] - attrs[:start_col] + 1)
+    elseif op == :cross_entropy
+        return (1,)
+    elseif op == :flash_attn
+        return size(inputs[1])
     else
         @warn "Shape inference non implémentée pour :$op, utilisation de la forme du premier argument"
         return size(inputs[1])
@@ -322,28 +326,21 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
         return output_buffer
 
     elseif op == :embedding
-        E, idx = inputs[1], inputs[2]
-        n_batch = length(idx)
+        E, idx_raw = inputs[1], inputs[2]
+        idx_cpu = Int.(vec(Array(idx_raw)))
+        n_batch = length(idx_cpu)
         d_emb = size(E, 2)
-        if dev isa Backend.CPUDevice
-            idx_cpu = collect(Int, Backend.to_cpu(idx))
-            for (i, row) in enumerate(idx_cpu)
-                output_buffer[i, :] .= E[row, :]
-            end
-        else
-            total_elements = n_batch * d_emb
-            threads = min(256, total_elements)
-            blocks = cld(total_elements, threads)
-            idx_cuda = Backend.to_device(dev, idx)
-            @cuda threads=threads blocks=blocks _embedding_fwd_kernel!(
-                output_buffer, E, idx_cuda, n_batch, d_emb)
+        E_cpu = Array(E)
+        out_cpu = Array(output_buffer)
+        for (i, row) in enumerate(idx_cpu)
+            out_cpu[i, :] .= E_cpu[row, :]
         end
+        output_buffer .= Backend.to_device(dev, out_cpu)
         if ctx_store !== nothing
             _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
-                :idx => idx, :E_size => size(E)))
+                :idx => idx_cpu, :E_size => size(E)))
         end
         return output_buffer
-
     elseif op == :rope
         x = inputs[1]::AbstractArray{Float32}
         seqlen, d = size(x)
@@ -404,6 +401,22 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
         if ctx_store !== nothing
             _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
                 :start_col => s, :end_col => e))
+        end
+        return output_buffer
+    elseif op == :cross_entropy
+        logits, labels_raw = inputs[1], inputs[2]
+        labels = Int.(vec(labels_raw))
+        loss = cross_entropy_loss(logits, labels)
+        # S'assurer que la loss est dans un tenseur (1,1)
+        if size(output_buffer) == (1,)
+            output_buffer[1] = loss
+        else
+            output_buffer[1, 1] = loss
+        end
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :logits => logits, 
+                :labels => labels))
         end
         return output_buffer
 
