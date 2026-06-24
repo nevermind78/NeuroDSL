@@ -248,8 +248,10 @@ function demand_planned!(g::NeuroGraph, sym::Symbol,
 
         execute_rule!(g, rule; ctx_store = ctx_store)
 
-        # Libérer les buffers dont la durée de vie est expirée
+        # Libérer les buffers dont la durée de vie est expirée, sans libérer
+        # la cible demandée avant de la retourner.
         for prev_sym in plan.order[1:step]
+            prev_sym == sym && continue
             prev_nd = g.nodes[ns][prev_sym]
             prev_nd.value === nothing && continue
             iv = plan.liveness[prev_sym]
@@ -258,6 +260,8 @@ function demand_planned!(g::NeuroGraph, sym::Symbol,
                 prev_nd.value = nothing
             end
         end
+
+        node_sym == sym && return g.nodes[ns][sym].value
     end
 
     return g.nodes[ns][sym].value

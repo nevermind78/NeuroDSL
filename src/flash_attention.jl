@@ -15,7 +15,7 @@ function flash_attn_fwd_cpu!(out::AbstractMatrix{Float32},
                               block_size::Int = FLASH_BLOCK)
     N = size(Q, 1)
     scale = 1f0 / sqrt(Float32(d_head))
-    l = fill(-Inf32, N)
+    l = zeros(Float32, N)
     m = fill(-Inf32, N)
     fill!(out, 0f0)
 
@@ -35,14 +35,14 @@ function flash_attn_fwd_cpu!(out::AbstractMatrix{Float32},
         m_new = max.(m, dropdims(maximum(S; dims=2); dims=2))
         exp_diff = exp.(m .- m_new)
         out  .*= exp_diff
-        l     .= exp.(l .- m_new) .* (l .!= -Inf32)
+        l    .*= exp_diff
         S_shifted = exp.(S .- m_new)
         out .+= S_shifted * Vj
         l   .+= dropdims(sum(S_shifted; dims=2); dims=2)
         m .= m_new
     end
     out ./= max.(l, 1f-38)
-    return out, l, m
+    return out, log.(max.(l, 1f-38)) .+ m, m
 end
 
 # ----- Forward CPU simple (référence O(N²)) ------------------------------------
