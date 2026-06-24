@@ -12,4 +12,5 @@ using NeuroDSL
     include(joinpath(test_dir, "test_backward.jl"))
     include(joinpath(test_dir, "test_layers.jl"))
     include(joinpath(test_dir, "test_runtime_optimizations.jl"))
+    include(joinpath(test_dir, "test_backward_sparse.jl"))
 end

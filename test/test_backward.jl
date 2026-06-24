@@ -62,7 +62,7 @@ end
     dev = NeuroDSL.Backend.CPUDevice()
 
     @testset ":rmsnorm" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_rmsnorm, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_rmsnorm, device=dev)
         NeuroDSL.set!(g, :X,     randn(Float32, 2, 4))
         NeuroDSL.set!(g, :gamma, ones(Float32, 4); is_param=true)
         NeuroDSL.set!(g, :Z,     zeros(Float32, 2, 4); atom_type=NeuroDSL.Datom)
@@ -75,7 +75,7 @@ end
     end
 
     @testset ":matmul trans_b=false" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_mm, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_mm, device=dev)
         NeuroDSL.set!(g, :A, randn(Float32, 2, 3); is_param=true)
         NeuroDSL.set!(g, :B, randn(Float32, 3, 4))
         NeuroDSL.set!(g, :Z, zeros(Float32, 2, 4); atom_type=NeuroDSL.Datom)
@@ -87,7 +87,7 @@ end
     end
 
     @testset ":matmul trans_b=true" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_mmt, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_mmt, device=dev)
         NeuroDSL.set!(g, :A, randn(Float32, 2, 3); is_param=true)
         NeuroDSL.set!(g, :B, randn(Float32, 4, 3))
         NeuroDSL.set!(g, :Z, zeros(Float32, 2, 4); atom_type=NeuroDSL.Datom)
@@ -99,7 +99,7 @@ end
     end
 
     @testset ":linear avec biais" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_lin, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_lin, device=dev)
         NeuroDSL.set!(g, :X, randn(Float32, 3, 4))
         lin = NeuroDSL.Linear(4, 8, bias=true)
         out = lin(g, :X, :fc; namespace=:t_lin)
@@ -112,7 +112,7 @@ end
     end
 
     @testset ":swiglu" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_sg, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_sg, device=dev)
         NeuroDSL.set!(g, :gate, randn(Float32, 2, 4); is_param=true)
         NeuroDSL.set!(g, :up,   randn(Float32, 2, 4))
         NeuroDSL.set!(g, :Z,    zeros(Float32, 2, 4); atom_type=NeuroDSL.Datom)
@@ -125,7 +125,7 @@ end
     end
 
     @testset ":softmax" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_sm, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_sm, device=dev)
         NeuroDSL.set!(g, :x, randn(Float32, 3, 4); is_param=true)
         NeuroDSL.set!(g, :Z, zeros(Float32, 3, 4); atom_type=NeuroDSL.Datom)
         NeuroDSL.@addrules g :t_sm begin
@@ -137,7 +137,7 @@ end
     end
 
     @testset ":scale_mask" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_sc, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_sc, device=dev)
         NeuroDSL.set!(g, :scores, randn(Float32, 4, 4); is_param=true)
         NeuroDSL.set!(g, :Z,      zeros(Float32, 4, 4); atom_type=NeuroDSL.Datom)
         NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:sc, [:scores], :scale_mask;
@@ -149,7 +149,7 @@ end
     end
 
     @testset ":add fan-out" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_add, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_add, device=dev)
         NeuroDSL.set!(g, :x,  randn(Float32, 2, 2); is_param=true)
         NeuroDSL.set!(g, :w1, ones(Float32, 2, 2))
         NeuroDSL.set!(g, :w2, ones(Float32, 2, 2))
@@ -165,7 +165,7 @@ end
     end
 
     @testset ":mse_loss" begin
-        g = NeuroDSL.JuliusGraph(namespace=:t_mse, device=dev)
+        g = NeuroDSL.NeuroGraph(namespace=:t_mse, device=dev)
         NeuroDSL.set!(g, :pred,   randn(Float32, 2, 4); is_param=true)
         NeuroDSL.set!(g, :target, randn(Float32, 2, 4); atom_type=NeuroDSL.Datom)
         NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:L, [:pred, :target], :mse_loss; namespace=:t_mse))
@@ -183,7 +183,7 @@ let
     Random.seed!(1234) 
     CUDA.seed!(1234) 
     println("seed = 1234")
-    g = NeuroDSL.JuliusGraph(namespace=:grad_check)
+    g = NeuroDSL.NeuroGraph(namespace=:grad_check)
     NeuroDSL.set!(g, :X,     NeuroDSL.Backend.randn32(g.device, 2, 4))
     NeuroDSL.set!(g, :W,     NeuroDSL.Backend.randn32(g.device, 4, 4); is_param=true)
     NeuroDSL.set!(g, :gamma, NeuroDSL.Backend.ones32(g.device, 4);     is_param=true)
@@ -208,7 +208,7 @@ end
 # ─────────────────────────────────────────────────────────────────────────────
 let
     println("--- Test accumulation (branching) ---")
-    g = NeuroDSL.JuliusGraph(namespace=:branch_test)
+    g = NeuroDSL.NeuroGraph(namespace=:branch_test)
     NeuroDSL.set!(g, :x,     NeuroDSL.Backend.randn32(g.device, 2, 2); is_param=true)
     NeuroDSL.set!(g, :w1,    NeuroDSL.Backend.ones32(g.device, 2, 2);  is_param=true)
     NeuroDSL.set!(g, :w2,    NeuroDSL.Backend.ones32(g.device, 2, 2);  is_param=true)
@@ -229,7 +229,7 @@ end
 # ─────────────────────────────────────────────────────────────────────────────
 let
     println("--- Test :linear backward (avec biais) ---")
-    g = NeuroDSL.JuliusGraph(namespace=:linear_test)
+    g = NeuroDSL.NeuroGraph(namespace=:linear_test)
     NeuroDSL.set!(g, :X, NeuroDSL.Backend.randn32(g.device, 3, 4))
     lin     = NeuroDSL.Linear(4, 8, bias=true)
     out_sym = lin(g, :X, :fc; namespace=:linear_test)
@@ -246,7 +246,7 @@ end
 # ─────────────────────────────────────────────────────────────────────────────
 let
     println("--- Test :scale_mask backward ---")
-    g = NeuroDSL.JuliusGraph(namespace=:smask_test)
+    g = NeuroDSL.NeuroGraph(namespace=:smask_test)
     seqlen, d_head = 4, 8
     NeuroDSL.set!(g, :scores, NeuroDSL.Backend.randn32(g.device, seqlen, seqlen); is_param=true)
     NeuroDSL.set!(g, :Zeros,  NeuroDSL.Backend.zeros32(g.device, seqlen, seqlen); atom_type=NeuroDSL.Datom)
@@ -264,7 +264,7 @@ end
 # ─────────────────────────────────────────────────────────────────────────────
 let
     println("--- Test :mse_loss backward ---")
-    g = NeuroDSL.JuliusGraph(namespace=:mse_test)
+    g = NeuroDSL.NeuroGraph(namespace=:mse_test)
     NeuroDSL.set!(g, :pred,   NeuroDSL.Backend.randn32(g.device, 2, 4); is_param=true)
     NeuroDSL.set!(g, :target, NeuroDSL.Backend.randn32(g.device, 2, 4); atom_type=NeuroDSL.Datom)
     NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:L, [:pred, :target], :mse_loss; namespace=:mse_test))
@@ -279,7 +279,7 @@ end
 let
     println("--- Test LlamaBlock forward ---")
     dim, n_heads, hidden, seqlen = 16, 2, 32, 4
-    g = NeuroDSL.JuliusGraph(namespace=:llama_fwd)
+    g = NeuroDSL.NeuroGraph(namespace=:llama_fwd)
     x_val = NeuroDSL.Backend.randn32(g.device, seqlen, dim)
     NeuroDSL.set!(g, :input_x, x_val)
     block   = NeuroDSL.LlamaBlock(dim, n_heads, hidden)
@@ -309,7 +309,7 @@ if NeuroDSL.Backend.CUDA_AVAILABLE
         println("\n--- RMSNorm CUDA (M=$M, N=$N) ---")
         dev = NeuroDSL.Backend.CUDADevice()
         ns  = Symbol(:cuda_rmsnorm_, M, :_, N)
-        graph = NeuroDSL.JuliusGraph(namespace=ns, device=dev)   # ← renommé
+        graph = NeuroDSL.NeuroGraph(namespace=ns, device=dev)
         NeuroDSL.set!(graph, :X,     NeuroDSL.Backend.randn32(dev, M, N))
         NeuroDSL.set!(graph, :gamma, NeuroDSL.Backend.ones32(dev, N);  is_param=true)
         NeuroDSL.set!(graph, :W,     NeuroDSL.Backend.randn32(dev, N, N); is_param=true)

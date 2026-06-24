@@ -18,7 +18,7 @@ using Test
     end
 
     @testset "Memory planning" begin
-        g = JuliusGraph(namespace=:t)
+        g = NeuroGraph(namespace=:t)
         set!(g, :x, rand(Float32, 2, 2); is_param=true, namespace=:t)
         set!(g, :w, rand(Float32, 2, 2); is_param=true, namespace=:t)
         addrule!(g, GraphRule(:h, [:x, :w], :matmul; namespace=:t))
@@ -36,7 +36,7 @@ using Test
     end
 
     @testset "Checkpointing" begin
-        g1 = JuliusGraph(namespace=:t)
+        g1 = NeuroGraph(namespace=:t)
         set!(g1, :x, rand(Float32, 2, 2); is_param=true, namespace=:t)
         set!(g1, :w, rand(Float32, 2, 2); is_param=true, namespace=:t)
         addrule!(g1, GraphRule(:h, [:x, :w], :matmul; namespace=:t))
