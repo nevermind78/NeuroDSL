@@ -16,7 +16,7 @@ function bench_flash(N=64, D=64, d_head=16)
 end
 
 function bench_memory_plan()
-    g = JuliusGraph(namespace=:bench)
+    g = NeuroGraph(namespace=:bench)
     set!(g, :x, rand(Float32, 128, 128); is_param=true, namespace=:bench)
     set!(g, :w, rand(Float32, 128, 128); is_param=true, namespace=:bench)
     addrule!(g, GraphRule(:h, [:x, :w], :matmul; namespace=:bench))

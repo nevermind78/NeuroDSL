@@ -2,7 +2,7 @@
 
 
 @testset "Graph API" begin
-    g = NeuroDSL.JuliusGraph(namespace=:t)
+    g = NeuroDSL.NeuroGraph(namespace=:t)
 
     @testset "set! / node" begin
         NeuroDSL.set!(g, :x, ones(Float32,2,2); is_param=true, namespace=:t)
