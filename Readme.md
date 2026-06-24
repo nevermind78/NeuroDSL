@@ -65,7 +65,7 @@ include("../src/NeuroDSL.jl")
 using .NeuroDSL
 
 # Build a dynamic graph
-g = NeuroDSL.JuliusGraph()
+g = NeuroDSL.NeuroGraph()
 NeuroDSL.set!(g, :x, randn(Float32, 4, 4))
 NeuroDSL.set!(g, :W, randn(Float32, 4, 4); is_param=true)
 NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:y, [:x, :W], :matmul; attrs=Dict(:trans_b=>true)))
@@ -135,7 +135,7 @@ The interactive viewer makes these dynamic behaviors **visible** — ideal for d
 
 ## 🏆 Inspiration
 
-NeuroDSL was inspired by the early work of [Julius Technology](https://juliustechco.github.io/JuliusGraph/dev/) on dynamic graph engines. We extend their ideas with formal memory planning, automatic optimizations, and an interactive live viewer.
+NeuroDSL was inspired by the early work of [Julius Technology](https://juliustechco.github.io/NeuroGraph/dev/) on dynamic graph engines. We extend their ideas with formal memory planning, automatic optimizations, and an interactive live viewer.
 
 ---
 
