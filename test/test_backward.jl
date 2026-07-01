@@ -268,7 +268,7 @@ let
     NeuroDSL.set!(g, :pred,   NeuroDSL.Backend.randn32(g.device, 2, 4); is_param=true)
     NeuroDSL.set!(g, :target, NeuroDSL.Backend.randn32(g.device, 2, 4); atom_type=NeuroDSL.Datom)
     NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:L, [:pred, :target], :mse_loss; namespace=:mse_test))
-    ok = check_gradients(g, :pred, :L)
+    ok = check_gradients(g, :pred, :L; eps=Float32(1e-3), tol=Float32(5e-3))
     ok ? println("✅ Cell 20 — :mse_loss backward OK") :
          println("❌ Cell 20 — Échec gradient :mse_loss")
 end

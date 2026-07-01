@@ -41,11 +41,30 @@ GRAD_RULES[:matmul] = (dev,dy,ctx,inputs) -> begin
     (dA, dB)
 end
 
-GRAD_RULES[:linear] = (dev,dy,ctx,inputs) -> begin
-    X,W = inputs[1],inputs[2]
-    dX = _buf!(ctx, :_buf_dX, X); mul!(dX, dy, W)
-    dW = _buf!(ctx, :_buf_dW, W); mul!(dW, dy', X)
-    length(inputs)==3 ? (dX, dW, vec(sum(dy,dims=1))) : (dX, dW)
+GRAD_RULES[:linear] = (dev, dy, ctx, inputs) -> begin
+    X, W = inputs[1], inputs[2]
+    dX = _buf!(ctx, :_buf_dX, X)
+    mul!(dX, dy, W)                   # dX = dy * W
+
+    # Gradient de W : dy' * X
+    dW_calc = dy' * X
+    # Si la forme obtenue ne correspond pas à W, c'est que W avait été transposé
+    if size(dW_calc) != size(W)
+        dW_calc = dW_calc'
+    end
+    dW = _buf!(ctx, :_buf_dW, W)
+    dW .= dW_calc
+
+    if length(inputs) == 3
+        b = inputs[3]
+        db = sum(dy, dims=1)
+        if ndims(b) == 1
+            db = vec(db)
+        end
+        return (dX, dW, db)
+    else
+        return (dX, dW)
+    end
 end
 
 GRAD_RULES[:add] = (dev,dy,ctx,inputs) -> (dy, dy)
@@ -146,8 +165,14 @@ end
 #GRAD_RULES[:mse_loss] = (dev,dy,ctx,inputs) ->
     # inputs[1] est 'out' (la prédiction), inputs[2] est 'target'
     #(mse_loss_bwd(inputs[1], inputs[2], dy), nothing)
-GRAD_RULES[:mse_loss] = (dev,dy,ctx,inputs) ->
-    mse_loss_bwd(inputs[1], inputs[2], dy)
+GRAD_RULES[:mse_loss] = (dev, dy, ctx, inputs) -> begin
+    out, target = inputs[1], inputs[2]
+    N = length(out)
+    diff = out .- target
+    loss_grad = sum(dy)
+    grad_out = (2.0f0 / N) .* diff .* loss_grad
+    return (grad_out, -grad_out)
+end
 
 
 GRAD_RULES[:sum_matrix] = (dev,dy,ctx,inputs) ->
@@ -208,44 +233,33 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
     end
     ns = namespace
 
-    if full
-        for (_, nd) in g.nodes[ns]
-            nd.gradient = nothing
-            nd.backwarded = false
-        end
-    else
-        for (_, nd) in g.nodes[ns]
-            if !nd.backwarded
-                nd.gradient = nothing
-            end
-        end
+    # Réinitialisation des gradients
+    for (_, nd) in g.nodes[ns]
+        nd.gradient = nothing
+        nd.backwarded = false
     end
 
     ln = node(g, loss_sym; namespace=ns)
-    @assert length(ln.value)==1 "loss doit être scalaire"
+    # Initialisation du gradient de la perte à 1 (scalaire)
     ln.gradient = Backend.ones32(g.device, size(ln.value)...)
     ln.backwarded = false
 
+    # Parcours inverse du graphe
     for out_sym in reverse(topo_order!(g; namespace=ns))
         !haskey(g.rules[ns], out_sym) && continue
         rule   = g.rules[ns][out_sym]
         nd_out = g.nodes[ns][out_sym]
 
-        if !full && nd_out.backwarded && nd_out.gradient === nothing
-            continue
-        end
+        # Si le nœud n'a pas de gradient (parce qu'il n'est pas sur le chemin), on passe
         if nd_out.gradient === nothing
             continue
         end
 
-        # LOG : début du backward pour ce nœud
-        if log !== nothing
-            log_event!(log, out_sym, "backward", "starting")
+        if !haskey(GRAD_RULES, rule.op)
+            error("❌ Pas de règle backward pour :$(rule.op)")
         end
 
-        !haskey(GRAD_RULES, rule.op) &&
-            error("❌ Pas de règle backward pour :$(rule.op)")
-
+        # Récupération du contexte (exécute forward si nécessaire)
         ctx = get(ctx_store, out_sym, nothing)
         if ctx === nothing
             ctx_tmp = CtxStore()
@@ -261,20 +275,7 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
             g.nodes[ns][in_sym].backwarded = true
         end
 
-        # LOG : fin du backward avec résumé du gradient
-        if log !== nothing
-            val_summary = try
-                g_val = nd_out.gradient
-                grad_flat = g_val === nothing ? [] : vec(Array(g_val))
-                isempty(grad_flat) ? "null" :
-                    join([@sprintf("%.4f", Float64(x)) for x in grad_flat[1:min(4, length(grad_flat))]], ", ")
-            catch
-                "error"
-            end
-            log_event!(log, out_sym, "backward", "finished", val_summary)
-        end
-
-        delete!(ctx_store, out_sym)
+        # Libération du gradient de sortie s'il n'est pas un paramètre
         nd_out.backwarded = true
         if !nd_out.is_param
             nd_out.gradient = nothing

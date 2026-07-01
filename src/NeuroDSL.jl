@@ -13,6 +13,9 @@ include("backward.jl")
 include("graph_data.jl")
 include("liveness.jl")
 include("checkpoint.jl")
+include("compiler_config.jl")
+include("compiler_rules.jl")
+include("compiler.jl")
 include("flash_attention.jl")
 include("mixed_precision.jl")
 include("macros.jl")
@@ -45,4 +48,7 @@ export save_interactive_graph, graph_to_json
 export TrainingSnapshot, TrainingRecorder, should_capture
 export save_interactive_graph_animated
 export @neuro, @rule, @node, @snapshot,@defop, GraphBuilder, call_rule, record_snapshot!
+export backward_graph_sparse!
+export RewriteRule, CompilerConfig, CompiledPlan, compile, scan_summary
+export FULL_LLAMA_RULES, FULL_GPT_RULES, MEMORY_RULES
 end
