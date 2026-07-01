@@ -679,3 +679,72 @@ function scan_summary(g::NeuroGraph,
     println("─"^56)
     return nothing
 end
+
+
+# ── 7. Sélection par coût réel entre implémentations alternatives (preuve de concept) ──
+#
+# Ceci N'EST PAS une e-graph générale à candidats multiples. C'est un mécanisme étroit,
+# à liste explicite, qui démontre le paradigme "je déclare des équivalences, le système
+# choisit" pour UNE seule paire aujourd'hui : attention naïve fusionnée (sdpa_fusion,
+# → :fused_sdpa) vs flash attention (:flash_attention, conditionnée par _flash_condition
+# sur la taille de séquence). N'ajoutez pas de nouvelle paire sans vérifier que ses deux
+# règles produisent des matchs dont le nœud racine (`nodes[1]`) peut coïncider — sinon la
+# comparaison ne fera jamais rien (ce qui est le cas actuel : `_is_sdpa_pattern` part d'un
+# `:matmul` alors que la règle `:flash_attention` de DEFAULT_RULES part d'un `:softmax_attn`
+# ; tant qu'aucune règle ne produit un nœud jouant les deux rôles, cette fonction est un
+# no-op sûr — c'est volontaire, voir le plan d'implémentation).
+const _ALTERNATIVE_RULE_PAIRS = [(:sdpa_fusion, :flash_attention)]
+
+"""
+    _match_cost(g, m, cost_fn; namespace) → Float32
+
+Coût réel d'un `RuleMatch`, évalué via `cost_fn` sur les tailles effectives des tenseurs
+impliqués (pas seulement le `cost_delta` statique déclaré par la règle).
+"""
+function _match_cost(g::NeuroGraph, m::RuleMatch, cost_fn::Function; namespace::Symbol)::Float32
+    shapes = Tuple[]
+    for sym in m.nodes
+        nd = get(g.nodes[namespace], sym, nothing)
+        (nd === nothing || nd.value === nothing) && continue
+        push!(shapes, size(nd.value))
+    end
+    isempty(shapes) && return Inf32   # forme inconnue : ne pas favoriser ce candidat
+    return cost_fn(m.rule.result, shapes; rule_cost_delta=m.rule.cost_delta)
+end
+
+"""
+    _choose_cheapest_alternative(g, matches, cost_fn; namespace) → Vector{RuleMatch}
+
+Pour chaque paire déclarée dans `_ALTERNATIVE_RULE_PAIRS`, si deux matchs (un de chaque
+règle) partagent le même nœud racine — c'est-à-dire représentent la même instance logique
+de pattern plutôt que deux blocs indépendants ailleurs dans le graphe — ne garde que celui
+dont `cost_fn` est le plus faible pour les tailles réelles rencontrées. Tous les autres
+matchs (y compris d'autres instances des deux mêmes règles ailleurs dans le graphe) sont
+laissés intacts.
+"""
+function _choose_cheapest_alternative(g::NeuroGraph, matches::Vector{RuleMatch},
+                                      cost_fn::Function;
+                                      namespace::Symbol = g.active_ns)::Vector{RuleMatch}
+    isempty(matches) && return matches
+    to_drop = Set{Int}()
+
+    for (name_a, name_b) in _ALTERNATIVE_RULE_PAIRS
+        idx_a = findall(m -> m.rule.name == name_a, matches)
+        idx_b = findall(m -> m.rule.name == name_b, matches)
+        (isempty(idx_a) || isempty(idx_b)) && continue
+
+        for ia in idx_a, ib in idx_b
+            (ia in to_drop || ib in to_drop) && continue
+            ma, mb = matches[ia], matches[ib]
+            # Même instance logique de pattern uniquement si le nœud racine coïncide.
+            ma.nodes[1] == mb.nodes[1] || continue
+
+            cost_a = _match_cost(g, ma, cost_fn; namespace=namespace)
+            cost_b = _match_cost(g, mb, cost_fn; namespace=namespace)
+            push!(to_drop, cost_a <= cost_b ? ib : ia)
+        end
+    end
+
+    isempty(to_drop) && return matches
+    return [m for (i, m) in enumerate(matches) if !(i in to_drop)]
+end

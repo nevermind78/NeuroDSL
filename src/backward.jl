@@ -211,6 +211,71 @@ GRAD_RULES[:fused_matmul_relu] = (dev, dy, ctx, inputs) -> begin
     (dA, dB)
 end
 
+GRAD_RULES[:fused_matmul_add] = (dev, dy, ctx, inputs) -> begin
+    tb   = get(ctx, :trans_b, false)
+    A    = get(ctx, :A, inputs[1])
+    B    = inputs[2]
+    bias = inputs[3]
+
+    if tb
+        dA = dy * B
+        dB = (A' * dy)'
+    else
+        dA = dy * B'
+        dB = A' * dy
+    end
+    db = sum(dy, dims=1)
+    ndims(bias) == 1 && (db = vec(db))
+
+    (dA, dB, db)
+end
+
+GRAD_RULES[:fused_matmul_add_relu] = (dev, dy, ctx, inputs) -> begin
+    out = get(ctx, :output, nothing)
+    if out === nothing
+        error("❌ Backward Error: Context for :fused_matmul_add_relu is missing :output. " *
+              "Ensure _dispatch_op is saving the context correctly.")
+    end
+
+    # ReLU backward : le gradient est nul là où la sortie était <= 0
+    dz = dy .* (out .> 0f0)
+
+    tb   = get(ctx, :trans_b, false)
+    A    = get(ctx, :A, inputs[1])
+    B    = inputs[2]
+    bias = inputs[3]
+
+    if tb
+        dA = dz * B
+        dB = (A' * dz)'
+    else
+        dA = dz * B'
+        dB = A' * dz
+    end
+    db = sum(dz, dims=1)
+    ndims(bias) == 1 && (db = vec(db))
+
+    (dA, dB, db)
+end
+
+GRAD_RULES[:fused_qkv_projection] = (dev, dy, ctx, inputs) -> begin
+    tb = get(ctx, :trans_b, false)
+    A  = get(ctx, :A, inputs[1])
+    B  = inputs[2]
+    if tb
+        dA = dy * B
+        dB = (A' * dy)'
+    else
+        dA = dy * B'
+        dB = A' * dy
+    end
+    (dA, dB)
+end
+
+# Fusion algébrique pure (double_transpose_elim, add_zero_elim) : le gradient
+# passe inchangé, il n'y a pas de calcul réel derrière :identity.
+GRAD_RULES[:identity] = (dev, dy, ctx, inputs) -> (dy,)
+
 GRAD_RULES[:cross_entropy] = (dev, dy, ctx, inputs) -> begin
     logits = ctx[:logits]
     labels = vec(ctx[:labels])  # S'assurer que c'est un vecteur

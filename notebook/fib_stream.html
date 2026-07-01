@@ -47,10 +47,7 @@ body {
 }
 .node-default { fill: #fff;    stroke: #cbd5e0; stroke-width: 1.5px; }
 .node-op {
-  fill: #2a2e3f;           /* fond sombre */
-  stroke: #d4a373;         /* bordure couleur accent */
-  stroke-width: 1.2px;
-  /* stroke-dasharray supprimé → bordure continue */
+  fill: #2a2e3f; stroke: #d4a373; stroke-width: 1.2px;
 }
 .node-param   { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5px; stroke-dasharray: 5,3; }
 .node-fwd     { fill: #dbeafe; stroke: #3b82f6; stroke-width: 2.5px; }
@@ -73,7 +70,7 @@ body {
   position: fixed; background: #1e293b; color: #f1f5f9;
   padding: 10px 14px; border-radius: 10px; font-size: 12px;
   pointer-events: none; display: none; z-index: 9999;
-  max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  max-width: 80vw; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
 .tooltip b   { color: #7dd3fc; font-family: 'Consolas', monospace; }
 .tooltip pre {
@@ -83,29 +80,30 @@ body {
   overflow-x:auto; max-width:100%;
 }
 .tooltip-left, .tooltip-right {
-  position:fixed;
-  background:#1e2030;
-  color:#e5e7eb;
-  padding:12px 16px;
-  border-radius:12px;
+  position: fixed;
+  background: #1e2030;
+  color: #e5e7eb;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: inherit;
-  pointer-events:none;
-  display:none;
-  z-index:9999;
-  max-width:600px;
-  max-height:70vh;
-  overflow:auto;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
-  border:1px solid #3b3f53;
+  pointer-events: none;
+  display: none;
+  z-index: 9999;
+  max-width: none !important;
+  width: max-content;
+  max-height: 70vh;
+  overflow: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  border: 1px solid #3b3f53;
   font-family: 'Consolas', monospace;
+  word-break: normal;
 }
-.tooltip-left { left: auto; right: calc(100% + 14px); }
-.tooltip-right { left: calc(100% + 14px); right: auto; }
 .tooltip-left b, .tooltip-right b { color:#d4a373; }
 .tooltip-left pre, .tooltip-right pre {
   margin:6px 0 0;
   font-size: inherit;
   white-space:pre;
+  word-break: normal;
   color:#d1d5db;
 }
 .zoom-bar {
@@ -129,6 +127,7 @@ body {
     <button class="btn" onclick="step(-1)">◀ Prev</button>
     <button class="btn" id="playBtn" onclick="togglePlay()">▶ Play</button>
     <button class="btn" onclick="step(1)">Next ▶</button>
+    <button class="btn" onclick="reset()">↺ Reset</button>
   </div>
   <div id="status">Step : 0 / 0</div>
   <div id="log-panel"></div>
@@ -148,12 +147,20 @@ body {
 <script>
 const NODES_RAW = [{"id":"f8","is_leaf":false,"is_op":false,"is_param":false},{"id":"wsum_10","is_leaf":false,"is_op":true,"is_param":false},{"id":"wsum_12","is_leaf":false,"is_op":true,"is_param":false},{"id":"fib_0","is_leaf":false,"is_op":false,"is_param":false},{"id":"fib_1","is_leaf":false,"is_op":false,"is_param":false},{"id":"fib_13","is_leaf":false,"is_op":false,"is_param":false},{"id":"fib_3","is_leaf":false,"is_op":false,"is_param":false},{"id":"wsum_6","is_leaf":false,"is_op":true,"is_param":false},{"id":"fib_9","is_leaf":false,"is_op":false,"is_param":false},{"id":"fib_7","is_leaf":false,"is_op":false,"is_param":false},{"id":"fib_5","is_leaf":false,"is_op":false,"is_param":false},{"id":"wsum_4","is_leaf":false,"is_op":true,"is_param":false},{"id":"sn","is_leaf":false,"is_op":false,"is_param":false},{"id":"x0","is_leaf":true,"is_op":false,"is_param":false},{"id":"wsum_14","is_leaf":false,"is_op":true,"is_param":false},{"id":"fib_15","is_leaf":false,"is_op":false,"is_param":false},{"id":"fib_11","is_leaf":false,"is_op":false,"is_param":false},{"id":"nsum_16","is_leaf":false,"is_op":true,"is_param":false},{"id":"x1","is_leaf":true,"is_op":false,"is_param":false},{"id":"wsum_2","is_leaf":false,"is_op":true,"is_param":false},{"id":"wsum_8","is_leaf":false,"is_op":true,"is_param":false}];
 const EDGES     = [["fib_15","f8"],["fib_9","wsum_10"],["fib_7","wsum_10"],["fib_11","wsum_12"],["fib_9","wsum_12"],["x1","fib_0"],["x0","fib_1"],["wsum_12","fib_13"],["wsum_2","fib_3"],["fib_5","wsum_6"],["fib_3","wsum_6"],["wsum_8","fib_9"],["wsum_6","fib_7"],["wsum_4","fib_5"],["fib_3","wsum_4"],["fib_0","wsum_4"],["nsum_16","sn"],["fib_13","wsum_14"],["fib_11","wsum_14"],["wsum_14","fib_15"],["wsum_10","fib_11"],["fib_1","nsum_16"],["fib_3","nsum_16"],["fib_7","nsum_16"],["fib_11","nsum_16"],["fib_15","nsum_16"],["fib_0","wsum_2"],["fib_1","wsum_2"],["fib_7","wsum_8"],["fib_5","wsum_8"]];
-const LOG       = [{"node":"fib_0","phase":"forward","status":"starting","val":null},{"node":"fib_0","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_1","phase":"forward","status":"starting","val":null},{"node":"fib_1","phase":"forward","status":"finished","val":"0.0000"},{"node":"wsum_2","phase":"forward","status":"starting","val":null},{"node":"wsum_2","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_3","phase":"forward","status":"starting","val":null},{"node":"fib_3","phase":"forward","status":"finished","val":"0.0000"},{"node":"wsum_4","phase":"forward","status":"starting","val":null},{"node":"wsum_4","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_5","phase":"forward","status":"starting","val":null},{"node":"fib_5","phase":"forward","status":"finished","val":"0.0000"},{"node":"wsum_6","phase":"forward","status":"starting","val":null},{"node":"wsum_6","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_7","phase":"forward","status":"starting","val":null},{"node":"fib_7","phase":"forward","status":"finished","val":"0.0000"},{"node":"wsum_8","phase":"forward","status":"starting","val":null},{"node":"wsum_8","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_9","phase":"forward","status":"starting","val":null},{"node":"fib_9","phase":"forward","status":"finished","val":"0.0000"},{"node":"wsum_10","phase":"forward","status":"starting","val":null},{"node":"wsum_10","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_11","phase":"forward","status":"starting","val":null},{"node":"fib_11","phase":"forward","status":"finished","val":"0.0000"},{"node":"wsum_12","phase":"forward","status":"starting","val":null},{"node":"wsum_12","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_13","phase":"forward","status":"starting","val":null},{"node":"fib_13","phase":"forward","status":"finished","val":"0.0000"},{"node":"wsum_14","phase":"forward","status":"starting","val":null},{"node":"wsum_14","phase":"forward","status":"finished","val":"0.0000"},{"node":"fib_15","phase":"forward","status":"starting","val":null},{"node":"fib_15","phase":"forward","status":"finished","val":"0.0000"},{"node":"f8","phase":"forward","status":"starting","val":null},{"node":"f8","phase":"forward","status":"finished","val":"0.0000"},{"node":"nsum_16","phase":"forward","status":"starting","val":null},{"node":"nsum_16","phase":"forward","status":"finished","val":"0.0000"},{"node":"sn","phase":"forward","status":"starting","val":null},{"node":"sn","phase":"forward","status":"finished","val":"0.0000"}];
+const LOG       = [{"node":"fib_0","phase":"forward","status":"starting","val":null},{"node":"fib_0","phase":"forward","status":"finished","val":"2.0000"},{"node":"fib_1","phase":"forward","status":"starting","val":null},{"node":"fib_1","phase":"forward","status":"finished","val":"1.0000"},{"node":"wsum_2","phase":"forward","status":"starting","val":null},{"node":"wsum_2","phase":"forward","status":"finished","val":"3.0000"},{"node":"fib_3","phase":"forward","status":"starting","val":null},{"node":"fib_3","phase":"forward","status":"finished","val":"3.0000"},{"node":"wsum_4","phase":"forward","status":"starting","val":null},{"node":"wsum_4","phase":"forward","status":"finished","val":"5.0000"},{"node":"fib_5","phase":"forward","status":"starting","val":null},{"node":"fib_5","phase":"forward","status":"finished","val":"5.0000"},{"node":"wsum_6","phase":"forward","status":"starting","val":null},{"node":"wsum_6","phase":"forward","status":"finished","val":"8.0000"},{"node":"fib_7","phase":"forward","status":"starting","val":null},{"node":"fib_7","phase":"forward","status":"finished","val":"8.0000"},{"node":"wsum_8","phase":"forward","status":"starting","val":null},{"node":"wsum_8","phase":"forward","status":"finished","val":"13.0000"},{"node":"fib_9","phase":"forward","status":"starting","val":null},{"node":"fib_9","phase":"forward","status":"finished","val":"13.0000"},{"node":"wsum_10","phase":"forward","status":"starting","val":null},{"node":"wsum_10","phase":"forward","status":"finished","val":"21.0000"},{"node":"fib_11","phase":"forward","status":"starting","val":null},{"node":"fib_11","phase":"forward","status":"finished","val":"21.0000"},{"node":"wsum_12","phase":"forward","status":"starting","val":null},{"node":"wsum_12","phase":"forward","status":"finished","val":"34.0000"},{"node":"fib_13","phase":"forward","status":"starting","val":null},{"node":"fib_13","phase":"forward","status":"finished","val":"34.0000"},{"node":"wsum_14","phase":"forward","status":"starting","val":null},{"node":"wsum_14","phase":"forward","status":"finished","val":"55.0000"},{"node":"fib_15","phase":"forward","status":"starting","val":null},{"node":"fib_15","phase":"forward","status":"finished","val":"55.0000"},{"node":"f8","phase":"forward","status":"starting","val":null},{"node":"f8","phase":"forward","status":"finished","val":"55.0000"},{"node":"nsum_16","phase":"forward","status":"starting","val":null},{"node":"nsum_16","phase":"forward","status":"finished","val":"88.0000"},{"node":"sn","phase":"forward","status":"starting","val":null},{"node":"sn","phase":"forward","status":"finished","val":"88.0000"}];
 const INIT_VALS = {"f8":"[1]","fib_0":"[1]","fib_1":"[1]","fib_11":"[1]","fib_13":"[1]","fib_15":"[1]","fib_3":"[1]","fib_5":"[1]","fib_7":"[1]","fib_9":"[1]","nsum_16":"[1]","sn":"[1]","wsum_10":"[1]","wsum_12":"[1]","wsum_14":"[1]","wsum_2":"[1]","wsum_4":"[1]","wsum_6":"[1]","wsum_8":"[1]","x0":"[1]","x1":"[1]"};
-const FULL_VALS = {"f8":"[0.0000]","fib_0":"[0.0000]","fib_1":"[0.0000]","fib_11":"[0.0000]","fib_13":"[0.0000]","fib_15":"[0.0000]","fib_3":"[0.0000]","fib_5":"[0.0000]","fib_7":"[0.0000]","fib_9":"[0.0000]","nsum_16":"[0.0000]","sn":"[0.0000]","wsum_10":"[0.0000]","wsum_12":"[0.0000]","wsum_14":"[0.0000]","wsum_2":"[0.0000]","wsum_4":"[0.0000]","wsum_6":"[0.0000]","wsum_8":"[0.0000]","x0":"[1.0000]","x1":"[2.0000]"};
-const FORMULAS  = {"f8":"f8 = identity(…)","fib_0":"fib(1)","fib_1":"fib(0)","fib_11":"fib(6)","fib_13":"fib(7)","fib_15":"fib(8)","fib_3":"fib(2)","fib_5":"fib(3)","fib_7":"fib(4)","fib_9":"fib(5)","nsum_16":"Σ(fib(0), fib(2), fib(4), fib(6), fib(8))","sn":"sn = identity(…)","wsum_10":"0.0·fib(5) + 0.0·fib(4)","wsum_12":"0.0·fib(6) + 0.0·fib(5)","wsum_14":"0.0·fib(7) + 0.0·fib(6)","wsum_2":"0.0·fib(1) + 0.0·fib(0)","wsum_4":"0.0·fib(2) + 0.0·fib(1)","wsum_6":"0.0·fib(3) + 0.0·fib(2)","wsum_8":"0.0·fib(4) + 0.0·fib(3)","x0":"x0","x1":"x1"};
+const FULL_VALS = {"f8":"[55.0000]","fib_0":"[2.0000]","fib_1":"[1.0000]","fib_11":"[21.0000]","fib_13":"[34.0000]","fib_15":"[55.0000]","fib_3":"[3.0000]","fib_5":"[5.0000]","fib_7":"[8.0000]","fib_9":"[13.0000]","nsum_16":"[88.0000]","sn":"[88.0000]","wsum_10":"[21.0000]","wsum_12":"[34.0000]","wsum_14":"[55.0000]","wsum_2":"[3.0000]","wsum_4":"[5.0000]","wsum_6":"[8.0000]","wsum_8":"[13.0000]","x0":"[1.0000]","x1":"[2.0000]"};
+const FORMULAS  = {"f8":"f8 = identity(…)","fib_0":"fib(1)","fib_1":"fib(0)","fib_11":"fib(6)","fib_13":"fib(7)","fib_15":"fib(8)","fib_3":"fib(2)","fib_5":"fib(3)","fib_7":"fib(4)","fib_9":"fib(5)","nsum_16":"nsum_16 = nsum(fib(0), fib(2), fib(4), fib(6), fib(8))","sn":"sn = identity(…)","wsum_10":"wsum_10 = fib(5) + fib(4)","wsum_12":"wsum_12 = fib(6) + fib(5)","wsum_14":"wsum_14 = fib(7) + fib(6)","wsum_2":"wsum_2 = fib(1) + fib(0)","wsum_4":"wsum_4 = fib(2) + fib(1)","wsum_6":"wsum_6 = fib(3) + fib(2)","wsum_8":"wsum_8 = fib(4) + fib(3)","x0":"x0","x1":"x1"};
+const SHORT_LABELS = {"f8":"identity","fib_0":"fib(1)","fib_1":"fib(0)","fib_11":"fib(6)","fib_13":"fib(7)","fib_15":"fib(8)","fib_3":"fib(2)","fib_5":"fib(3)","fib_7":"fib(4)","fib_9":"fib(5)","nsum_16":"nsum","sn":"identity","wsum_10":"wsum","wsum_12":"wsum","wsum_14":"wsum","wsum_2":"wsum","wsum_4":"wsum","wsum_6":"wsum","wsum_8":"wsum","x0":"x0","x1":"x1"};
 
-const NW = 240, NH = 72;
+const NH = 56;
+function estimateTextWidth(text, fontSize) {
+    if (!text) return 60;
+    const charWidth = fontSize * 0.6;
+    return Math.max(60, text.length * charWidth + 20);
+}
+const labelFontSize = 10.5;
+
 const dg = new dagre.graphlib.Graph({ multigraph: false });
 dg.setGraph({
   rankdir  : 'LR',
@@ -167,13 +174,17 @@ dg.setGraph({
 });
 dg.setDefaultEdgeLabel(() => ({}));
 
-NODES_RAW.forEach(n => dg.setNode(n.id, { width: NW, height: NH }));
+NODES_RAW.forEach(n => {
+    const label = SHORT_LABELS[n.id] || n.id;
+    const w = estimateTextWidth(label, labelFontSize);
+    dg.setNode(n.id, { width: w, height: NH });
+});
 EDGES.forEach(([s, d]) => dg.setEdge(s, d));
 dagre.layout(dg);
 
 const NODES = NODES_RAW.map(n => {
   const dn = dg.node(n.id);
-  return { ...n, x: Math.round(dn.x - NW/2), y: Math.round(dn.y - NH/2), w: NW, h: NH };
+  return { ...n, x: Math.round(dn.x - dn.width/2), y: Math.round(dn.y - NH/2), w: dn.width, h: NH };
 });
 const NMAP = Object.fromEntries(NODES.map(n => [n.id, n]));
 
@@ -258,10 +269,10 @@ function polylinePath(pts) {
   if (pts.length === 2) {
     const dx = pts[1].x - pts[0].x;
     const dy = pts[1].y - pts[0].y;
-    return `M ${pts[0].x} ${pts[0].y} Q ${pts[0].x + dx/2} ${pts[0].y + dy/2}, ${pts[1].x} ${pts[1].y}`;
+    return 'M ' + pts[0].x + ' ' + pts[0].y + ' Q ' + (pts[0].x + dx/2) + ' ' + (pts[0].y + dy/2) + ', ' + pts[1].x + ' ' + pts[1].y;
   }
-  let d = `M ${pts[0].x} ${pts[0].y}`;
-  for (let i = 1; i < pts.length; i++) d += ` L ${pts[i].x} ${pts[i].y}`;
+  let d = 'M ' + pts[0].x + ' ' + pts[0].y;
+  for (let i = 1; i < pts.length; i++) d += ' L ' + pts[i].x + ' ' + pts[i].y;
   return d;
 }
 function trunc(s, max=35) { return s.length > max ? s.slice(0, max-1) + '…' : s; }
@@ -282,7 +293,7 @@ function init() {
     const path = document.createElementNS(SVGNS, 'path');
     path.setAttribute('d',          polylinePath(edgePts(s, d)));
     path.setAttribute('class',      'edge edge-default');
-    path.setAttribute('id',         `edge-${s}-${d}`);
+    path.setAttribute('id',         'edge-' + s + '-' + d);
     path.setAttribute('marker-end', 'url(#arr-default)');
     eLayer.appendChild(path);
   });
@@ -297,48 +308,67 @@ function init() {
     rect.setAttribute('x',      n.x);  rect.setAttribute('y',      n.y);
     rect.setAttribute('width',  n.w);  rect.setAttribute('height', n.h);
     rect.setAttribute('rx',     '8');
-    rect.setAttribute('id',     `node-${n.id}`);
+    rect.setAttribute('id',     'node-' + n.id);
 
-    // Construction de la classe : node-body + classe de base + éventuellement node-op
     let cls = 'node-body ';
     cls += n.is_param ? 'node-param' : 'node-default';
     if (n.is_op) cls += ' node-op';
     rect.setAttribute('class', cls);
 
     rect.addEventListener('mouseenter', e => {
-    const bbox = rect.getBBox();
-    const ctm = svgEl.getScreenCTM();
-    const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
-    const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
-    const stl = tl.matrixTransform(ctm);
-    const sbr = br.matrixTransform(ctm);
-    const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
-    const baseFontSize = 12 * sc;
-    tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
-    tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
-    const pad = Math.max(8, 12 * sc / 1.5);
-    tooltipLeft.style.padding = pad + 'px';
-    tooltipRight.style.padding = pad + 'px';
-    const v = nodeVals[n.id];
-    if (n.is_param && currentParamFull[n.id]) {
-        tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
-        tooltipLeft.style.display = 'block';
-        tooltipLeft.style.right = (window.innerWidth - r.left + 14) + 'px';
-        tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
-    } else {
+      const bbox = rect.getBBox();
+      const ctm = svgEl.getScreenCTM();
+      const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
+      const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
+      const stl = tl.matrixTransform(ctm);
+      const sbr = br.matrixTransform(ctm);
+      const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
+      const baseFontSize = 12 * sc;
+      tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      const pad = Math.max(8, 12 * sc / 1.5);
+      tooltipLeft.style.padding = pad + 'px';
+      tooltipRight.style.padding = pad + 'px';
+      const v = nodeVals[n.id];
+      if (n.is_param && currentParamFull[n.id]) {
+          tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
+          tooltipLeft.style.display = 'block';
+          let leftPosLeft = r.left - tooltipLeft.offsetWidth - 14;
+          if (leftPosLeft < 0) leftPosLeft = r.right + 14;
+          tooltipLeft.style.left = leftPosLeft + 'px';
+          tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
+      } else {
+          tooltipLeft.style.display = 'none';
+      }
+
+      let rightHtml = "";
+      if (FORMULAS[n.id] && FORMULAS[n.id] !== n.id) {
+          rightHtml += "<b>📐 Formule</b><pre>" + FORMULAS[n.id] + "</pre>";
+      }
+      rightHtml += "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
+      if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
+      tooltipRight.innerHTML = rightHtml;
+      tooltipRight.style.display = 'block';
+
+      const realWidth = tooltipRight.offsetWidth;
+      const realHeight = tooltipRight.offsetHeight;
+      let leftPos = r.right + 14;
+      let topPos = Math.max(8, r.top - 8);
+      if (leftPos + realWidth > window.innerWidth) {
+          leftPos = r.left - realWidth - 14;
+          if (leftPos < 0) leftPos = 14;
+      }
+      if (topPos + realHeight > window.innerHeight) {
+          topPos = window.innerHeight - realHeight - 14;
+      }
+      tooltipRight.style.left = leftPos + 'px';
+      tooltipRight.style.top = topPos + 'px';
+    });
+    rect.addEventListener('mouseleave', () => {
         tooltipLeft.style.display = 'none';
-    }
-    let rightHtml = "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
-    if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
-    tooltipRight.innerHTML = rightHtml;
-    tooltipRight.style.display = 'block';
-    tooltipRight.style.left = (r.right + 14) + 'px';
-    tooltipRight.style.top = Math.max(8, r.top - 8) + 'px';
-});
-rect.addEventListener('mouseleave', () => {
-    tooltipLeft.style.display = 'none';
-    tooltipRight.style.display = 'none';
-});
+        tooltipRight.style.display = 'none';
+    });
+
     const sep = document.createElementNS(SVGNS, 'line');
     sep.setAttribute('x1', n.x + 10);      sep.setAttribute('x2', n.x + n.w - 10);
     sep.setAttribute('y1', n.y + 30);      sep.setAttribute('y2', n.y + 30);
@@ -352,10 +382,10 @@ rect.addEventListener('mouseleave', () => {
       return t;
     };
     const tLabel = mkT(null,             21, 'node-label');
-    tLabel.textContent = trunc(FORMULAS[n.id] || n.id);
-    const tVal  = mkT(`val-${n.id}`,  44, 'node-val');
+    tLabel.textContent = trunc(SHORT_LABELS[n.id] || n.id);
+    const tVal  = mkT('val-' + n.id,  44, 'node-val');
     tVal.textContent   = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
-    const tGrad = mkT(`grad-${n.id}`, 60, 'node-grad');
+    const tGrad = mkT('grad-' + n.id, 60, 'node-grad');
     tGrad.textContent  = '';
     g.append(rect, sep, tLabel, tVal, tGrad);
     nLayer.appendChild(g);
@@ -373,10 +403,10 @@ function setNC(id, cls) {
   }
 }
 function setEC(s, d, cls, arr) {
-  const e = document.getElementById(`edge-${s}-${d}`);
+  const e = document.getElementById('edge-' + s + '-' + d);
   if (e) {
-    e.setAttribute('class',      `edge ${cls}`);
-    e.setAttribute('marker-end', `url(#${arr})`);
+    e.setAttribute('class',      'edge ' + cls);
+    e.setAttribute('marker-end', 'url(#' + arr + ')');
   }
 }
 
@@ -388,12 +418,12 @@ function step(dir) {
 }
 
 function updateUI() {
-  document.getElementById('status').textContent = `Step : ${step_i + 1} / ${LOG.length}`;
+  document.getElementById('status').textContent = 'Step : ' + (step_i + 1) + ' / ' + LOG.length;
   NODES.forEach(n => {
     setNC(n.id, n.is_param ? 'node-param' : 'node-default');
-    const vt = document.getElementById(`val-${n.id}`);
+    const vt = document.getElementById('val-' + n.id);
     if (vt) vt.textContent = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
-    const gt = document.getElementById(`grad-${n.id}`);
+    const gt = document.getElementById('grad-' + n.id);
     if (gt) gt.textContent = '';
   });
   EDGES.forEach(([s, d]) => setEC(s, d, 'edge-default', 'arr-default'));
@@ -407,12 +437,12 @@ function updateUI() {
       if (ev.phase === 'forward') {
         setNC(ev.node, 'node-default');
         lastFwd = ev.node;
-        const vt = document.getElementById(`val-${ev.node}`);
+        const vt = document.getElementById('val-' + ev.node);
         if (vt) vt.textContent = INIT_VALS[ev.node] || ev.val || '';
         nodeVals[ev.node].fwd = FULL_VALS[ev.node] || ev.val;
       } else {
         setNC(ev.node, 'node-done');
-        const gt = document.getElementById(`grad-${ev.node}`);
+        const gt = document.getElementById('grad-' + ev.node);
         if (gt) gt.textContent = ev.val || '';
         nodeVals[ev.node].bwd = ev.val || '';
       }
@@ -432,10 +462,10 @@ function updateUI() {
   }
   document.getElementById('log-panel').innerHTML =
     LOG.slice(0, step_i + 1).slice().reverse().map(ev =>
-      `<div class="log-entry log-${ev.phase}">` +
-      `<b>${ev.phase.toUpperCase()}</b> ${ev.node} ` +
-      `${ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')}` +
-      `</div>`
+      '<div class="log-entry log-' + ev.phase + '">' +
+      '<b>' + ev.phase.toUpperCase() + '</b> ' + ev.node + ' ' +
+      (ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')) +
+      '</div>'
     ).join('');
 }
 
@@ -451,9 +481,18 @@ function togglePlay() {
   } else clearInterval(timer);
 }
 
+function reset() {
+  step_i = -1;
+  playing = false;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '▶ Play';
+  if (timer) clearInterval(timer);
+  updateUI();
+}
+
 let sc = 1, tx = 0, ty = 0, pan = false, px = 0, py = 0;
 const wrap = document.getElementById('canvas-wrap');
-function applyT() { svgEl.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; }
+function applyT() { svgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + sc + ')'; }
 function zoomIn()  { sc *= 1.2; applyT(); }
 function zoomOut() { sc /= 1.2; applyT(); }
 function zoomFit() {

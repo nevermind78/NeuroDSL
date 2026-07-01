@@ -629,3 +629,30 @@ if Backend.CUDA_AVAILABLE
         return nothing   # ← AJOUT INDISPENSABLE
     end
 end
+
+if Backend.CUDA_AVAILABLE
+    function _fused_matmul_add_relu_kernel!(out::CUDA.CuDeviceMatrix{Float32},
+                                            A::CUDA.CuDeviceMatrix{Float32},
+                                            B::CUDA.CuDeviceMatrix{Float32},
+                                            bias::CUDA.CuDeviceVector{Float32},
+                                            M::Int, N::Int, K::Int, trans_b::Bool)
+        row = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+        col = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+        if row <= M && col <= N
+            acc = 0.0f0
+            if trans_b
+                # B est (N, K)
+                for k in 1:K
+                    acc += A[row, k] * B[col, k]
+                end
+            else
+                # B est (K, N)
+                for k in 1:K
+                    acc += A[row, k] * B[k, col]
+                end
+            end
+            out[row, col] = max(acc + bias[col], 0.0f0)
+        end
+        return nothing   # ← AJOUT INDISPENSABLE
+    end
+end

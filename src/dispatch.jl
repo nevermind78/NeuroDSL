@@ -38,11 +38,11 @@ function _infer_output_shape(op::Symbol, inputs, attrs)
         A, B = inputs[1], inputs[2]
         tb = get(attrs, :trans_b, false)
         return (size(A, 1), tb ? size(B, 1) : size(B, 2))
-    elseif op == :fused_matmul_relu   # AJOUTE CECI
+    elseif op == :fused_matmul_relu
         A, B = inputs[1], inputs[2]
         tb = get(attrs, :trans_b, false)
         return (size(A, 1), tb ? size(B, 1) : size(B, 2))
-    elseif op == :fused_relu_matmul   # (optionnel, pour plus tard)
+    elseif op == :fused_relu_matmul
         A, B = inputs[1], inputs[2]  # Premier input a déjà subi relu, second = matrice
         # Ici on suppose que le relu ne change pas la forme, donc shape = matmul
         tb = get(attrs, :trans_b, false)
@@ -67,6 +67,29 @@ function _infer_output_shape(op::Symbol, inputs, attrs)
         return (1,)
     elseif op == :flash_attn
         return size(inputs[1])
+    elseif op == :fused_add_relu
+        return size(inputs[1])
+    elseif op == :fused_matmul_add
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_matmul_add_relu
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_qkv_projection
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_swiglu
+        return size(inputs[1])
+    elseif op == :fused_sdpa
+        return size(inputs[1])
+    elseif op in (:slice_cols, :slice_view)
+        A = inputs[1]
+        s = get(attrs, :start_col, 1)
+        e = get(attrs, :end_col, size(A, 2))
+        return (size(A, 1), e - s + 1)
     else
         @warn "Shape inference non implémentée pour :$op, utilisation de la forme du premier argument"
         return size(inputs[1])
@@ -116,6 +139,63 @@ function execute_rule!(g::NeuroGraph, rule::GraphRule;
 
     # LOG : Fin du calcul avec résumé de la valeur
         # LOG : Fin du calcul avec résumé de la valeur
+    if log !== nothing
+        val_summary = try
+            val_flat = vec(Array(out_node.value))
+            join([@sprintf("%.4f", Float64(x)) for x in val_flat[1:min(4, length(val_flat))]], ", ")
+        catch
+            "error"
+        end
+        log_event!(log, out_sym, "forward", "finished", val_summary)
+    end
+    return out_node.value
+end
+
+# ── execute_rule_pooled! : variante avec BufferPool (utilisée par CompiledPlan) ──
+#
+# Parallèle à execute_rule! ci-dessus, qui reste totalement inchangée — demand! et
+# backward_graph! continuent de l'appeler directement et ne sont donc jamais affectés
+# par cette fonction ni par un bug éventuel dans son chemin. La seule différence : le
+# buffer de sortie est emprunté/rendu à un BufferPool plutôt qu'alloué frais à chaque
+# appel via Backend.zeros32 — c'est ce qui élimine réellement les allocations
+# intermédiaires répétées pendant l'exécution d'un CompiledPlan. Les paramètres
+# (is_param) ne sont jamais empruntés au pool : ils gardent un stockage stable.
+function execute_rule_pooled!(g::NeuroGraph, rule::GraphRule, pool;
+                              ctx_store::Union{CtxStore,Nothing}=nothing,
+                              log::Union{Nothing, ExecutionLog}=nothing)
+    dev = g.device
+    ns = rule.namespace
+    out_sym = rule.output
+    out_node = g.nodes[ns][out_sym]
+
+    if log !== nothing
+        log_event!(log, out_sym, "forward", "starting")
+    end
+
+    n = length(rule.inputs)
+    if !haskey(out_node.aux_data, :_inputs_buf) || length(out_node.aux_data[:_inputs_buf]) != n
+        out_node.aux_data[:_inputs_buf] = Vector{AbstractArray{Float32}}(undef, n)
+    end
+    inputs_vals = out_node.aux_data[:_inputs_buf]::Vector{AbstractArray{Float32}}
+    for (i, s) in enumerate(rule.inputs)
+        inputs_vals[i] = g.nodes[ns][s].value::AbstractArray{Float32}
+    end
+
+    out_shape = _infer_output_shape(rule.op, inputs_vals, rule.attrs)
+    out_type  = _infer_output_type(rule.op, inputs_vals, rule.attrs)
+    is_poolable = !out_node.is_param
+
+    if out_node.value === nothing || size(out_node.value) != out_shape || eltype(out_node.value) != out_type
+        if is_poolable && out_node.value !== nothing
+            release!(pool, out_node.value)
+        end
+        out_node.value = is_poolable ? acquire!(pool, out_shape) : Backend.zeros32(dev, out_shape...)
+    end
+    output_buffer = out_node.value
+
+    _run_kernel!(dev, output_buffer, rule, inputs_vals, out_sym, out_node, ctx_store)
+    out_node.valid = true
+
     if log !== nothing
         val_summary = try
             val_flat = vec(Array(out_node.value))
@@ -197,6 +277,74 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
             ))
         end
         
+        return output_buffer
+    elseif op == :fused_matmul_add
+        A, B, bias = inputs[1], inputs[2], inputs[3]
+        tb = get(attrs, :trans_b, false)
+        A_ctx = ctx_store !== nothing ? copy(A) : A
+
+        if tb
+            LinearAlgebra.mul!(output_buffer, A, B')
+        else
+            LinearAlgebra.mul!(output_buffer, A, B)
+        end
+        output_buffer .+= reshape(vec(bias), 1, :)
+
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:trans_b => tb, :A => A_ctx, :B => B))
+        end
+        return output_buffer
+    elseif op == :fused_matmul_add_relu
+        A, B, bias = inputs[1], inputs[2], inputs[3]
+        tb = get(attrs, :trans_b, false)
+        A_ctx = ctx_store !== nothing ? copy(A) : A
+        M, K_A = size(A)
+        K_B, N_B = size(B)
+
+        N = tb ? K_B : N_B
+        K = tb ? N_B : K_B
+
+        if dev isa Backend.CUDADevice
+            bias_vec = vec(bias)
+            threads_x, threads_y = 16, 16
+            blocks_x, blocks_y = cld(M, threads_x), cld(N, threads_y)
+            @cuda threads=(threads_x, threads_y) blocks=(blocks_x, blocks_y) _fused_matmul_add_relu_kernel!(
+                output_buffer, A, B, bias_vec, M, N, K, tb
+            )
+        else
+            temp = similar(output_buffer)
+            if tb
+                LinearAlgebra.mul!(temp, A, B')
+            else
+                LinearAlgebra.mul!(temp, A, B)
+            end
+            temp .+= reshape(vec(bias), 1, :)
+            output_buffer .= max.(temp, 0f0)
+        end
+
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :trans_b => tb,
+                :A => A_ctx,
+                :B => B,
+                :output => output_buffer
+            ))
+        end
+        return output_buffer
+    elseif op == :fused_qkv_projection
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        A_ctx = ctx_store !== nothing ? copy(A) : A
+
+        if tb
+            LinearAlgebra.mul!(output_buffer, A, B')
+        else
+            LinearAlgebra.mul!(output_buffer, A, B)
+        end
+
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:trans_b => tb, :A => A_ctx, :B => B))
+        end
         return output_buffer
     elseif op == :hcat_heads
         offset = 0
@@ -423,7 +571,14 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
     elseif haskey(CUSTOM_OPS, op)
         CUSTOM_OPS[op](dev, output_buffer, inputs, attrs, out_sym, out_node, ctx_store)
         return output_buffer
-    
+
+    elseif op == :identity
+        # Élimination algébrique pure (double_transpose_elim, add_zero_elim) : recopie
+        # simple, sans dépendre d'un @defop custom enregistré par l'utilisateur (comme
+        # le faisait chaque cellule du notebook jusqu'ici).
+        output_buffer .= inputs[1]
+        return output_buffer
+
     else
         error("❌ Opérateur inconnu : :$op. Utilisez register_op! pour enregistrer un op custom.")
     end

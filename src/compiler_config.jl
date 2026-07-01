@@ -322,6 +322,12 @@ Champs
 - `verify_rules`: si `true`, les règles avec `verified=false` émettent un warning.
                   Activer pour un pipeline de recherche rigoureux.
 
+- `training`    : si `true` (défaut), `compile()` refuse d'appliquer toute `RewriteRule` dont
+                  le `result` n'a pas d'entrée dans `GRAD_RULES` — filet de sécurité qui empêche
+                  `backward_graph!` de planter sur un op fusionné sans règle de gradient. Passer
+                  `training=false` pour autoriser aussi les fusions inference-only (aucune passe
+                  backward ne sera possible sur le graphe fusionné après coup).
+
 Exemples
 ────────
 ```julia
@@ -349,6 +355,7 @@ cfg_custom = CompilerConfig(rules=[DEFAULT_RULES..., my_rule])
     inspect      :: Bool                = false
     cost_mode    :: Symbol              = :symbolic
     verify_rules :: Bool                = false
+    training     :: Bool                = true
 end
 
 function Base.show(io::IO, cfg::CompilerConfig)
@@ -485,3 +492,11 @@ function rules_for_target(cfg::CompilerConfig)::Vector{RewriteRule}
     # CPU : exclure les règles GPU-spécifiques
     return filter(r -> r.result ∉ (:flash_attention, :fused_rmsnorm_linear), cfg.rules)
 end
+
+"""
+    _has_backward_support(op) → Bool
+Renvoie `true` si `op` a une entrée dans `GRAD_RULES` — utilisé comme garde de sécurité par
+`compile()` : en mode `training=true` (défaut), une fusion vers un op sans règle de gradient
+est refusée plutôt que de laisser `backward_graph!` planter plus tard.
+"""
+_has_backward_support(op::Symbol)::Bool = haskey(GRAD_RULES, op)

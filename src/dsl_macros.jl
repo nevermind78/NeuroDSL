@@ -91,6 +91,11 @@ end
 
 function replace_rule_calls(expr, bsym, rule_names, node_names, operators=Symbol[], param_names=Symbol[])
     if expr isa Expr
+        # --- Nouveau : gestion de l'interpolation $X ---
+        if expr.head == :$
+            return esc(expr.args[1])
+        end
+        # ------------------------------------------------
         if expr.head == :macrocall
             mac = expr.args[1]
             if mac == Symbol("@node")
@@ -341,7 +346,12 @@ function process_node(expr, bsym, rule_names, node_names, operators=Symbol[], pa
                            $(esc(rhs)); namespace=$(bsym).namespace) )
         end
     else
-        error("@node : membre de droite non reconnu")
+        # Valeur Julia quelconque (tableau, variable interpolée)
+        return Expr(:call, :set!, 
+                    Expr(:., bsym, QuoteNode(:graph)), 
+                    QuoteNode(target), 
+                    rhs,
+                    Expr(:kw, :namespace, Expr(:., bsym, QuoteNode(:namespace))))
     end
 end
 

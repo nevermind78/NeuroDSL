@@ -51,4 +51,5 @@ export @neuro, @rule, @node, @snapshot,@defop, GraphBuilder, call_rule, record_s
 export backward_graph_sparse!
 export RewriteRule, CompilerConfig, CompiledPlan, compile, scan_summary
 export FULL_LLAMA_RULES, FULL_GPT_RULES, MEMORY_RULES
+export is_dirty, recompile!
 end
