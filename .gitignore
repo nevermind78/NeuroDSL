@@ -26,3 +26,42 @@ adds/
 *.svg
 
 src/all.txt
+
+# ── Notebooks exploratoires / brouillons / doublons (gardés en local, non
+#    suivis) — seuls compiler.ipynb, graph_sim.ipynb, notebook.ipynb,
+#    bell_number.ipynb, gen_simulation.ipynb et neurodsl_benchmarks.ipynb
+#    restent trackés dans notebook/.
+notebook/GPT2.ipynb
+notebook/GPT2_v0.ipynb
+notebook/GRAPH.ipynb
+notebook/Graph_dsl.ipynb
+notebook/MNIST.ipynb
+notebook/MNISTV2.ipynb
+notebook/MNISTV3.ipynb
+notebook/MNIST_par.ipynb
+notebook/MNIST_paral.ipynb
+notebook/amelioration.ipynb
+notebook/ben.ipynb
+notebook/notebook_py.ipynb
+notebook/paralell.ipynb
+notebook/test_graph.ipynb
+notebook/tests.ipynb
+notebook/tmp_bench.jl
+
+# Sorties générées par les notebooks (régénérables, pas de valeur en soi)
+notebook/*.html
+notebook/*.txt
+notebook/data/
+
+# Doublon quasi complet de notebook/ (mêmes exports HTML/JSON)
+html/
+
+# Scripts de patch ponctuels sur des notebooks (usage unique, pas d'API réutilisable)
+scripts/
+
+# Scratch racine
+test_runtime_optim.ipynb
+timing_scan.txt
+
+# Anciennes versions de modules, gardées pour référence mais plus utilisées
+old/
