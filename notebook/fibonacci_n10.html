@@ -47,10 +47,7 @@ body {
 }
 .node-default { fill: #fff;    stroke: #cbd5e0; stroke-width: 1.5px; }
 .node-op {
-  fill: #2a2e3f;           /* fond sombre */
-  stroke: #d4a373;         /* bordure couleur accent */
-  stroke-width: 1.2px;
-  /* stroke-dasharray supprimé → bordure continue */
+  fill: #2a2e3f; stroke: #d4a373; stroke-width: 1.2px;
 }
 .node-param   { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5px; stroke-dasharray: 5,3; }
 .node-fwd     { fill: #dbeafe; stroke: #3b82f6; stroke-width: 2.5px; }
@@ -73,7 +70,7 @@ body {
   position: fixed; background: #1e293b; color: #f1f5f9;
   padding: 10px 14px; border-radius: 10px; font-size: 12px;
   pointer-events: none; display: none; z-index: 9999;
-  max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  max-width: 80vw; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
 .tooltip b   { color: #7dd3fc; font-family: 'Consolas', monospace; }
 .tooltip pre {
@@ -83,29 +80,30 @@ body {
   overflow-x:auto; max-width:100%;
 }
 .tooltip-left, .tooltip-right {
-  position:fixed;
-  background:#1e2030;
-  color:#e5e7eb;
-  padding:12px 16px;
-  border-radius:12px;
+  position: fixed;
+  background: #1e2030;
+  color: #e5e7eb;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: inherit;
-  pointer-events:none;
-  display:none;
-  z-index:9999;
-  max-width:600px;
-  max-height:70vh;
-  overflow:auto;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
-  border:1px solid #3b3f53;
+  pointer-events: none;
+  display: none;
+  z-index: 9999;
+  max-width: none !important;
+  width: max-content;
+  max-height: 70vh;
+  overflow: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  border: 1px solid #3b3f53;
   font-family: 'Consolas', monospace;
+  word-break: normal;
 }
-.tooltip-left { left: auto; right: calc(100% + 14px); }
-.tooltip-right { left: calc(100% + 14px); right: auto; }
 .tooltip-left b, .tooltip-right b { color:#d4a373; }
 .tooltip-left pre, .tooltip-right pre {
   margin:6px 0 0;
   font-size: inherit;
   white-space:pre;
+  word-break: normal;
   color:#d1d5db;
 }
 .zoom-bar {
@@ -129,6 +127,7 @@ body {
     <button class="btn" onclick="step(-1)">◀ Prev</button>
     <button class="btn" id="playBtn" onclick="togglePlay()">▶ Play</button>
     <button class="btn" onclick="step(1)">Next ▶</button>
+    <button class="btn" onclick="reset()">↺ Reset</button>
   </div>
   <div id="status">Step : 0 / 0</div>
   <div id="log-panel"></div>
@@ -148,12 +147,20 @@ body {
 <script>
 const NODES_RAW = [{"id":"f8","is_leaf":false,"is_op":false,"is_param":false},{"id":"f10","is_leaf":false,"is_op":false,"is_param":false},{"id":"f2","is_leaf":false,"is_op":false,"is_param":false},{"id":"f7","is_leaf":false,"is_op":false,"is_param":false},{"id":"f0","is_leaf":true,"is_op":false,"is_param":false},{"id":"f9","is_leaf":false,"is_op":false,"is_param":false},{"id":"sn","is_leaf":false,"is_op":false,"is_param":false},{"id":"f1","is_leaf":true,"is_op":false,"is_param":false},{"id":"f5","is_leaf":false,"is_op":false,"is_param":false},{"id":"f4","is_leaf":false,"is_op":false,"is_param":false},{"id":"f3","is_leaf":false,"is_op":false,"is_param":false},{"id":"f6","is_leaf":false,"is_op":false,"is_param":false},{"id":"f11","is_leaf":false,"is_op":false,"is_param":false}];
 const EDGES     = [["f6","f8"],["f7","f8"],["f8","f10"],["f9","f10"],["f0","f2"],["f1","f2"],["f5","f7"],["f6","f7"],["f7","f9"],["f8","f9"],["f0","sn"],["f3","sn"],["f5","sn"],["f7","sn"],["f9","sn"],["f11","sn"],["f3","f5"],["f4","f5"],["f2","f4"],["f3","f4"],["f1","f3"],["f2","f3"],["f4","f6"],["f5","f6"],["f9","f11"],["f10","f11"]];
-const LOG       = [{"node":"f2","phase":"forward","status":"starting","val":null},{"node":"f2","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f3","phase":"forward","status":"starting","val":null},{"node":"f3","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f4","phase":"forward","status":"starting","val":null},{"node":"f4","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f5","phase":"forward","status":"starting","val":null},{"node":"f5","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f6","phase":"forward","status":"starting","val":null},{"node":"f6","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f7","phase":"forward","status":"starting","val":null},{"node":"f7","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f8","phase":"forward","status":"starting","val":null},{"node":"f8","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f9","phase":"forward","status":"starting","val":null},{"node":"f9","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f10","phase":"forward","status":"starting","val":null},{"node":"f10","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"f11","phase":"forward","status":"starting","val":null},{"node":"f11","phase":"forward","status":"finished","val":"0.0000, 0.0000, 0.0000, 0.0000"},{"node":"sn","phase":"forward","status":"starting","val":null},{"node":"sn","phase":"forward","status":"finished","val":"-1.5720, 2.0446, 0.7739, -1.5030"}];
+const LOG       = [{"node":"f2","phase":"forward","status":"starting","val":null},{"node":"f2","phase":"forward","status":"finished","val":"-0.1115, -0.4408, -0.8560, 0.3687"},{"node":"f3","phase":"forward","status":"starting","val":null},{"node":"f3","phase":"forward","status":"finished","val":"-0.2928, -0.2852, -0.9346, 0.4501"},{"node":"f4","phase":"forward","status":"starting","val":null},{"node":"f4","phase":"forward","status":"finished","val":"-0.2385, -0.3319, -0.9110, 0.4257"},{"node":"f5","phase":"forward","status":"starting","val":null},{"node":"f5","phase":"forward","status":"finished","val":"-0.2548, -0.3179, -0.9181, 0.4330"},{"node":"f6","phase":"forward","status":"starting","val":null},{"node":"f6","phase":"forward","status":"finished","val":"-0.2499, -0.3221, -0.9160, 0.4308"},{"node":"f7","phase":"forward","status":"starting","val":null},{"node":"f7","phase":"forward","status":"finished","val":"-0.2513, -0.3208, -0.9166, 0.4314"},{"node":"f8","phase":"forward","status":"starting","val":null},{"node":"f8","phase":"forward","status":"finished","val":"-0.2509, -0.3212, -0.9164, 0.4312"},{"node":"f9","phase":"forward","status":"starting","val":null},{"node":"f9","phase":"forward","status":"finished","val":"-0.2510, -0.3211, -0.9165, 0.4313"},{"node":"f10","phase":"forward","status":"starting","val":null},{"node":"f10","phase":"forward","status":"finished","val":"-0.2510, -0.3211, -0.9164, 0.4313"},{"node":"f11","phase":"forward","status":"starting","val":null},{"node":"f11","phase":"forward","status":"finished","val":"-0.2510, -0.3211, -0.9165, 0.4313"},{"node":"sn","phase":"forward","status":"starting","val":null},{"node":"sn","phase":"forward","status":"finished","val":"-0.0025, -3.2170, -4.8471, 1.9127"}];
 const INIT_VALS = {"f0":"[10]","f1":"[10]","f10":"[10]","f11":"[10]","f2":"[10]","f3":"[10]","f4":"[10]","f5":"[10]","f6":"[10]","f7":"[10]","f8":"[10]","f9":"[10]","sn":"[10]"};
-const FULL_VALS = {"f0":"[-1.5720, 2.0446, 0.7739, -1.5030, 0.7848, -1.2121, -0.0819, -1.9374, -0.7766, -0.8391]","f1":"[2.0492, 0.9825, 0.5479, 0.0608, -1.1580, -0.1498, 0.0542, -1.3987, 0.7172, -0.1520]","f10":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f11":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f2":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f3":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f4":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f5":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f6":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f7":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f8":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","f9":"[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]","sn":"[-1.5720, 2.0446, 0.7739, -1.5030, 0.7848, -1.2121, -0.0819, -1.9374, -0.7766, -0.8391]"};
+const FULL_VALS = {"f0":"[1.2985, -1.6508, -0.2449, -0.2644, -1.4374, -1.0943, 0.7031, 0.2421, 0.5878, 0.3459]","f1":"[-0.7159, 0.0778, -1.1179, 0.6400, -1.5227, 0.4557, 1.1763, 1.2351, -0.5285, 1.4764]","f10":"[-0.2510, -0.3211, -0.9164, 0.4313, -1.5030, 0.0980, 1.0671, 1.0060, -0.2709, 1.2155]","f11":"[-0.2510, -0.3211, -0.9165, 0.4313, -1.5030, 0.0980, 1.0671, 1.0060, -0.2709, 1.2155]","f2":"[-0.1115, -0.4408, -0.8560, 0.3687, -1.4971, -0.0093, 1.0343, 0.9372, -0.1936, 1.1372]","f3":"[-0.2928, -0.2852, -0.9346, 0.4501, -1.5048, 0.1302, 1.0769, 1.0266, -0.2941, 1.2390]","f4":"[-0.2385, -0.3319, -0.9110, 0.4257, -1.5025, 0.0883, 1.0641, 0.9998, -0.2639, 1.2085]","f5":"[-0.2548, -0.3179, -0.9181, 0.4330, -1.5032, 0.1009, 1.0680, 1.0078, -0.2730, 1.2176]","f6":"[-0.2499, -0.3221, -0.9160, 0.4308, -1.5030, 0.0971, 1.0668, 1.0054, -0.2702, 1.2149]","f7":"[-0.2513, -0.3208, -0.9166, 0.4314, -1.5030, 0.0982, 1.0671, 1.0061, -0.2711, 1.2157]","f8":"[-0.2509, -0.3212, -0.9164, 0.4312, -1.5030, 0.0979, 1.0670, 1.0059, -0.2708, 1.2154]","f9":"[-0.2510, -0.3211, -0.9165, 0.4313, -1.5030, 0.0980, 1.0671, 1.0060, -0.2709, 1.2155]","sn":"[-0.0025, -3.2170, -4.8471, 1.9127, -8.9545, -0.5689, 6.0492, 5.2946, -0.7920, 6.4492]"};
 const FORMULAS  = {"f0":"f0","f1":"f1","f10":"0.0·f8 + 0.0·f9","f11":"0.0·f9 + 0.0·f10","f2":"0.0·f0 + 0.0·f1","f3":"0.0·f1 + 0.0·f2","f4":"0.0·f2 + 0.0·f3","f5":"0.0·f3 + 0.0·f4","f6":"0.0·f4 + 0.0·f5","f7":"0.0·f5 + 0.0·f6","f8":"0.0·f6 + 0.0·f7","f9":"0.0·f7 + 0.0·f8","sn":"Σ(f0, f3, f5, f7, f9, f11)"};
+const SHORT_LABELS = {"f0":"f0","f1":"f1","f10":"wsum","f11":"wsum","f2":"wsum","f3":"wsum","f4":"wsum","f5":"wsum","f6":"wsum","f7":"wsum","f8":"wsum","f9":"wsum","sn":"nsum"};
 
-const NW = 240, NH = 72;
+const NH = 56;
+function estimateTextWidth(text, fontSize) {
+    if (!text) return 60;
+    const charWidth = fontSize * 0.6;
+    return Math.max(60, text.length * charWidth + 20);
+}
+const labelFontSize = 10.5;
+
 const dg = new dagre.graphlib.Graph({ multigraph: false });
 dg.setGraph({
   rankdir  : 'LR',
@@ -167,13 +174,17 @@ dg.setGraph({
 });
 dg.setDefaultEdgeLabel(() => ({}));
 
-NODES_RAW.forEach(n => dg.setNode(n.id, { width: NW, height: NH }));
+NODES_RAW.forEach(n => {
+    const label = SHORT_LABELS[n.id] || n.id;
+    const w = estimateTextWidth(label, labelFontSize);
+    dg.setNode(n.id, { width: w, height: NH });
+});
 EDGES.forEach(([s, d]) => dg.setEdge(s, d));
 dagre.layout(dg);
 
 const NODES = NODES_RAW.map(n => {
   const dn = dg.node(n.id);
-  return { ...n, x: Math.round(dn.x - NW/2), y: Math.round(dn.y - NH/2), w: NW, h: NH };
+  return { ...n, x: Math.round(dn.x - dn.width/2), y: Math.round(dn.y - NH/2), w: dn.width, h: NH };
 });
 const NMAP = Object.fromEntries(NODES.map(n => [n.id, n]));
 
@@ -258,10 +269,10 @@ function polylinePath(pts) {
   if (pts.length === 2) {
     const dx = pts[1].x - pts[0].x;
     const dy = pts[1].y - pts[0].y;
-    return `M ${pts[0].x} ${pts[0].y} Q ${pts[0].x + dx/2} ${pts[0].y + dy/2}, ${pts[1].x} ${pts[1].y}`;
+    return 'M ' + pts[0].x + ' ' + pts[0].y + ' Q ' + (pts[0].x + dx/2) + ' ' + (pts[0].y + dy/2) + ', ' + pts[1].x + ' ' + pts[1].y;
   }
-  let d = `M ${pts[0].x} ${pts[0].y}`;
-  for (let i = 1; i < pts.length; i++) d += ` L ${pts[i].x} ${pts[i].y}`;
+  let d = 'M ' + pts[0].x + ' ' + pts[0].y;
+  for (let i = 1; i < pts.length; i++) d += ' L ' + pts[i].x + ' ' + pts[i].y;
   return d;
 }
 function trunc(s, max=35) { return s.length > max ? s.slice(0, max-1) + '…' : s; }
@@ -282,7 +293,7 @@ function init() {
     const path = document.createElementNS(SVGNS, 'path');
     path.setAttribute('d',          polylinePath(edgePts(s, d)));
     path.setAttribute('class',      'edge edge-default');
-    path.setAttribute('id',         `edge-${s}-${d}`);
+    path.setAttribute('id',         'edge-' + s + '-' + d);
     path.setAttribute('marker-end', 'url(#arr-default)');
     eLayer.appendChild(path);
   });
@@ -297,48 +308,67 @@ function init() {
     rect.setAttribute('x',      n.x);  rect.setAttribute('y',      n.y);
     rect.setAttribute('width',  n.w);  rect.setAttribute('height', n.h);
     rect.setAttribute('rx',     '8');
-    rect.setAttribute('id',     `node-${n.id}`);
+    rect.setAttribute('id',     'node-' + n.id);
 
-    // Construction de la classe : node-body + classe de base + éventuellement node-op
     let cls = 'node-body ';
     cls += n.is_param ? 'node-param' : 'node-default';
     if (n.is_op) cls += ' node-op';
     rect.setAttribute('class', cls);
 
     rect.addEventListener('mouseenter', e => {
-    const bbox = rect.getBBox();
-    const ctm = svgEl.getScreenCTM();
-    const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
-    const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
-    const stl = tl.matrixTransform(ctm);
-    const sbr = br.matrixTransform(ctm);
-    const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
-    const baseFontSize = 12 * sc;
-    tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
-    tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
-    const pad = Math.max(8, 12 * sc / 1.5);
-    tooltipLeft.style.padding = pad + 'px';
-    tooltipRight.style.padding = pad + 'px';
-    const v = nodeVals[n.id];
-    if (n.is_param && currentParamFull[n.id]) {
-        tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
-        tooltipLeft.style.display = 'block';
-        tooltipLeft.style.right = (window.innerWidth - r.left + 14) + 'px';
-        tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
-    } else {
+      const bbox = rect.getBBox();
+      const ctm = svgEl.getScreenCTM();
+      const tl = svgEl.createSVGPoint(); tl.x = bbox.x; tl.y = bbox.y;
+      const br = svgEl.createSVGPoint(); br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
+      const stl = tl.matrixTransform(ctm);
+      const sbr = br.matrixTransform(ctm);
+      const r = { left: stl.x, top: stl.y, right: sbr.x, bottom: sbr.y };
+      const baseFontSize = 12 * sc;
+      tooltipLeft.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      tooltipRight.style.fontSize = Math.max(baseFontSize, 10) + 'px';
+      const pad = Math.max(8, 12 * sc / 1.5);
+      tooltipLeft.style.padding = pad + 'px';
+      tooltipRight.style.padding = pad + 'px';
+      const v = nodeVals[n.id];
+      if (n.is_param && currentParamFull[n.id]) {
+          tooltipLeft.innerHTML = "<b>📦 Poids (" + n.id + ")</b><pre>" + currentParamFull[n.id] + "</pre>";
+          tooltipLeft.style.display = 'block';
+          let leftPosLeft = r.left - tooltipLeft.offsetWidth - 14;
+          if (leftPosLeft < 0) leftPosLeft = r.right + 14;
+          tooltipLeft.style.left = leftPosLeft + 'px';
+          tooltipLeft.style.top = Math.max(8, r.top - 8) + 'px';
+      } else {
+          tooltipLeft.style.display = 'none';
+      }
+
+      let rightHtml = "";
+      if (FORMULAS[n.id] && FORMULAS[n.id] !== n.id) {
+          rightHtml += "<b>📐 Formule</b><pre>" + FORMULAS[n.id] + "</pre>";
+      }
+      rightHtml += "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
+      if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
+      tooltipRight.innerHTML = rightHtml;
+      tooltipRight.style.display = 'block';
+
+      const realWidth = tooltipRight.offsetWidth;
+      const realHeight = tooltipRight.offsetHeight;
+      let leftPos = r.right + 14;
+      let topPos = Math.max(8, r.top - 8);
+      if (leftPos + realWidth > window.innerWidth) {
+          leftPos = r.left - realWidth - 14;
+          if (leftPos < 0) leftPos = 14;
+      }
+      if (topPos + realHeight > window.innerHeight) {
+          topPos = window.innerHeight - realHeight - 14;
+      }
+      tooltipRight.style.left = leftPos + 'px';
+      tooltipRight.style.top = topPos + 'px';
+    });
+    rect.addEventListener('mouseleave', () => {
         tooltipLeft.style.display = 'none';
-    }
-    let rightHtml = "<b>➡️ Forward (" + n.id + ")</b><pre>" + (v.fwd || '?') + "</pre>";
-    if (v.bwd) rightHtml += "<b>🔻 Gradient (" + n.id + ")</b><pre>" + v.bwd + "</pre>";
-    tooltipRight.innerHTML = rightHtml;
-    tooltipRight.style.display = 'block';
-    tooltipRight.style.left = (r.right + 14) + 'px';
-    tooltipRight.style.top = Math.max(8, r.top - 8) + 'px';
-});
-rect.addEventListener('mouseleave', () => {
-    tooltipLeft.style.display = 'none';
-    tooltipRight.style.display = 'none';
-});
+        tooltipRight.style.display = 'none';
+    });
+
     const sep = document.createElementNS(SVGNS, 'line');
     sep.setAttribute('x1', n.x + 10);      sep.setAttribute('x2', n.x + n.w - 10);
     sep.setAttribute('y1', n.y + 30);      sep.setAttribute('y2', n.y + 30);
@@ -352,10 +382,10 @@ rect.addEventListener('mouseleave', () => {
       return t;
     };
     const tLabel = mkT(null,             21, 'node-label');
-    tLabel.textContent = trunc(FORMULAS[n.id] || n.id);
-    const tVal  = mkT(`val-${n.id}`,  44, 'node-val');
+    tLabel.textContent = trunc(SHORT_LABELS[n.id] || n.id);
+    const tVal  = mkT('val-' + n.id,  44, 'node-val');
     tVal.textContent   = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
-    const tGrad = mkT(`grad-${n.id}`, 60, 'node-grad');
+    const tGrad = mkT('grad-' + n.id, 60, 'node-grad');
     tGrad.textContent  = '';
     g.append(rect, sep, tLabel, tVal, tGrad);
     nLayer.appendChild(g);
@@ -373,10 +403,10 @@ function setNC(id, cls) {
   }
 }
 function setEC(s, d, cls, arr) {
-  const e = document.getElementById(`edge-${s}-${d}`);
+  const e = document.getElementById('edge-' + s + '-' + d);
   if (e) {
-    e.setAttribute('class',      `edge ${cls}`);
-    e.setAttribute('marker-end', `url(#${arr})`);
+    e.setAttribute('class',      'edge ' + cls);
+    e.setAttribute('marker-end', 'url(#' + arr + ')');
   }
 }
 
@@ -388,12 +418,12 @@ function step(dir) {
 }
 
 function updateUI() {
-  document.getElementById('status').textContent = `Step : ${step_i + 1} / ${LOG.length}`;
+  document.getElementById('status').textContent = 'Step : ' + (step_i + 1) + ' / ' + LOG.length;
   NODES.forEach(n => {
     setNC(n.id, n.is_param ? 'node-param' : 'node-default');
-    const vt = document.getElementById(`val-${n.id}`);
+    const vt = document.getElementById('val-' + n.id);
     if (vt) vt.textContent = (n.is_leaf && INIT_VALS[n.id] !== '?') ? INIT_VALS[n.id] : '';
-    const gt = document.getElementById(`grad-${n.id}`);
+    const gt = document.getElementById('grad-' + n.id);
     if (gt) gt.textContent = '';
   });
   EDGES.forEach(([s, d]) => setEC(s, d, 'edge-default', 'arr-default'));
@@ -407,12 +437,12 @@ function updateUI() {
       if (ev.phase === 'forward') {
         setNC(ev.node, 'node-default');
         lastFwd = ev.node;
-        const vt = document.getElementById(`val-${ev.node}`);
+        const vt = document.getElementById('val-' + ev.node);
         if (vt) vt.textContent = INIT_VALS[ev.node] || ev.val || '';
         nodeVals[ev.node].fwd = FULL_VALS[ev.node] || ev.val;
       } else {
         setNC(ev.node, 'node-done');
-        const gt = document.getElementById(`grad-${ev.node}`);
+        const gt = document.getElementById('grad-' + ev.node);
         if (gt) gt.textContent = ev.val || '';
         nodeVals[ev.node].bwd = ev.val || '';
       }
@@ -432,10 +462,10 @@ function updateUI() {
   }
   document.getElementById('log-panel').innerHTML =
     LOG.slice(0, step_i + 1).slice().reverse().map(ev =>
-      `<div class="log-entry log-${ev.phase}">` +
-      `<b>${ev.phase.toUpperCase()}</b> ${ev.node} ` +
-      `${ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')}` +
-      `</div>`
+      '<div class="log-entry log-' + ev.phase + '">' +
+      '<b>' + ev.phase.toUpperCase() + '</b> ' + ev.node + ' ' +
+      (ev.status === 'starting' ? '→ computing…' : ': ' + (ev.val || '')) +
+      '</div>'
     ).join('');
 }
 
@@ -451,9 +481,18 @@ function togglePlay() {
   } else clearInterval(timer);
 }
 
+function reset() {
+  step_i = -1;
+  playing = false;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '▶ Play';
+  if (timer) clearInterval(timer);
+  updateUI();
+}
+
 let sc = 1, tx = 0, ty = 0, pan = false, px = 0, py = 0;
 const wrap = document.getElementById('canvas-wrap');
-function applyT() { svgEl.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; }
+function applyT() { svgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + sc + ')'; }
 function zoomIn()  { sc *= 1.2; applyT(); }
 function zoomOut() { sc /= 1.2; applyT(); }
 function zoomFit() {

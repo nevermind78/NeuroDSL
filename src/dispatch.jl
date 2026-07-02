@@ -140,13 +140,12 @@ function execute_rule!(g::NeuroGraph, rule::GraphRule;
     # LOG : Fin du calcul avec résumé de la valeur
         # LOG : Fin du calcul avec résumé de la valeur
     if log !== nothing
-        val_summary = try
-            val_flat = vec(Array(out_node.value))
-            join([@sprintf("%.4f", Float64(x)) for x in val_flat[1:min(4, length(val_flat))]], ", ")
+        val_grid = try
+            format_tensor_grid(out_node.value)
         catch
-            "error"
+            Dict("shape" => "?", "rows" => Any[], "trunc_rows" => false, "trunc_cols" => false)
         end
-        log_event!(log, out_sym, "forward", "finished", val_summary)
+        log_event!(log, out_sym, "forward", "finished", val_grid)
     end
     return out_node.value
 end
@@ -197,13 +196,12 @@ function execute_rule_pooled!(g::NeuroGraph, rule::GraphRule, pool;
     out_node.valid = true
 
     if log !== nothing
-        val_summary = try
-            val_flat = vec(Array(out_node.value))
-            join([@sprintf("%.4f", Float64(x)) for x in val_flat[1:min(4, length(val_flat))]], ", ")
+        val_grid = try
+            format_tensor_grid(out_node.value)
         catch
-            "error"
+            Dict("shape" => "?", "rows" => Any[], "trunc_rows" => false, "trunc_cols" => false)
         end
-        log_event!(log, out_sym, "forward", "finished", val_summary)
+        log_event!(log, out_sym, "forward", "finished", val_grid)
     end
     return out_node.value
 end
