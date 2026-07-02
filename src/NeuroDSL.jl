@@ -45,7 +45,7 @@ export @addrules, Backend, debug!
 export _watch!, _fuse!, _invalidate_upstream!, _invalidate_downstream! 
 export ExecutionLog, log_event!
 export save_interactive_graph, graph_to_json
-export TrainingSnapshot, TrainingRecorder, should_capture
+export TrainingSnapshot, TrainingRecorder, should_capture, capture_snapshot
 export save_interactive_graph_animated
 export @neuro, @rule, @node, @snapshot,@defop, GraphBuilder, call_rule, record_snapshot!
 export backward_graph_sparse!

@@ -324,6 +324,13 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
             error("❌ Pas de règle backward pour :$(rule.op)")
         end
 
+        # Logging natif : avant, seul un notebook qui l'écrivait à la main
+        # obtenait une trace du backward (et seulement une norme en texte,
+        # pas la vraie grille par cellule) — voir l'ancien code de
+        # graph_sim.ipynb. Ici ça marche pour n'importe quel graphe, sans
+        # rien à ajouter côté appelant.
+        log !== nothing && log_event!(log, out_sym, "backward", "starting")
+
         # Récupération du contexte (exécute forward si nécessaire)
         ctx = get(ctx_store, out_sym, nothing)
         if ctx === nothing
@@ -337,7 +344,16 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
 
         for (i, in_sym) in enumerate(rule.inputs)
             accum_grad!(g.nodes[ns][in_sym], grads[i])
-            g.nodes[ns][in_sym].backwarded = true
+            in_nd = g.nodes[ns][in_sym]
+            in_nd.backwarded = true
+            # NB : pour un nœud partagé par plusieurs consommateurs (poids
+            # liés, branches multiples), ce log peut être émis plus d'une
+            # fois avant que le gradient ne soit définitivement complet —
+            # acceptable pour un petit MLP séquentiel (une seule contribution
+            # par nœud), à revisiter si on cible des graphes avec partage.
+            if log !== nothing && in_nd.gradient !== nothing
+                log_event!(log, in_sym, "backward", "finished", format_tensor_grid(in_nd.gradient))
+            end
         end
 
         # Libération du gradient de sortie s'il n'est pas un paramètre

@@ -17,6 +17,32 @@ mutable struct TrainingSnapshot
     end
 end
 
+"""
+    capture_snapshot(g, ns, epoch, iter, loss, log) -> TrainingSnapshot
+
+Construit un `TrainingSnapshot` en capturant automatiquement la valeur ET le
+gradient courants de chaque paramètre du graphe — remplace le duo
+`capture_params`/`capture_grads` + construction manuelle de `TrainingSnapshot`
+qu'un notebook devait sinon réécrire lui-même pour chaque script. Fonctionne
+pour n'importe quel graphe/namespace, pas seulement un MLP en particulier.
+
+À appeler juste après `backward_graph!` et AVANT l'étape d'optimiseur : la
+plupart des règles de mise à jour (ex. `adamw_step!`) remettent le gradient à
+zéro comme dernière étape, donc capturer après donnerait toujours un
+gradient nul.
+"""
+function capture_snapshot(g::NeuroGraph, ns::Symbol, epoch::Int, iter::Int,
+                          loss::Real, log::ExecutionLog)
+    params = Dict{Symbol, AbstractArray{Float32}}()
+    grads  = Dict{Symbol, AbstractArray{Float32}}()
+    for (sym, nd) in g.nodes[ns]
+        nd.is_param || continue
+        nd.value    !== nothing && (params[sym] = copy(nd.value))
+        nd.gradient !== nothing && (grads[sym]  = copy(nd.gradient))
+    end
+    return TrainingSnapshot(epoch, iter, Float32(loss), log, params, grads)
+end
+
 mutable struct TrainingRecorder
     snapshots       :: Vector{TrainingSnapshot}
     capture_epochs  :: Set{Int}
@@ -369,7 +395,10 @@ function _viz_graph_css(t)
 .edge-final   { stroke: $(t.edge_final); stroke-width: 2.5px; stroke-opacity: 1; }
 .tooltip-left, .tooltip-right {
   position: fixed;
-  background: #1e2030;
+  /* légèrement transparent (pas opaque à 100%) : un nœud voisin recouvert
+     par la bulle reste visible en transparence plutôt que d'être caché */
+  background: rgba(30,32,48,.94);
+  backdrop-filter: blur(2px);
   color: #e5e7eb;
   padding: 12px 16px;
   border-radius: 12px;
@@ -379,7 +408,7 @@ function _viz_graph_css(t)
   z-index: 9999;
   max-width: none !important;
   width: max-content;
-  max-height: 70vh;
+  max-height: 40vh;
   overflow: auto;
   box-shadow: 0 8px 24px rgba(0,0,0,.5);
   border: 1px solid #3b3f53;
@@ -656,10 +685,26 @@ const tooltipRight = document.getElementById('tooltip-right');
 // unifient les deux pour le tooltip (texte) et le panneau (table HTML).
 function isGridVal(v) { return v && typeof v === 'object' && Array.isArray(v.rows); }
 function fmtCell(x) { return typeof x === 'number' ? x.toFixed(4) : String(x); }
+// Aperçu volontairement PETIT et FIXE (8×8 max), indépendant de la taille
+// réelle de la grille (jusqu'à 64×64 depuis dispatch.jl) — le tooltip est une
+// bulle flottante non scrollable qui reste ouverte tant qu'on survole le
+// nœud : sans ce plafond séparé, une grande matrice y produisait un pavé de
+// texte qui recouvrait les nœuds voisins. La grille complète reste
+// disponible dans le panneau tableau (gridToTableHTML), qui lui défile.
 function gridToText(g) {
-  if (!g || !g.rows) return '';
-  const lines = g.rows.map(r => r.map(fmtCell).join('  ') + (g.trunc_cols ? '  …' : ''));
-  if (g.trunc_rows) lines.push('⋮');
+  if (!g || !g.rows || !g.rows.length) return '';
+  const MAX_R = 8, MAX_C = 8;
+  const rShow = Math.min(g.rows.length, MAX_R);
+  const cShow = Math.min((g.rows[0] || []).length, MAX_C);
+  const truncR = g.trunc_rows || g.rows.length > rShow;
+  const truncC = g.trunc_cols || (g.rows[0] || []).length > cShow;
+  const lines = [];
+  for (let r = 0; r < rShow; r++) {
+    let line = g.rows[r].slice(0, cShow).map(fmtCell).join('  ');
+    if (truncC) line += '  …';
+    lines.push(line);
+  }
+  if (truncR) lines.push('⋮');
   return lines.join('\\n') + (g.shape ? '\\n(' + g.shape + ')' : '');
 }
 function valToText(v) { return isGridVal(v) ? gridToText(v) : (v || ''); }

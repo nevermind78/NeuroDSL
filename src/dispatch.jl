@@ -102,6 +102,24 @@ function _run_kernel!(dev, output_buffer::T, rule, inputs_vals, out_sym, out_nod
     _dispatch_op(dev, output_buffer, rule.op, inputs_vals, rule.attrs, out_sym, out_node, ctx_store)
 end
 
+# Journalise la valeur forward des ENTRÉES FEUILLES d'une règle (nœuds sans
+# règle qui les calcule, ex. X/Y d'un batch) — sans ça, seul un notebook qui
+# l'injectait explicitement à la main obtenait une trace correcte de ces
+# nœuds, et le panneau tableau de viz.jl retombait sur leur valeur figée de
+# fin d'entraînement (bug "X gelé au clic"). Marche pour n'importe quelle
+# feuille de n'importe quel graphe, sans rien à écrire côté appelant.
+# Dédoublonnage simple (une feuille peut alimenter plusieurs règles) : ne
+# relogge pas une feuille déjà tracée dans CE passage.
+function _log_leaf_inputs!(log::ExecutionLog, g::NeuroGraph, ns::Symbol, rule::GraphRule)
+    for s in rule.inputs
+        haskey(g.rules[ns], s) && continue  # pas une feuille : sera loggée comme out_sym ailleurs
+        any(e[:node] == s && e[:phase] == "forward" for e in log.events) && continue
+        nd = g.nodes[ns][s]
+        nd.value === nothing && continue
+        log_event!(log, s, "forward", "finished", format_tensor_grid(nd.value))
+    end
+end
+
 # ── execute_rule! avec buffer pool ─────────────────────────────────────
 function execute_rule!(g::NeuroGraph, rule::GraphRule;
                        ctx_store::Union{CtxStore,Nothing}=nothing, 
@@ -115,6 +133,7 @@ function execute_rule!(g::NeuroGraph, rule::GraphRule;
     # LOG : Début du calcul
     if log !== nothing
         log_event!(log, out_sym, "forward", "starting")
+        _log_leaf_inputs!(log, g, ns, rule)
     end
 
     n = length(rule.inputs)
@@ -169,6 +188,7 @@ function execute_rule_pooled!(g::NeuroGraph, rule::GraphRule, pool;
 
     if log !== nothing
         log_event!(log, out_sym, "forward", "starting")
+        _log_leaf_inputs!(log, g, ns, rule)
     end
 
     n = length(rule.inputs)
