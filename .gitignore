@@ -65,3 +65,8 @@ timing_scan.txt
 
 # Anciennes versions de modules, gardées pour référence mais plus utilisées
 old/
+
+# Illustrations utilisées par le README — exemptées des règles *.png/*.html
+# ci-dessus, qui visent les sorties de scratch, pas les assets choisis.
+!assets/readme/
+!assets/readme/*
