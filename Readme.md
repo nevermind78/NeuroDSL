@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Julia](https://img.shields.io/badge/Julia-1.10%2B-purple?style=flat-square&logo=julia)](https://julialang.org)
 [![GPU](https://img.shields.io/badge/GPU-CUDA-green?style=flat-square&logo=nvidia)](https://developer.nvidia.com/cuda-toolkit)
+[![Paper](https://img.shields.io/badge/paper-preprint%20(pending%20arXiv%20ID)-b31b1b?style=flat-square)](NeuroDSL_article.pdf)
 
 **NeuroDSL** is a 100%-Julia framework built around one idea: a computation graph doesn't have to be a static trace you build once and run. In NeuroDSL, the graph is a **live, reactive object** — you can mutate a single node while training and only the part of the graph that actually depends on it gets recomputed, nothing else.
 
@@ -36,19 +37,21 @@ This is a real run (60k MNIST training images, RTX A5500): a 5-layer network wit
 
 ---
 
-## Why this is possible: O(M), not O(graph size)
+## Why this is possible: O(|V_θ|), not O(graph size)
 
-The mutation above works because NeuroDSL's invalidation is **local**. When you change a node, only the nodes that depend on it (its "downstream cone") get marked stale — the cost is proportional to how *wide* that cone is (`M`), not to how *deep* the whole graph is (`K`).
+The mutation above works because NeuroDSL's invalidation is **local**. When you change a node θ, only the nodes reachable from it — its *impact subgraph* `V_θ` — get marked stale. The cost is proportional to `|V_θ|`, not to the size of the whole graph.
 
-This isn't a design aspiration — it's been measured:
+(An earlier version of this README described this as "O(M)" for a fixed cone width `M`. That framing is a special case, not the general rule — it implicitly assumed inter-namespace edges could be ignored, which breaks down for architectures with skip connections. `|V_θ|` — the true size of the impact subgraph — is the correct and general bound.)
+
+This isn't a design aspiration — it's been measured, on graphs shaped so that `|V_θ|` coincides with a controllable cone width `M`:
 
 | Experiment | Result |
 |---|---|
-| Invalidation time vs. graph depth `K` (5 → 100, width `M` fixed) | **constant** — correlation with `K` ≈ 0 (ratio 0.86–1.00 across all depths) |
-| Invalidation time vs. cone width `M` (1 → 200, depth `K` fixed) | **linear** — correlation with `M` = 0.93–0.95 |
+| Invalidation time vs. graph depth `K` (5 → 100, impact subgraph size fixed) | **constant** — correlation with `K` ≈ 0 (ratio 0.86–1.00 across all depths) |
+| Invalidation time vs. impact subgraph size (1 → 200, depth `K` fixed) | **linear** — correlation = 0.93–0.95 |
 | Fine-tuning 10 of 100 layers, forward pass | **98% faster** than a full forward pass (908 ms → 18 ms) |
 
-The practical upshot: workflows that mutate or probe *part* of a graph repeatedly — fine-tuning, weight-tying experiments, and (see below) mechanistic interpretability — get cheaper the more localized the change is, by construction, not by a special case.
+The practical upshot: workflows that mutate or probe *part* of a graph repeatedly — fine-tuning, weight-tying experiments, and (see below) mechanistic interpretability — get cheaper the smaller the impact subgraph of the change is, by construction, not by a special case.
 
 ---
 
@@ -111,7 +114,7 @@ Open `demo.html` in a browser and step through the computation, forward and back
 ## Design philosophy
 
 - **Reactive** — the graph is a live object, not a compiled artifact; mutate it at any time.
-- **Local invalidation** — only nodes downstream of a change are recomputed, with a measured O(M) cost.
+- **Local invalidation** — only nodes downstream of a change are recomputed, with a measured cost proportional to the impact subgraph size O(|V_θ|).
 - **Observable by default** — every forward and backward step is traceable without hand-written instrumentation.
 - **100% Julia** — no Python interop, no C++ core; the whole engine, from autodiff to the CUDA kernels, is Julia.
 
@@ -121,7 +124,7 @@ Open `demo.html` in a browser and step through the computation, forward and back
 
 - `src/` — the NeuroDSL module (graph engine, autodiff, CUDA kernels, compiler, DSL macros, interactive viewer)
 - `test/` — unit and integration tests
-- `notebook/` — worked examples with real, reproducible results (dynamic architecture mutation, O(M) validation, the interactive viewer demos above)
+- `notebook/` — worked examples with real, reproducible results (dynamic architecture mutation, impact-subgraph locality validation, the interactive viewer demos above)
 - `benchmarks/` — reproducible experiments
 - `figures/` — plots and diagrams
 - `old/` — superseded modules, kept for reference, not part of the build
@@ -131,6 +134,21 @@ Open `demo.html` in a browser and step through the computation, forward and back
 ## Inspiration
 
 NeuroDSL was inspired by the early work of [Julius Technology](https://juliustechco.github.io/NeuroGraph/dev/) on dynamic graph engines. We extend those ideas with local invalidation with a measured complexity bound, live architecture mutation, and an interactive viewer built directly on the execution trace.
+
+---
+
+## Citation
+
+A preprint describing NeuroDSL's design and the invalidation complexity result above has been submitted to arXiv (submission ID `arXiv:submit/7710615`, 25 Jun 2026). This is the submission identifier shown before final processing — it will be replaced with the public arXiv ID once assigned. The PDF as submitted is included in this repo: [`NeuroDSL_article.pdf`](NeuroDSL_article.pdf).
+
+```bibtex
+@misc{khemais2026neurodsl,
+  title  = {NeuroDSL: A Dynamic Computational Graph Framework with Optimal Memory Planning},
+  author = {Khemais, Abdallah},
+  year   = {2026},
+  note   = {arXiv submission id: arXiv:submit/7710615 (public arXiv ID pending)},
+}
+```
 
 ---
 
