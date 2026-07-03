@@ -710,36 +710,30 @@ We evaluate \textsc{NeuroDSL} on multiple fronts: (i) training speed and memory 
 
 \subsection{Transformer Block Performance}
 \label{sec:transformer}
-We compare the forward+backward time and peak GPU memory on a standard Transformer block (RMSNorm, single‑head attention, SwiGLU MLP) with sequence length 64 and varying hidden dimensions. For PyTorch, we evaluate three configurations:
-\begin{itemize}
-    \item \textbf{PyTorch eager} – standard eager execution,
-    \item \textbf{PyTorch + checkpoint} – gradient checkpointing with segments of 2 layers,
-    \item \textbf{NeuroDSL} – incremental mode with full memory planning.
-\end{itemize}
-Timings are medians over 50 samples after warm‑up; memory is measured with \texttt{MemTrack} (Julia) and \texttt{torch.cuda.max\_memory\_allocated} (PyTorch).
+We compare the forward+backward time on a standard Transformer block (RMSNorm, single‑head attention, SwiGLU MLP) with sequence length 64 and varying hidden dimensions, for NeuroDSL versus Flux.jl. Unlike the numbers reported in an earlier version of this table, \Cref{tab:transformer} below reflects a range measured across repeated runs on two distinct GPUs (an NVIDIA RTX A5500 Laptop GPU and a desktop RTX 3060 Ti), not a single point-in-time measurement.
+
+\paragraph{Why a range, not a single decimal.} Re-running this benchmark repeatedly surfaced two external, non-code sources of variance that a single run masks: (i) GPU dynamic power management can leave the clock well below its boost frequency (as low as 210~MHz against a 2100~MHz ceiling on the laptop GPU) unless the workload sustains enough load to trigger a ramp-up -- confirmed directly via \texttt{nvidia-smi} clock readings taken before and after warm-up; (ii) background OS/application load adds further jitter, visible as a coefficient of variation exceeding 100\% on CPU timings even after discarding the most extreme 10\% of samples on each side. We mitigated what a benchmark script can control -- a duration-based warm-up (not a fixed pass count), a throwaway compilation pass before the first timed dimension, and batching several forward/backward calls per timed sample -- but a residual, environment-dependent variance remains, especially at the smallest tested dimension and on the CPU path. We therefore report the range of medians observed across $\sim$15 runs rather than a single decimal value.
 
 \begin{table}[H]
 \centering
-\caption{Transformer block – time (ms) and peak memory (MiB) on GPU.}
+\caption{Transformer block, GPU, forward+backward time (ms): NeuroDSL vs Flux.jl, range across repeated runs on two GPUs (RTX A5500 Laptop, RTX 3060 Ti).}
 \label{tab:transformer}
 \small
-\setlength{\tabcolsep}{3.5pt}
-\begin{tabular}{c c c c c c c c}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{c c c c}
 \toprule
-& \multicolumn{4}{c}{\textbf{Time (ms)}} & \multicolumn{3}{c}{\textbf{Peak Memory (MiB)}} \\
-\cmidrule(lr){2-5} \cmidrule(l){6-8}
-\textbf{dim} & \textbf{Flux} & \textbf{ND} & \textbf{PyT Eager} & \textbf{PyT Ckpt} & \textbf{ND} & \textbf{PyT Eager} & \textbf{PyT Ckpt} \\
+\textbf{dim} & \textbf{Flux (ms)} & \textbf{NeuroDSL (ms)} & \textbf{ND/Flux ratio} \\
 \midrule
-256  & 8.18 & 6.55 & 5.10 & 5.48 & 3.47  & 20.32 & 14.85 \\
-512  & 8.42 & 6.09 & 5.14 & 5.72 & 10.35 & 31.38 & 22.10 \\
-1024 & 8.44 & 5.96 & 5.77 & 6.33 & 34.61 & 74.51 & 52.17 \\
+256  & 3.2 -- 12.7 & 2.5 -- 10.1 & 0.53 -- 0.85$\times$ \\
+512  & 3.1 -- 14.8 & 2.3 -- 10.8 & 0.69 -- 0.87$\times$ \\
+1024 & 3.2 -- 13.9 & 2.4 -- 11.0 & 0.64 -- 0.93$\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Memory savings beyond checkpointing.} Even with gradient checkpointing, PyTorch retains the inputs of each checkpointed segment. NeuroDSL’s interval‑coloring planner reuses buffers across the whole block, including those holding checkpointed activations. This yields a further $\sim$30\% reduction in peak memory compared to PyTorch+checkpoint, as shown in the last two columns. The time overhead of NeuroDSL remains competitive, within 3–5\% of PyTorch eager.
+Across every run and both GPUs, the ratio never leaves the $0.64$--$0.93\times$ band and clusters around $0.7$--$0.85\times$: \textbf{NeuroDSL is consistently 10--35\% faster than Flux.jl} on this workload, even though the absolute millisecond values swing by up to $4\times$ between runs depending on GPU power state. This relative comparison is the claim we consider solid.
 
-\paragraph{Note on small‑scale measurements.} At these modest dimensions (tens of MiB), a fraction of PyTorch’s reported memory is fixed CUDA context overhead. The relative advantage of NeuroDSL becomes even more pronounced at larger scales (see Section~\ref{sec:scalability}).
+\paragraph{PyTorch and memory comparison -- source located and confirmed.} An earlier version of this table additionally reported a PyTorch eager/checkpoint time comparison and peak-memory columns, feeding a headline ``2--6$\times$ memory reduction'' figure elsewhere in this paper. An initial pass at this revision could not locate a source for these numbers in the tracked notebooks and flagged them as unverified. They are in fact real: \texttt{notebook/notebook\_py.ipynb} implements a PyTorch mirror of \texttt{build\_transformer\_block\_neuro} (same RMSNorm/QKV/attention/SwiGLU architecture) with genuine \texttt{torch.cuda.max\_memory\_allocated()} tracking, and its recorded output matches the cited peak-memory figures (20.32/31.38/74.51~MiB at dim~256/512/1024) to two decimal places. The 2--6$\times$ range is arithmetically correct from these numbers (34.61/74.51~$\to$~2.15$\times$ down to 3.47/20.32~$\to$~5.86$\times$). The file was, however, excluded from version control by an earlier repository cleanup pass (\texttt{.gitignore}); since it is the reproducibility source for a headline claim, it should be tracked rather than left as a local-only script.
 
 \begin{figure}[H]
 \centering
@@ -769,7 +763,7 @@ To verify the functional mathematical correctness of our backpropagation engine,
 \end{table}
 
 \subsection{Micro-benchmarks: Overhead and Memory Scaling}
-On a tiny model (10$\times$5 matrix multiply + sum), \textsc{NeuroDSL} completes the forward pass in \textbf{9.4~$\mu$s} and the backward pass in \textbf{21~$\mu$s}, with only 1.67~KiB allocated. This demonstrates that the dynamic engine imposes negligible overhead for small graphs. We also measured memory allocations for a linear model ($\text{Linear} \to \text{LayerNorm} \to \text{Linear}$) across sizes (see \Cref{tab:linear_mem}). Allocations scale linearly with tensor dimensions, and repeated runs show no memory leak (drift $<400$~KB after 10 iterations).
+On a tiny model (10$\times$5 matrix multiply + sum, forward and backward timed separately, \texttt{notebook/neurodsl\_benchmarks.ipynb}), \textsc{NeuroDSL} completes the forward pass in a median of \textbf{3.8~$\mu$s} (2.16~KiB allocated) and the backward pass in a median of \textbf{3.7~$\mu$s} (2.12~KiB allocated). This demonstrates that the dynamic engine imposes negligible overhead for small graphs -- notably faster than an earlier version of this benchmark had reported. We also measured memory allocations for a linear model ($\text{Linear} \to \text{LayerNorm} \to \text{Linear}$, where NeuroDSL's \texttt{LayerNorm} is implemented as RMSNorm internally) across sizes (see \Cref{tab:linear_mem}). Allocations scale linearly with tensor dimensions. Repeated runs of the largest configuration show no memory leak: after an initial, compilation-affected first call (36{,}895.0~KB), allocation is exactly reproducible at \textbf{30{,}743.3~KB on every one of the following 9 iterations} -- zero drift once warmed up.
 
 \begin{table}[H]
 \centering
@@ -779,9 +773,9 @@ On a tiny model (10$\times$5 matrix multiply + sum), \textsc{NeuroDSL} completes
 \toprule
 \textbf{config (M$\times$D)} & \textbf{forward} & \textbf{backward} & \textbf{total} \\
 \midrule
-128$\times$256 & 131.7 & 2315.3 & 2447.0 \\
-512$\times$512 & 1027.8 & 14355.2 & 15383.0 \\
-1024$\times$512 & 2051.8 & 24597.2 & 26649.0 \\
+128$\times$256 & 131.7 & 2953.5 & 3085.2 \\
+512$\times$512 & 1027.8 & 17425.5 & 18453.3 \\
+1024$\times$512 & 2051.8 & 28691.5 & 30743.3 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -817,18 +811,34 @@ We verified the numerical exactness of the incremental backward on a 12‑layer 
 
 \paragraph{Speed is not yet a general guarantee.} What is solidly established, across multiple graph topologies (sequential, branching, residual, multiple frozen layers), is the numerical exactness result above. The \emph{speed} gain, however, is workload-dependent: it follows from the impact-subgraph bound of \Cref{sec:invalidation_proof} when the modified parameter's impact subgraph is a small suffix of the network, but can be dominated by fixed dispatch overhead elsewhere. On the larger, more realistic architecture of \Cref{sec:scalability}, for instance, the same sparse-backward mechanism measured \emph{slower} wall-clock time than a full backward pass (497.1~ms full vs.\ 897.0~ms sparse with 10/12 layers frozen), even though the returned gradients remained numerically exact. We report the specific configurations above rather than a general range, since we do not yet have a benchmark suite that reliably predicts when the speed gain holds.
 
-\paragraph{Operator fusion.} Fusing \texttt{matmul+relu} on a small network reduces forward time by \textbf{37.2\%} (CPU) and up to 53.8\% on GPU (measured on a simple chain).
+\paragraph{Operator fusion.} Fusing \texttt{matmul+relu} on a small network reduces forward time by \textbf{37.2\%} on CPU (verified, \texttt{notebook/notebook.ipynb}). On GPU, this claim went through three revisions during preparation of this paper, each backed by direct measurement (\texttt{notebook/neurodsl\_benchmarks.ipynb}). An earlier version claimed a 53.8\% GPU speedup with no reproducible source. Re-measuring it directly first exposed a regression ($\sim$4.2$\times$ slower), traced to \texttt{\_fused\_matmul\_relu\_kernel!} (\texttt{src/kernels.jl}) being a hand-written CUDA kernel that reimplemented matmul from scratch, streaming the full reduction dimension from global memory with no reuse, while the unfused path dispatches to cuBLAS (via CUDA.jl). Adding shared-memory tiling (the pattern already used for RMSNorm/softmax elsewhere in the file) narrowed this to 1.9--2.4$\times$ slower, but a hand-tiled kernel still cannot match cuBLAS's register blocking, tensor cores, and autotuning. The fix that actually closes the gap follows the same principle real GPU libraries use for fused epilogues (cuDNN, cuBLASLt, TensorRT): \emph{do not reimplement the matmul} -- call cuBLAS via \texttt{LinearAlgebra.mul!} for the matmul itself, and fuse only the cheap elementwise ReLU on top via a broadcast. This unifies the GPU and CPU code paths (both now save only NeuroDSL's own rule-dispatch bookkeeping, exactly as the CPU path always did) and removes the custom kernel entirely. We verified this final version numerically correct against an independent reference (max relative error $\sim 10^{-6}$ across 5 matrix shapes and both values of \texttt{trans\_b}) before re-benchmarking: across 12 runs on two GPUs (RTX A5500 Laptop, RTX 3060 Ti), the gain ranges from \textbf{$-$5.5\% to $+$28.1\%} (median $+$2.8\%) -- roughly at parity with the unfused path, a qualitative change from consistently regressing to consistently competitive, though CV remains high (30--60\%) for the reasons discussed in \Cref{sec:transformer} and no single run's decimal should be over-interpreted.
 
 \begin{table}[H]
 \centering
-\caption{Operator fusion speedup.}
+\caption{Operator fusion on GPU across three implementation attempts (all measured, none assumed).}
+\label{tab:fusion_gpu_history}
+\small
+\begin{tabular}{l c}
+\toprule
+\textbf{GPU fusion implementation} & \textbf{Result vs.\ unfused (cuBLAS)} \\
+\midrule
+Hand-written untiled kernel (original) & 4.2$\times$ slower \\
+Hand-written tiled kernel (shared memory) & 1.9--2.4$\times$ slower \\
+cuBLAS matmul + fused ReLU epilogue (final) & $-$5.5\% to $+$28.1\%, median $+$2.8\% (12 runs, 2 GPUs) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Operator fusion, final state: CPU speedup is real; GPU is now roughly at parity (see \Cref{tab:fusion_gpu_history} for the implementation history).}
 \label{tab:fusion}
 \begin{tabular}{c c c}
 \toprule
-\textbf{Device} & \textbf{Before ($\mu$s)} & \textbf{After ($\mu$s)} \\
+\textbf{Device} & \textbf{Before ($\mu$s)} & \textbf{After} \\
 \midrule
-CPU & 261.6 & 164.4 (37.2\%) \\
-GPU & 206.3 & 95.3 (53.8\%) \\
+CPU & 261.6 & 164.4 $\mu$s (37.2\% faster) \\
+GPU (cuBLAS + fused ReLU epilogue) & -- & $-$5.5\% to $+$28.1\%, median $+$2.8\% (12 runs, 2 GPUs) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -879,21 +889,22 @@ We train a two-layer tanh MLP (1 $\to$ 64 $\to$ 64 $\to$ 1) on the task of appro
 \centering
 \caption{Summary of NeuroDSL performance highlights.}
 \label{tab:summary}
-\begin{tabular}{l c c}
+\small
+\begin{tabularx}{\textwidth}{X l X}
 \toprule
 \textbf{Metric} & \textbf{NeuroDSL} & \textbf{vs. PyTorch / Flux} \\
 \midrule
-Transformer speed (dim=1024) & 5.96 ms & 1.03$\times$ vs PyTorch, 1.42$\times$ vs Flux \\
-Peak GPU memory (dim=1024)   & 34.61 MiB & 2.15$\times$ less than PyTorch eager \\
+Transformer speed, GPU (range, dim=256--1024, 2 GPUs) & 2.3--11.0 ms & 0.64--0.93$\times$ vs Flux (10--35\% faster) \\
+Peak GPU memory (dim=1024)   & 34.61 MiB & 2.15$\times$ less than PyTorch eager (source: \texttt{notebook\_py.ipynb}, currently untracked -- \Cref{sec:transformer}) \\
 Iris test accuracy           & 100\%     & -- \\
-Fusion speedup (simple chain) & 37--54\%  & -- \\
+Fusion speedup, CPU (simple chain) / GPU (cuBLAS epilogue) & 37.2\% / $+$2.8\% median & GPU: parity, was 4.2$\times$ slower before the cuBLAS fix, \Cref{sec:evaluation} \\
 Incremental backward gain (8-layer MLP, last layer) & 43.8\% & vs full backward \\
 Incremental gradient drift (12-layer MLP) & 0.0 (machine precision) & vs full backward \\
 Reactive early stopping      & 97.2\%    & iteration reduction \\
 GPT-2-shaped model, forward-incremental gain & up to 99.7\% & fine-tuning, toy scale, CPU \\
 GPT-2-shaped model, sparse-backward wall-clock & 80.4\% slower & counterexample, see \Cref{sec:scalability} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 %══════════════════════════════════════════════════════════════════════════
