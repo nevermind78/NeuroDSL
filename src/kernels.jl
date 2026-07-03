@@ -5,7 +5,13 @@ const _MASK_CACHE = Dict{Tuple{Symbol,Int},Any}()
 const _MASK_CACHE_MAXSIZE = 10
 
 function causal_mask_cached(device, seqlen::Int)
-    key = (device isa Backend.CUDADevice ? :cuda : :cpu, seqlen)
+    # L'index du GPU actif fait partie de la clé : sur une machine multi-GPU,
+    # un masque alloué pendant que GPU 0 était actif est inutilisable une
+    # fois que CUDA.device!(1) est appelé (mémoire inaccessible depuis
+    # l'autre device). Sans ça, la deuxième carte réutilise le masque de la
+    # première et plante avec "inaccessible device memory".
+    key = device isa Backend.CUDADevice ?
+        (Symbol(:cuda, Int(CUDA.device().handle)), seqlen) : (:cpu, seqlen)
     if haskey(_MASK_CACHE, key)
         return _MASK_CACHE[key]
     end
@@ -604,31 +610,6 @@ if Backend.CUDA_AVAILABLE
     end
 end
 
-if Backend.CUDA_AVAILABLE
-    function _fused_matmul_relu_kernel!(out::CUDA.CuDeviceMatrix{Float32},
-                                        A::CUDA.CuDeviceMatrix{Float32},
-                                        B::CUDA.CuDeviceMatrix{Float32},
-                                        M::Int, N::Int, K::Int, trans_b::Bool)
-        row = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-        col = (blockIdx().y - 1) * blockDim().y + threadIdx().y
-        if row <= M && col <= N
-            acc = 0.0f0
-            if trans_b
-                # B est (N, K)
-                for k in 1:K
-                    acc += A[row, k] * B[col, k]
-                end
-            else
-                # B est (K, N)
-                for k in 1:K
-                    acc += A[row, k] * B[k, col]
-                end
-            end
-            out[row, col] = max(acc, 0.0f0)
-        end
-        return nothing   # ← AJOUT INDISPENSABLE
-    end
-end
 
 if Backend.CUDA_AVAILABLE
     function _fused_matmul_add_relu_kernel!(out::CUDA.CuDeviceMatrix{Float32},

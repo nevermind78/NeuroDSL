@@ -262,27 +262,22 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
     elseif op == :fused_matmul_relu
         A, B = inputs[1], inputs[2]
         tb = get(attrs, :trans_b, false)
-        M, K_A = size(A)
-        K_B, N_B = size(B)
-        
-        N = tb ? K_B : N_B 
-        K = tb ? N_B : K_B
-
-        if dev isa Backend.CUDADevice
-            threads_x, threads_y = 16, 16
-            blocks_x, blocks_y = cld(M, threads_x), cld(N, threads_y)
-            @cuda threads=(threads_x, threads_y) blocks=(blocks_x, blocks_y) _fused_matmul_relu_kernel!(
-                output_buffer, A, B, M, N, K, tb
-            )
+        # Dispatch the matmul itself to the platform's optimized BLAS
+        # (OpenBLAS on CPU, cuBLAS via CUDA.jl's `mul!` overload on GPU) and
+        # fuse only the ReLU as a cheap elementwise epilogue on top of it.
+        # A hand-written CUDA kernel used to reimplement the matmul from
+        # scratch here -- 1.9-4.2x SLOWER than cuBLAS at 512-1024 matrix
+        # sizes (measured in notebook/neurodsl_benchmarks.ipynb), because no
+        # from-scratch kernel matches years of vendor GEMM tuning (register
+        # blocking, tensor cores, autotuning). This mirrors how
+        # cuDNN/cuBLASLt/TensorRT actually fuse epilogues in practice: call
+        # the vendor GEMM, fuse only the cheap elementwise tail onto it.
+        if tb
+            LinearAlgebra.mul!(output_buffer, A, B')
         else
-            temp = similar(output_buffer)
-            if tb
-                LinearAlgebra.mul!(temp, A, B')
-            else
-                LinearAlgebra.mul!(temp, A, B)
-            end
-            output_buffer .= max.(temp, 0f0)
+            LinearAlgebra.mul!(output_buffer, A, B)
         end
+        output_buffer .= max.(output_buffer, 0f0)
 
         # 🚀 THIS IS THE MISSING PART 🚀
         # We MUST save the output and metadata for the backward pass to work

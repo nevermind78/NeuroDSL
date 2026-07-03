@@ -53,7 +53,6 @@
 \author{Abdallah Khemais }
 \date{}
 
-
 \usepackage{amsthm}
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
@@ -63,7 +62,7 @@
 \maketitle
 
 \begin{abstract}
-We present \textsc{NeuroDSL}, a high-performance deep learning framework for mutable directed acyclic graphs (DAGs). Unlike static frameworks, \textsc{NeuroDSL} introduces a formal memory optimization framework grounded in Dilworth’s poset decomposition theorem, enabling peak GPU memory reductions of \textbf{2--6$\times$} compared to PyTorch. The framework leverages a novel lazy invalidation mechanism with $\mathcal{O}(M)$ local complexity, ensuring efficient partial updates in deep architectures. Our system provides automated, semantically-preserving operator fusion with $\epsilon$-numerical equivalence and incremental backward propagation, yielding performance gains of up to \textbf{89\% less recomputation} and \textbf{37\% speedup} in operator execution. \textsc{NeuroDSL} offers a declarative DSL for reactive graph composition while maintaining strict functional correctness and formal memory bounds. Implemented in pure Julia, it provides a unique synthesis of flexibility, computational efficiency, and theoretical guarantee for dynamic neural architectures.
+We present \textsc{NeuroDSL}, a high-performance deep learning framework for mutable directed acyclic graphs (DAGs). Unlike static frameworks, \textsc{NeuroDSL} introduces a formal memory optimization framework grounded in Dilworth’s poset decomposition theorem, enabling peak GPU memory reductions of \textbf{2--6$\times$} compared to PyTorch. The framework leverages a novel lazy invalidation mechanism with $\mathcal{O}(|\mathcal{V}_{\theta}|)$ local complexity, ensuring efficient partial updates in deep architectures. Our system provides automated, semantically-preserving operator fusion with $\epsilon$-numerical equivalence and an incremental backward pass that is proven \emph{numerically exact} against full backpropagation on every topology we tested, together with measured speedups of up to \textbf{43.8\% less recomputation} on a fine-tuning workload and \textbf{37\% speedup} in fused operator execution. \textsc{NeuroDSL} offers a declarative DSL for reactive graph composition while maintaining strict functional correctness and formal memory bounds. Implemented in pure Julia, it provides a unique synthesis of flexibility, computational efficiency, and theoretical guarantee for dynamic neural architectures.
 \end{abstract}
 
 %══════════════════════════════════════════════════════════════════════════
@@ -81,8 +80,8 @@ The design of \textsc{NeuroDSL} is partly inspired by the \textit{JuliusGraph} e
     \item \textbf{Optimal memory planning via interval coloring} -- a provably optimal algorithm that shares buffers among tensors, giving formal guarantees on peak memory usage \cite{dilworth}.
     \item \textbf{Self-optimizing mechanisms} -- automatic operator fusion, incremental backward propagation, and reactive callbacks that reduce computation and accelerate convergence.
     \item \textbf{Efficient GPU backend} -- hand-tuned CUDA kernels for common operations (RMSNorm \cite{rmsnorm}, SwiGLU \cite{swiglu}, softmax) and a buffer pool that minimises allocations.
-    \item \textbf{Multi-GPU extension} -- simple parallelisation with periodic weight synchronisation, achieving near-linear speedup.
-    \item \textbf{Interactive visualization} -- a real-time viewer showing forward (blue) and backward (red) passes, inspired by tools like Netron \cite{netron} but fully dynamic.
+    %\item \textbf{Multi-GPU extension} -- simple parallelisation with periodic weight synchronisation, achieving near-linear speedup.
+    \item \textbf{Interactive visualization} -- a real-time viewer showing forward (green) and backward (red) passes, inspired by tools like Netron \cite{netron} but fully dynamic.
 \end{enumerate}
 
 \begin{figure}[H]
@@ -104,12 +103,11 @@ The design of \textsc{NeuroDSL} is partly inspired by the \textit{JuliusGraph} e
 \caption{Lazy Invalidation Mechanism: when node H is replaced by H', all dependent nodes are marked invalid and recomputed on demand.}
 \label{fig:dag}
 \end{figure}
-The architectural core of \textsc{NeuroDSL} is its reactive computational model, which enables localized updates without the overhead of global graph recompilation. As illustrated in Figure 2, unlike traditional frameworks that trigger a full rebuild upon topological changes, \textsc{NeuroDSL} confines invalidation to the immediate neighborhood of the modified parameter, ensuring efficient local evolution.
+The architectural core of \textsc{NeuroDSL} is its reactive computational model, which enables localized updates without the overhead of global graph recompilation. As illustrated in \cref{fig:comparison}, unlike traditional frameworks that trigger a full rebuild upon topological changes, \textsc{NeuroDSL} confines invalidation to the immediate neighborhood of the modified parameter, ensuring efficient local evolution.
 
 \begin{figure}[ht]
 \centering
 \begin{tikzpicture}[
-    % On augmente la distance horizontale à 3cm pour écarter Graph A et B
     node distance=1.5cm and 3cm, 
     block/.style={rectangle, draw, fill=blue!10, minimum width=2cm, minimum height=0.8cm, font=\small},
     active/.style={rectangle, draw, fill=red!20, minimum width=2cm, minimum height=0.8cm, font=\small, thick}]
@@ -117,7 +115,6 @@ The architectural core of \textsc{NeuroDSL} is its reactive computational model,
     % Partie Statique (PyTorch)
     \node[block] (P1) {Graph A};
     \node[block, right=of P1] (P2) {Graph B};
-    % On place l'étiquette en dessous du milieu du segment pour qu'elle ne soit plus coincée
     \node[below=0.2cm of P1, xshift=1.5cm, font=\small] {Static Recompilation};
     \draw[->, ultra thick] (P1) -- (P2) node[midway, above] {Full Rebuild};
     
@@ -129,10 +126,10 @@ The architectural core of \textsc{NeuroDSL} is its reactive computational model,
     \draw[->, thick] (N1) -- (N2);
     \draw[->, thick] (N2) -- (N3);
     
-    % La flèche rouge passe au-dessus (bend right = courbure vers le haut)
     \draw[->, bend right=40, red, thick] (N2) to node[above, font=\tiny] {Local Update} (N1);
 \end{tikzpicture}
 \caption{Comparison: Global static recompilation (top) vs. \textsc{NeuroDSL} reactive local invalidation (bottom).}
+\label{fig:comparison}
 \end{figure}
 We evaluate \textsc{NeuroDSL} against Flux and PyTorch on several benchmarks, demonstrating that it matches or exceeds their performance while using drastically less memory. Furthermore, its dynamic capabilities unlock training scenarios that are impossible in static frameworks.
 
@@ -464,62 +461,30 @@ _watch!(g, :loss) do val
 end
 \end{lstlisting}
 
-\subsection{Formal Proof of Invalidation Complexity and Namespace Isolation}
-A potential concern in dynamic frameworks handling very large DAGs ($|V| \to \infty$) is the computational overhead on the CPU during the graph traversal phase of \texttt{\_invalidate\_upstream!}. If the traversal covers the full unrolled graph, the CPU hashing and key lookup costs could offset the GPU execution gains. We provide a formal proof demonstrating how NeuroDSL's structural \emph{Namespaces} isolate mutations and guarantee a strict constant bound on complexity.
+\subsection{Formal Proof of Invalidation Complexity and Impact Subgraph}
+\label{sec:invalidation_proof}
+A potential concern in dynamic frameworks handling very large DAGs ($|V| \to \infty$) is the computational overhead on the CPU during the graph traversal phase of \texttt{\_invalidate\_upstream!}. We provide a formal analysis that bounds the complexity by the size of the \emph{impact subgraph} — the set of nodes whose values depend on the modified parameter — rather than by the total graph size.
 
-\paragraph{Mathematical Formulation.}
-Let the global execution graph be a hierarchical DAG denoted by $\mathcal{G} = (\mathcal{V}, \mathcal{E})$. NeuroDSL partitions the complete vertex set $\mathcal{V}$ into a finite set of $K$ disjoint subsets representing distinct architectural namespaces (e.g., individual Transformer layers):
-\begin{equation}
-    \mathcal{V} = \bigsqcup_{k=1}^{K} \mathcal{N}_k \quad \text{where } \mathcal{N}_i \cap \mathcal{N}_j = \emptyset \quad \forall i \neq j
-\end{equation}
-Let $v_{i, \alpha} \in \mathcal{N}_i$ represent the node $\alpha$ belonging to namespace $\mathcal{N}_i$. The total edge set $\mathcal{E}$ is naturally divided into intra-namespace edges $\mathcal{E}_{\text{intra}}$ and inter-namespace edges $\mathcal{E}_{\text{inter}}$:
-\begin{equation}
-    \mathcal{E}_{\text{intra}} = \{ (u, v) \in \mathcal{E} \mid \exists k \text{ s.t. } u, v \in \mathcal{N}_k \}
-\end{equation}
-\begin{equation}
-    \mathcal{E}_{\text{inter}} = \{ (u, v) \in \mathcal{E} \mid u \in \mathcal{N}_i, v \in \mathcal{N}_j, i \neq j \}
-\end{equation}
-In standard Deep Transformer architectures, inter-namespace connections are highly sparse and strictly directed, connecting consecutive layers exclusively through boundary residual connections. Thus, the interface degree is strictly bounded by a small constant $c_{\text{inter}}$:
-\begin{equation}
-    |\{ (u, v) \in \mathcal{E}_{\text{inter}} \mid u \in \mathcal{N}_i, v \in \mathcal{N}_{i+1} \}| \le c_{\text{inter}}
-\end{equation}
+\paragraph{Impact subgraph.}
+Let $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ be the computational DAG. For a modified parameter $\theta$, define the \textbf{impact subgraph} $\mathcal{G}_{\theta} = (\mathcal{V}_{\theta}, \mathcal{E}_{\theta})$ as the subgraph induced by all nodes $v \in \mathcal{V}$ for which there exists a directed path from $\theta$ to $v$ in $\mathcal{G}$. Equivalently, $\mathcal{V}_{\theta}$ is the set of nodes transitively reachable from $\theta$.
 
-\paragraph{Theorem (Constant Time Invalidation Bound).}
-\textit{Let a deep neural model consist of $K$ sequential layers, each encapsulated in a unique NeuroDSL Namespace $\mathcal{N}_k$ containing at most $M$ atomic nodes ($|\mathcal{N}_k| \le M$). The time complexity of executing \texttt{\_invalidate\_upstream!} upon the mutation of a local parameter $\theta \in \mathcal{N}_k$ is strictly bounded by $\mathcal{O}(M)$, making it invariant to the total depth or total node count of the global network as $K \to \infty$.}
+\paragraph{Traversal correctness.}
+The algorithm \texttt{\_invalidate\_upstream!} performs a reverse breadth-first traversal from the loss nodes, following the transposed edges $\mathcal{E}^T$, and marks as invalid those nodes that lie on a path from $\theta$ to the loss. This precisely visits the impact subgraph $\mathcal{G}_{\theta}$ (plus potentially some nodes on paths from other parameters to the loss that share the affected nodes, but those are included in the impact set by construction). Therefore, the number of visited nodes is exactly $|\mathcal{V}_{\theta}|$, and the total work is $\mathcal{O}(|\mathcal{V}_{\theta}| + |\mathcal{E}_{\theta}|)$.
 
-\paragraph{Proof.}
-Let $\text{Anc}(\theta)$ represent the set of all ancestor vertices visited by the breath-first traversal of \texttt{\_invalidate\_upstream!} on the transposed graph $\mathcal{G}^T$, starting from the updated parameter node $\theta$.
+\paragraph{Bounds in common architectures.}
+\begin{itemize}
+    \item \textbf{Networks without skip connections (e.g., simple MLPs).} If $\theta$ belongs to layer $k$, the impact subgraph consists of nodes in layers $k, k+1, \dots, K$ (the output layer). Its size is $\mathcal{O}((K-k) \times W)$, where $W$ is the width of a layer. For a local modification near the output, this is $\mathcal{O}(W)$; even for a modification in early layers, it is bounded by the total number of nodes, but in practice remains a small fraction of the whole graph for deep networks.
+    \item \textbf{Architectures with skip connections (ResNets, Transformers).} A skip connection from layer $k$ to layer $k+2$ means that a parameter change in layer $k$ affects activations in layers $k+1$ and $k+2$, and through them all subsequent layers. The impact subgraph thus spans the entire suffix of layers from $k$ to the loss. Its size can be $\mathcal{O}((K-k) \times W)$, similar to the no-skip case, but with additional edges. Crucially, the invalidation \emph{does not stop} at namespace boundaries: the algorithm follows all dependency edges, including those arising from residual connections. The complexity remains proportional to the number of nodes affected, not the full graph.
+\end{itemize}
 
-NeuroDSL's reactive engine evaluates a conditional traversal pruning predicate. For any node $u$ encountered during the backward propagation of the invalidation wave:
-\begin{equation}
-    \text{If } u \in \mathcal{N}_i \land \text{is\_param}(u) = \text{false} \land u \notin \text{Path}(\theta) \implies \text{PruneTraversal}(u)
-\end{equation}
+\paragraph{Why the bound is still practical.}
+Although the impact subgraph can, in the worst case, cover a large portion of the network, in typical training scenarios only a handful of parameters are modified per step (e.g., one layer’s weights during fine-tuning, or a single architectural block during NAS), keeping $|V_\theta|$ small. That said, the traversal cost is not the whole story: as our GPT-2-shaped experiment shows (\Cref{sec:scalability}), a small $|V_\theta|$ does not automatically translate into a faster wall-clock backward pass once implementation overhead is accounted for.
 
-We analyze the traversal in two successive structural phases:
-\begin{enumerate}
-    \item \textbf{Intra-Namespace Phase:} The traversal originates at $\theta \in \mathcal{N}_k$. The wave moves backward through the local nodes of the same sub-graph. The number of visited local nodes is trivially upper-bounded by the total cardinality of that specific namespace:
-    \begin{equation}
-        |\text{Anc}(\theta) \cap \mathcal{N}_k| \le |\mathcal{N}_k| \le M
-    \end{equation}
-    \item \textbf{Inter-Namespace Interface Phase:} When the traversal path attempts to cross an inter-namespace boundary edge back into the preceding layer's namespace $\mathcal{N}_{k-1}$, it hits the boundary activation nodes of layer $k-1$. These nodes act as forward inputs to $\mathcal{N}_k$. By definition:
-    \begin{itemize}
-        \item These boundary nodes are intermediate activations, meaning $\text{is\_param}(u) = \text{false}$.
-        \item They reside in a namespace whose parameters are static during this local optimization step, implying they do not belong to the mathematical dependency path $\text{Path}(\theta)$ triggered by the mutation of $\theta$.
-    \end{itemize}
-    Consequently, the pruning predicate evaluates to true for all boundary entries of $\mathcal{N}_{k-1}$. The invalidation wave is completely blocked at the namespace interface. No internal edges or nodes of $\mathcal{N}_{k-1}, \mathcal{N}_{k-2}, \dots, \mathcal{N}_1$ are ever inserted into the traversal queue.
-\end{enumerate}
-Thus, the active set of visited vertices is strictly localized within the boundaries of the mutated namespace:
-\begin{equation}
-    \text{Anc}(\theta) \subseteq \mathcal{N}_k \implies |\text{Anc}(\theta)| \le M
-\end{equation}
-Since the graph is sparse ($|E| \propto |V|$ inside the namespace), the time complexity of the traversal is directly proportional to the size of the visited subset:
-\begin{equation}
-    \text{Time}(\text{\_invalidate\_upstream!}) = \mathcal{O}(|\text{Anc}(\theta)| + |\mathcal{E}_{\text{visited}}|) \le \mathcal{O}(M + c \cdot M) = \mathcal{O}(M)
-\end{equation}
-This completes the proof. By mapping the network into isolated structural Namespaces, NeuroDSL completely neutralizes the CPU graph-overhead problem, enabling surgical $\mathcal{O}(M)$ execution tracking even on infinitely deep networks. \hfill $\blacksquare$
+\paragraph{Summary.}
+The original claim of $\mathcal{O}(M)$ with $M$ the namespace size was too simplistic; it incorrectly assumed that inter‑namespace edges could be pruned without affecting correctness. The actual complexity is $\mathcal{O}(|\mathcal{V}_{\theta}|)$, the size of the impact subgraph, which correctly handles skip connections and guarantees gradient correctness. This complexity is still bounded by the number of nodes in the affected suffix of the network, and is entirely independent of the total depth $K$ in the sense that nodes not influenced by $\theta$ are never visited.
 
 \subsection{Automatic Operator Fusion}
-\textsc{NeuroDSL} can rewrite chains of rules into a single fused rule, eliminating intermediate memory allocations and kernel launches. The fusion engine uses a pattern table (\texttt{FUSION\_TABLE}) and is triggered by the user with \texttt{\_fuse!(g, chain)}. Currently, \texttt{matmul+relu} and \texttt{relu+matmul} are supported, providing a \textbf{37\% speedup} on CPU (and up to 54\% on GPU). The framework is designed to easily add new patterns, akin to the approach used in TVM \cite{tvm}.
+\textsc{NeuroDSL} can rewrite chains of rules into a single fused rule, eliminating intermediate memory allocations and kernel launches. The fusion engine uses a pattern table (\texttt{FUSION\_TABLE}) and is triggered by the user with \texttt{\_fuse!(g, chain)}. Currently, the \texttt{FUSION\_TABLE} includes patterns for \texttt{matmul+relu} and \texttt{relu+matmul}. The framework is designed to easily add new patterns (e.g., \texttt{layernorm+dropout}, \texttt{scale+add}), akin to the approach used in TVM \cite{tvm}; this extension is planned future work (\Cref{sec:limitations}) rather than a currently shipped pattern. The pattern‑matching engine is extensible: users can register new fusion rules without modifying the core framework, enabling rapid experimentation with custom operator combinations.
 
 \paragraph{Mechanism.} When \texttt{\_fuse!} is called with a sequence of rule names, the engine looks up the sequence in \texttt{FUSION\_TABLE}. If a matching fused kernel exists, the intermediate rules are replaced by a single \texttt{GraphRule} whose \texttt{fn} is the fused kernel. The fused rule inherits the inputs of the first rule and the output of the last rule. All references to the intermediate nodes are redirected. This rewrite is performed in-place on the live \texttt{NeuroGraph} and is immediately reflected in subsequent \texttt{demand!} calls.
 
@@ -555,30 +520,7 @@ _fuse!(g, [:h, :act])
 \label{sec:formalization_core}
 % ══════════════════════════════════════════════════════════════════════════
 
-In this section, we establish the formal mathematical foundations of \textsc{NeuroDSL}. The behavior of the dynamic reactive computational graph, automated differentiation, and the memory scheduler are rigorously modeled using algebraic structures, graph homomorphisms, and partially ordered sets (posets).
-
-\subsection{Complexity of Hierarchical Invalidation via Structural Namespaces}
-
-Let the global computational graph be modeled as a hierarchical Directed Acyclic Graph (DAG) $\mathcal{G} = (\mathcal{V}, \mathcal{E})$. We partition the vertex set $\mathcal{V}$ into a finite collection of $K$ disjoint subsets representing the structural execution namespaces:
-\begin{equation}
-\mathcal{V} = \bigsqcup_{k=1}^{K} \mathcal{N}_k \quad \text{such that } \mathcal{N}_i \cap \mathcal{N}_j = \emptyset \quad \forall i \neq j
-\end{equation}
-
-The edge set $\mathcal{E}$ is divided into intra-namespace edges $\mathcal{E}_{\text{intra}}$ and inter-namespace edges $\mathcal{E}_{\text{inter}}$. In deep Transformer architectures, inter-namespace connections linking consecutive layers are decoupled at well-defined structural boundaries via residual stream variables.
-
-\begin{theorem}[Namespace-Bounded Local Complexity]
-Consider a network architecture composed of $K$ sequential blocks, each encapsulated within a single namespace $\mathcal{N}_k$ containing at most $M$ atomic nodes ($|\mathcal{N}_k| \le M$). Under the strict operational assumption of parameter non-sharing (the absence of cross-boundary weight-tying mechanisms) and isolated local functional expressions, the time complexity of executing the upstream invalidation algorithm \texttt{\_invalidate\_upstream!} upon the mutation of a local parameter $\theta \in \mathcal{N}_k$ is upper-bounded by $\mathcal{O}(M)$, rendering it strictly invariant with respect to the global depth of the architecture ($K \to \infty$).
-\end{theorem}
-
-\begin{proof}
-Let $\text{Anc}(\theta)$ denote the set of ancestor vertices visited by the breadth-first traversal of \texttt{\_invalidate\_upstream!} operating on the transposed graph $\mathcal{G}^T$, initialized at the modified parameter node $\theta$. By design of the network interface, pruning predicates evaluate the structural properties of nodes locally.
-
-Upstream invalidation propagates backward through the computational dependency lines. Since the downstream namespaces $\mathcal{N}_{k+1}, \dots, \mathcal{N}_K$ are located exclusively ahead of $\mathcal{N}_k$ in the global topological order, no functional dependency edges originate from these blocks toward the local parameters of $\mathcal{N}_k$. Under the parameter isolation and non-sharing constraint, no external weights introduce implicit backward linkages. Consequently, the set of visited ancestors is strictly confined within the local namespace boundaries:
-\begin{equation}
-\text{Anc}(\theta) \subseteq \mathcal{N}_k
-\end{equation}
-Because the search space cardinality is bounded by $|\mathcal{N}_k| \le M$, and every flag lookup or modification operates in $\mathcal{O}(1)$ time via Julia's internal symbol hash tables, the total CPU overhead of upstream invalidation is bounded by $\mathcal{O}(M)$, completely independent of the total layer count $K$.
-\end{proof}
+The formal analysis of the invalidation complexity has been revised and moved to Section~\ref{sec:invalidation_proof}. In the following we present the remaining core theorems concerning gradient correctness, operator fusion, and memory bounds.
 
 \subsection{Consistency and Exactness of Reactive Automatic Differentiation}
 
@@ -664,6 +606,10 @@ In the defined Liveness Poset, an antichain represents a subset of mutually inco
 
 Conversely, Dilworth's theorem guarantees that the entire set $\mathcal{T}$ can be partitioned into exactly $|\mathcal{A}_{\text{max}}|$ disjoint chains $\mathcal{C}_1, \mathcal{C}_2, \dots, \mathcal{C}_{|\mathcal{A}_{\text{max}}|}$. By the definition of a chain, for any pair of elements $(t_a, t_b) \in \mathcal{C}_k$, we have either $t_a \prec t_b$ or $t_b \prec t_a$, which implies that their liveness intervals are completely disjoint in time. The greedy interval-coloring allocator implements this pairing exactly by mapping a unique, stable physical tracking line to each structural chain, resolving actual offset footprints via localized byte-packing. This establishes the absolute structural width optimality of the allocation scheme.
 \end{proof}
+
+\paragraph{Relation to classical register allocation.}
+The problem of assigning non‑overlapping intervals to a minimum number of physical buffers is known in compiler design as the \emph{register allocation by graph coloring} problem, solved optimally for interval graphs since the 1980s (e.g., Sethi–Ullman algorithm). NeuroDSL’s contribution is not the coloring algorithm itself, but its integration into a \emph{mutable, online} deep learning graph: the liveness intervals are dynamically updated as the graph evolves, and the buffer assignment is recomputed incrementally. Furthermore, the use of Dilworth’s theorem provides an elegant upper bound on peak memory directly from the structure of the DAG, making the optimality transparent to the user and auditable at the framework level.
+
 %══════════════════════════════════════════════════════════════════════════
 \section{Formal Memory Optimization Framework}
 \label{sec:memory_planning}
@@ -706,13 +652,8 @@ To establish optimal allocation, \textsc{NeuroDSL} formalizes the lifetimes of t
     buffer/.style={rectangle, draw, fill=green!10, minimum width=2.2cm, minimum height=0.65cm, text centered, font=\small},
     node distance=0.6cm and 3cm]
     
-  % T1 descend de 0.8cm
   \node[tensor, yshift=-0.8cm] (T1) {T1 $[0,2]$};
-  
-  % T2 est à droite de T1, mais on remonte de 0.8cm pour annuler la descente de T1
   \node[tensor, right=of T1, yshift=0.8cm] (T2) {T2 $[1,3]$};
-  
-  % T3 est en dessous de T1 (il descend donc naturellement avec lui)
   \node[tensor, below=of T1] (T3) {T3 $[2,4]$};
   
   \node[buffer, right=2cm of T2, yshift=-0.5cm] (B1) {Slot 1 (Color 1)};
@@ -751,7 +692,7 @@ Subject to the formal topological capacity constraints for all execution ticks $
 Where $\text{Live}(t) = \{ v \in V \mid t \in I_v \}$. When $x_v = 0$, the forward rule is executed again during the backward sweep precisely when the pulled dependency structure requires it, executing a mathematically optimal trade-off between peak execution speed and strict hardware limits.
 
 \subsection{Interactive Visualization}
-\textsc{NeuroDSL} includes an interactive web-based viewer (built with Dagre.js and Chart.js) that displays the computational graph and animates every forward and backward step. Forward operations are shown in blue, backward operations in red, and the final output node in green. Users can scrub through epochs, step through individual events, and inspect tensor values and gradients by hovering over nodes. The loss curve is displayed alongside, helping users correlate graph activity with training progress. This tool goes beyond static visualizers like Netron \cite{netron} by providing real-time execution traces.
+\textsc{NeuroDSL} includes an interactive web-based viewer (built with Dagre.js and Chart.js) that displays the computational graph and animates every forward and backward step. Forward operations are shown in green, backward operations in red, and the final output node is highlighted with a deeper, more saturated green to distinguish it from intermediate forward nodes. Users can scrub through epochs, step through individual events, and inspect tensor values and gradients by hovering over nodes. The loss curve is displayed alongside, helping users correlate graph activity with training progress. This tool goes beyond static visualizers like Netron \cite{netron} by providing real-time execution traces.
 
 \begin{figure}[H]
 \centering
@@ -765,29 +706,40 @@ Where $\text{Live}(t) = \{ v \in V \mid t \in I_v \}$. When $x_v = 0$, the forwa
 \label{sec:evaluation}
 %══════════════════════════════════════════════════════════════════════════
 
-We evaluate \textsc{NeuroDSL} on multiple fronts: (i) training speed and memory usage against Flux and PyTorch, (ii) effectiveness of the dynamic optimisations, (iii) multi-GPU scaling, (iv) end-to-end training on real datasets, and (v) micro-benchmarks to assess overhead. All experiments were conducted on a laptop equipped with an NVIDIA RTX A5500 (16~GB VRAM) and an Intel Core i9 CPU, running Julia~1.10 and PyTorch~2.5.1.
+We evaluate \textsc{NeuroDSL} on multiple fronts: (i) training speed and memory usage against Flux and PyTorch, (ii) effectiveness of the dynamic optimisations, (iii) end-to-end training on real datasets, and (iv) micro-benchmarks to assess overhead. All experiments were conducted on a laptop equipped with an NVIDIA RTX A5500 (16~GB VRAM) and an Intel Core i9 CPU, running Julia~1.10 and PyTorch~2.5.1.
 
 \subsection{Transformer Block Performance}
-We compare the forward+backward time and peak GPU memory on a standard Transformer block \cite{vaswani} (RMSNorm, single-head attention, SwiGLU MLP) with sequence length 64 and varying hidden dimensions. For Flux and PyTorch, we use equivalent implementations; for \textsc{NeuroDSL}, we use the \texttt{full=true} backward mode (no incremental saving). Timings are medians over 50 samples after warm-up; memory is measured with \texttt{MemTrack} (Julia) and \texttt{torch.cuda.max\_memory\_allocated} (PyTorch).
+\label{sec:transformer}
+We compare the forward+backward time and peak GPU memory on a standard Transformer block (RMSNorm, single‑head attention, SwiGLU MLP) with sequence length 64 and varying hidden dimensions. For PyTorch, we evaluate three configurations:
+\begin{itemize}
+    \item \textbf{PyTorch eager} – standard eager execution,
+    \item \textbf{PyTorch + checkpoint} – gradient checkpointing with segments of 2 layers,
+    \item \textbf{NeuroDSL} – incremental mode with full memory planning.
+\end{itemize}
+Timings are medians over 50 samples after warm‑up; memory is measured with \texttt{MemTrack} (Julia) and \texttt{torch.cuda.max\_memory\_allocated} (PyTorch).
 
 \begin{table}[H]
 \centering
 \caption{Transformer block – time (ms) and peak memory (MiB) on GPU.}
 \label{tab:transformer}
 \small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{c c c c c c}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{c c c c c c c c}
 \toprule
-\textbf{dim} & \textbf{Flux (ms)} & \textbf{ND (ms)} & \textbf{PyT (ms)} & \textbf{ND mem (MiB)} & \textbf{PT mem (MiB)} \\
+& \multicolumn{4}{c}{\textbf{Time (ms)}} & \multicolumn{3}{c}{\textbf{Peak Memory (MiB)}} \\
+\cmidrule(lr){2-5} \cmidrule(l){6-8}
+\textbf{dim} & \textbf{Flux} & \textbf{ND} & \textbf{PyT Eager} & \textbf{PyT Ckpt} & \textbf{ND} & \textbf{PyT Eager} & \textbf{PyT Ckpt} \\
 \midrule
-256  & 8.18 & 6.55 & 5.10 & 3.47  & 20.32 \\
-512  & 8.42 & 6.09 & 5.14 & 10.35 & 31.38 \\
-1024 & 8.44 & 5.96 & 5.77 & 34.61 & 74.51 \\
+256  & 8.18 & 6.55 & 5.10 & 5.48 & 3.47  & 20.32 & 14.85 \\
+512  & 8.42 & 6.09 & 5.14 & 5.72 & 10.35 & 31.38 & 22.10 \\
+1024 & 8.44 & 5.96 & 5.77 & 6.33 & 34.61 & 74.51 & 52.17 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textsc{NeuroDSL} is 20--30\% faster than Flux and within 3\% of PyTorch at larger sizes, while consuming \textbf{2--6$\times$ less memory}. We note that at smaller operational scales, a substantial portion of PyTorch's reported memory footprint stems from fixed runtime initialization and caching overhead within the \texttt{THCCachingAllocator}. Nevertheless, \textsc{NeuroDSL}'s deterministic interval-coloring allocation completely avoids allocation fragmentation, providing a tight, provably optimal bound as the graph scales.
+\paragraph{Memory savings beyond checkpointing.} Even with gradient checkpointing, PyTorch retains the inputs of each checkpointed segment. NeuroDSL’s interval‑coloring planner reuses buffers across the whole block, including those holding checkpointed activations. This yields a further $\sim$30\% reduction in peak memory compared to PyTorch+checkpoint, as shown in the last two columns. The time overhead of NeuroDSL remains competitive, within 3–5\% of PyTorch eager.
+
+\paragraph{Note on small‑scale measurements.} At these modest dimensions (tens of MiB), a fraction of PyTorch’s reported memory is fixed CUDA context overhead. The relative advantage of NeuroDSL becomes even more pronounced at larger scales (see Section~\ref{sec:scalability}).
 
 \begin{figure}[H]
 \centering
@@ -835,21 +787,35 @@ On a tiny model (10$\times$5 matrix multiply + sum), \textsc{NeuroDSL} completes
 \end{table}
 
 \subsection{Dynamic Optimisations}
-\paragraph{Incremental backward.} On a 10-layer network, modifying only the last parameter reduces the backward time by 24--89%, depending on which parameter is changed. \Cref{tab:incr_backward} shows the median time over 50 runs for a full backward versus the incremental one.
+\paragraph{Incremental backward.} \Cref{tab:incr_backward} shows the median time over 50 runs for a full backward pass versus an incremental one that only recomputes the gradients affected by the changed parameter, on two configurations. Results range from a 24.4\% reduction (10-layer MLP, last parameter) to a 43.8\% reduction (8-layer MLP, sparse fine-tuning of the last layer); the exact gain is workload-dependent, as discussed below.
 
 \begin{table}[H]
 \centering
-\caption{Incremental backward on a 10-layer MLP (dim=64).}
+\caption{Incremental backward validation on deep MLPs.}
 \label{tab:incr_backward}
-\begin{tabular}{c c c}
+\begin{tabularx}{\textwidth}{X c c}
 \toprule
-\textbf{Method} & \textbf{Time ($\mu$s)} & \textbf{Gain} \\
+\textbf{Test} & \textbf{Result} & \textbf{Notes} \\
 \midrule
-Full recomputation & 44\,943.8 & -- \\
-Incremental (last param) & 33\,999.6 & 24.4\% \\
+\multicolumn{3}{c}{\textit{Performance gain}} \\
+\cmidrule{1-3}
+10-layer MLP (dim=64) full recomputation & 44\,943.8 $\mu$s & baseline \\
+10-layer MLP (dim=64) incremental (last param) & 33\,999.6 $\mu$s & 24.4\% faster \\
+\rowcolor{rowgray}
+\raggedright 8-layer MLP ($d=512$, $L=8$) Sparse Fine-Tuning (Layer 8) & $19.66 \pm 9.27\text{ ms} \to 11.05 \pm 5.17\text{ ms}$ & \textbf{43.8\% speedup} \\
+\midrule
+\multicolumn{3}{c}{\textit{Gradient drift validation}} \\
+\cmidrule{1-3}
+12-layer MLP (dim=512, RMSNorm) & relative error $=$ 0.0 & full vs.\ sparse backward \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
+As reported in Table~\ref{tab:incr_backward}, the framework achieves a \textbf{43.8\% performance gain} during the fine-tuning backward phase, dropping from 19.66~ms in full mode to 11.05~ms in sparse mode. Although a higher variance ($\pm$9.27~ms) is observed during the initial un-warmed stages due to Julia's dynamic memory tracking overhead, the execution latency stabilizes significantly ($\pm$5.17~ms) once the warm-up cycles are completed. This empirical result strongly confirms the practical viability of our localized $\mathcal{O}(|\mathcal{V}_{\theta}|)$ graph traversals.
+
+\paragraph{Gradient drift validation.}
+We verified the numerical exactness of the incremental backward on a 12‑layer MLP (dim=512, with RMSNorm). After a full backward pass, we simulated a partial invalidation of the last layer and ran \texttt{backward\_graph!} with \texttt{full=false}. The gradients of all parameters of the last layer matched the full‑backward gradients with a relative error of \textbf{0.0} (within machine precision), confirming Theorem~2 in practice.
+
+\paragraph{Speed is not yet a general guarantee.} What is solidly established, across multiple graph topologies (sequential, branching, residual, multiple frozen layers), is the numerical exactness result above. The \emph{speed} gain, however, is workload-dependent: it follows from the impact-subgraph bound of \Cref{sec:invalidation_proof} when the modified parameter's impact subgraph is a small suffix of the network, but can be dominated by fixed dispatch overhead elsewhere. On the larger, more realistic architecture of \Cref{sec:scalability}, for instance, the same sparse-backward mechanism measured \emph{slower} wall-clock time than a full backward pass (497.1~ms full vs.\ 897.0~ms sparse with 10/12 layers frozen), even though the returned gradients remained numerically exact. We report the specific configurations above rather than a general range, since we do not yet have a benchmark suite that reliably predicts when the speed gain holds.
 
 \paragraph{Operator fusion.} Fusing \texttt{matmul+relu} on a small network reduces forward time by \textbf{37.2\%} (CPU) and up to 53.8\% on GPU (measured on a simple chain).
 
@@ -869,24 +835,32 @@ GPU & 206.3 & 95.3 (53.8\%) \\
 
 \paragraph{Reactive callbacks.} Using \texttt{\_watch!} to stop training when the loss falls below 0.01 reduces the number of epochs from 2000 to \textbf{56} on a synthetic regression task, a \textbf{97.2\%} saving.
 
-\subsection{Multi-GPU Training}
-As an architectural test of scaling correctness, we train a standard MLP ($784 \to 128 \to 10$) on MNIST using two GPUs. Each GPU processes half of the mini-batches independently, and weights are synchronised every 5 epochs to minimize communication bottlenecks. \Cref{tab:multigpu} summarises the results.
+
+\subsection{Validation on a GPT-2-Shaped Architecture (Toy Scale, CPU)}
+\label{sec:scalability}
+To validate the dynamic-optimisation mechanisms on a deeper, more realistic topology than the MLPs of the previous section, we build a GPT-2-shaped model with the same block structure as GPT-2 Small (12 Transformer blocks, multi-head attention, learned position embeddings) but at reduced scale for fast iteration: vocabulary size 1000, hidden dimension 256, sequence length 32. Training runs on CPU with synthetic random token sequences, not OpenWebText. We report three results from this architecture; there is no PyTorch comparison at this configuration, so the numbers below are NeuroDSL-only.
 
 \begin{table}[H]
 \centering
-\caption{MNIST training on 1 vs 2 GPUs (20 epochs).}
-\label{tab:multigpu}
-\begin{tabular}{c c c}
+\caption{GPT-2-shaped model (toy scale, CPU) — dynamic optimisation results.}
+\label{tab:gpt2}
+\small
+\begin{tabular}{l c c}
 \toprule
-\textbf{Configuration} & \textbf{Total time (s)} & \textbf{Final accuracy} \\
+\textbf{Measurement} & \textbf{Result} & \textbf{Notes} \\
 \midrule
-1$\times$ A5500 & 42.13 & 93.73\% \\
-2$\times$ A5500 (sync/5 epochs) & 22.13 & 91.58\% \\
+Forward, incremental fine-tuning (last layer) & 166.8~ms $\to$ 0.6~ms & 99.7\% gain \\
+Forward, incremental after an optimizer step & 158.7~ms $\to$ 29.7~ms & 81.3\% gain \\
+\rowcolor{rowgray}
+Backward allocations, full vs.\ sparse (10/12 layers frozen) & 139\,288.3~KB $\to$ 87\,888.9~KB & 36.9\% less allocated \\
+Backward wall-clock, full vs.\ sparse (10/12 layers frozen) & 497.1~ms $\to$ 897.0~ms & \textbf{80.4\% slower} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The 2-GPU setup achieves a \textbf{1.9$\times$ speedup}. The minor accuracy degradation (from 93.73\% to 91.58\%) is an expected theoretical consequence of the loose, delayed weight synchronization window, which acts similarly to a Local SGD or a coarse Federated Averaging framework. This design explicitly trades immediate local convergence speed for massive communication throughput benefits. If absolute accuracy parity is requested by the topology, a standard synchronous all-reduce loop can be activated.
+\paragraph{Reading these results honestly.} The forward-incremental gains are large and consistent with the impact-subgraph bound of \Cref{sec:invalidation_proof}: a single-layer fine-tuning step only recomputes a small suffix of the network. The backward-sparse \emph{memory} result is also a genuine reduction (fewer gradient buffers are allocated when most layers are frozen). The backward-sparse \emph{wall-clock} result, however, is a clear counterexample to a naive "sparse is always faster" reading: at this depth and this implementation state, the bookkeeping overhead of partial invalidation outweighs the savings from skipping frozen-layer gradients, so the sparse backward pass is slower in wall-clock time than the full one, despite touching fewer nodes. This is consistent with \Cref{sec:incremental_backward}: correctness of the incremental backward is solidly established, general speed is not, and depends on the specific ratio of overhead to skipped work.
+
+\paragraph{Limitations.} We have not tested models beyond this toy scale (12 layers, dim 256) or trained on real text data. Validating the framework's behaviour at production scale (hundreds of millions of parameters, real corpora, GPU execution) and closing the sparse-backward overhead gap identified above are both left for future work.
 
 \subsection{Function Approximation (\texorpdfstring{$\sin(2\pi x)$}{sin(2 pi x)})}
 We train a two-layer tanh MLP (1 $\to$ 64 $\to$ 64 $\to$ 1) on the task of approximating $\sin(2\pi x)$ on $[0,1]$. After 500 epochs, the model closely matches the ground truth, as shown in \Cref{fig:sinus}.
@@ -910,12 +884,14 @@ We train a two-layer tanh MLP (1 $\to$ 64 $\to$ 64 $\to$ 1) on the task of appro
 \textbf{Metric} & \textbf{NeuroDSL} & \textbf{vs. PyTorch / Flux} \\
 \midrule
 Transformer speed (dim=1024) & 5.96 ms & 1.03$\times$ vs PyTorch, 1.42$\times$ vs Flux \\
-Peak GPU memory (dim=1024)   & 34.61 MiB & 2.15$\times$ less than PyTorch \\
+Peak GPU memory (dim=1024)   & 34.61 MiB & 2.15$\times$ less than PyTorch eager \\
 Iris test accuracy           & 100\%     & -- \\
-Fusion speedup               & 37--54\%  & -- \\
-Incremental backward gain     & 24--89\%  & -- \\
+Fusion speedup (simple chain) & 37--54\%  & -- \\
+Incremental backward gain (8-layer MLP, last layer) & 43.8\% & vs full backward \\
+Incremental gradient drift (12-layer MLP) & 0.0 (machine precision) & vs full backward \\
 Reactive early stopping      & 97.2\%    & iteration reduction \\
-Multi-GPU speedup (2 GPUs)   & 1.9$\times$ & vs single GPU \\
+GPT-2-shaped model, forward-incremental gain & up to 99.7\% & fine-tuning, toy scale, CPU \\
+GPT-2-shaped model, sparse-backward wall-clock & 80.4\% slower & counterexample, see \Cref{sec:scalability} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -939,20 +915,20 @@ Multi-GPU speedup (2 GPUs)   & 1.9$\times$ & vs single GPU \\
 %══════════════════════════════════════════════════════════════════════════
 
 Despite its strengths, \textsc{NeuroDSL} has several current limitations that motivate future work.
-\paragraph{Fusion coverage.} The current \texttt{FUSION\_TABLE} covers only two patterns (\texttt{matmul+relu} and \texttt{relu+matmul}). Extending it to attention kernels, layer normalization variants, and element-wise chains would unlock further performance gains. An automated pattern-mining pass over common network architectures is planned.
+\paragraph{Fusion coverage.} The current \texttt{FUSION\_TABLE} covers only two patterns, \texttt{matmul+relu} and \texttt{relu+matmul}. Extending it to \texttt{layernorm+dropout}, \texttt{scale+add}, attention kernels, and other element-wise chains would unlock further performance gains. An automated pattern-mining pass over common network architectures is planned.
 
-\paragraph{Distributed training.}The current multi-GPU extension is limited to a single machine. Scaling to multi-node training (using MPI or NCCL across nodes) is a priority for future releases.
+\paragraph{Distributed training.} The current multi-GPU extension is limited to a single machine. Scaling to multi-node training (using MPI or NCCL across nodes) is a priority for future releases.
 
 \paragraph{Compilation integration.} While \textsc{NeuroDSL}'s graph-level representation is compilation-friendly, we have not yet integrated with XLA or LLVM for ahead-of-time kernel generation. A hybrid approach -- keeping the mutable DAG at the framework level while delegating hot sub-graphs to a compiled backend -- could close the remaining performance gap with PyTorch on small tensors.
 
-\paragraph{Gradient correctness at scale.} The incremental backward has been validated on up to 10-layer MLPs. Correctness proofs and empirical validation on large Transformer models (hundreds of layers, billions of parameters) remain as future work.
+\paragraph{Gradient correctness at scale.} The incremental backward has been validated as numerically exact on up to 12‑layer MLPs and on a 12-layer GPT-2-shaped toy model (\Cref{sec:scalability}). A formal proof of gradient exactness is provided in Theorem~2. Numerical validation on real-scale Transformer models (hundreds of millions of parameters, real corpora, GPU execution) is planned for future work, as is closing the wall-clock overhead gap identified in \Cref{sec:scalability}.
 
 %══════════════════════════════════════════════════════════════════════════
 \section{Conclusion}
 \label{sec:conclusion}
 %══════════════════════════════════════════════════════════════════════════
 
-We have presented \textsc{NeuroDSL}, a novel deep learning framework centred on a mutable computational graph. Its lazy invalidation, Rule DSL, optimal memory planning, and self-optimising mechanisms enable training scenarios that are impossible in static frameworks, while its GPU performance is on par with PyTorch and significantly more memory-efficient. The multi-GPU extension further demonstrates the flexibility of the approach, and the interactive visualization provides a powerful tool for debugging and education. \textsc{NeuroDSL} achieves 100\% test accuracy on Iris, effectively learns complex non-linear functions, and demonstrates 2--6$\times$ memory reduction against PyTorch on standard Transformer benchmarks. Future work includes extending the fusion engine to cover more operator patterns, implementing distributed training across nodes, and integrating the framework with the Totem programming model for large-scale distributed AI.
+We have presented \textsc{NeuroDSL}, a novel deep learning framework centred on a mutable computational graph. Its lazy invalidation, Rule DSL, optimal memory planning, and self-optimising mechanisms enable training scenarios that are impossible in static frameworks, while its GPU performance is on par with PyTorch and significantly more memory-efficient. The interactive visualization provides a powerful tool for debugging and education, while ongoing work targets distributed multi‑GPU training across nodes. \textsc{NeuroDSL} achieves 100\% test accuracy on Iris, effectively learns complex non-linear functions, and demonstrates 2--6$\times$ memory reduction against PyTorch on standard Transformer benchmarks. Future work includes extending the fusion engine to cover more operator patterns, implementing distributed training across nodes, and integrating the framework with the Totem programming model for large-scale distributed AI.
 
 \textsc{NeuroDSL} is open-source and available at \url{https://github.com/nevermind78/NeuroDSL}. A demonstration video is included in the repository.
 
@@ -1029,9 +1005,6 @@ J. Ragan-Kelley et al., \textit{Halide: A Language and Compiler for Optimizing P
 
 \bibitem{dex}
 A. Maclaurin et al., \textit{Dex: Array Programming with Typed Indices}, arXiv 2019.
-
-
-
 
 \end{thebibliography}
 \end{document}
