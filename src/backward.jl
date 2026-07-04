@@ -285,16 +285,51 @@ GRAD_RULES[:cross_entropy] = (dev, dy, ctx, inputs) -> begin
 end
 
 """
-    backward_graph!(g, loss_sym; ctx_store, namespace)
+    _compute_needs_bwd(g, ns) -> Dict{Symbol,Bool}
+
+Calcule, en un seul passage dans l'ordre topologique direct (`topo_order!`, déjà
+mis en cache par namespace), quels nœuds ont besoin d'un calcul de gradient lors
+du backward : un nœud "a besoin" s'il est lui-même entraînable (`is_param=true`)
+ou si au moins une de ses entrées (récursivement) l'est. Les feuilles sans règle
+(entrées, labels) utilisent directement `is_param`. Recalculé à chaque appel
+(pas de cache) : `is_param` peut changer entre deux appels via `set!`, et un
+cache mal invalidé serait pire que le recalcul, qui reste O(nœuds+arêtes).
+"""
+function _compute_needs_bwd(g::NeuroGraph, ns::Symbol)
+    needs_bwd = Dict{Symbol,Bool}()
+    for sym in topo_order!(g; namespace=ns)
+        nd = g.nodes[ns][sym]
+        if haskey(g.rules[ns], sym)
+            rule = g.rules[ns][sym]
+            needs_bwd[sym] = nd.is_param || any(needs_bwd[in_sym] for in_sym in rule.inputs)
+        else
+            needs_bwd[sym] = nd.is_param
+        end
+    end
+    return needs_bwd
+end
+
+"""
+    backward_graph!(g, loss_sym; ctx_store, namespace, prune_frozen=false)
+
+`prune_frozen` (désactivé par défaut) : si `true`, saute le calcul de gradient
+pour tout sous-arbre prouvé sans paramètre entraînable en amont (ex. un préfixe
+de couches gelées lors d'un fine-tuning partiel). Les valeurs de gradient des
+nœuds `is_param=true` sont strictement identiques, activé ou non — ce mot-clé
+n'élimine que du calcul dont le résultat serait de toute façon jeté par le
+nettoyage final ci-dessous. Désactivé par défaut pour ne rien changer aux
+appelants existants.
 """
 function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
                          ctx_store::CtxStore=CtxStore(), namespace=g.active_ns,
                          full::Bool=true,
                          sparse::Bool = false,
+                         prune_frozen::Bool = false,
                          log::Union{Nothing, ExecutionLog}=nothing)
 
     if sparse
-        return backward_graph_sparse!(g, loss_sym; ctx_store=ctx_store, namespace=namespace)
+        return backward_graph_sparse!(g, loss_sym; ctx_store=ctx_store, namespace=namespace,
+                                       prune_frozen=prune_frozen)
     end
     ns = namespace
 
@@ -309,6 +344,8 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
     ln.gradient = Backend.ones32(g.device, size(ln.value)...)
     ln.backwarded = false
 
+    needs_bwd = prune_frozen ? _compute_needs_bwd(g, ns) : nothing
+
     # Parcours inverse du graphe
     for out_sym in reverse(topo_order!(g; namespace=ns))
         !haskey(g.rules[ns], out_sym) && continue
@@ -317,6 +354,14 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
 
         # Si le nœud n'a pas de gradient (parce qu'il n'est pas sur le chemin), on passe
         if nd_out.gradient === nothing
+            continue
+        end
+
+        # Garde défensive : avec prune_frozen=true, la garde symétrique sur les
+        # entrées plus bas empêche déjà nd_out.gradient d'être jamais assigné
+        # pour un sous-arbre entièrement gelé, donc cette branche ne devrait
+        # normalement jamais être prise — gardée pour robustesse.
+        if needs_bwd !== nothing && !needs_bwd[out_sym]
             continue
         end
 
@@ -343,8 +388,36 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
         grads = GRAD_RULES[rule.op](g.device, nd_out.gradient, ctx, inputs_vals)
 
         for (i, in_sym) in enumerate(rule.inputs)
-            accum_grad!(g.nodes[ns][in_sym], grads[i])
             in_nd = g.nodes[ns][in_sym]
+            if needs_bwd !== nothing && !needs_bwd[in_sym]
+                # Sous-arbre prouvé sans paramètre entraînable en amont : ne
+                # pas assigner de gradient ici. C'est ce skip (pas la garde
+                # défensive plus haut) qui empêche réellement in_sym d'être
+                # revisité plus loin dans la boucle inverse -- in_nd.backwarded
+                # reste false, cohérent avec "jamais touché".
+                continue
+            end
+            if in_nd.is_param
+                accum_grad!(in_nd, grads[i])
+            else
+                # Nœud non entraînable (poids gelé ou activation intermédiaire) :
+                # son gradient ne sert qu'à propager plus loin, jamais à un pas
+                # d'optimiseur, donc pas besoin de la copie défensive de
+                # accum_grad! (similar + .=) sur la première écriture -- c'est
+                # cette copie évitable, répétée pour chaque paramètre gelé, qui
+                # dominait le coût mesuré (voir notebook.ipynb, gain GPU 37.7%
+                # sur backward_graph_sparse!). On garde quand même la sommation
+                # (.+=) si une deuxième contribution arrive : un nœud gelé à
+                # plusieurs consommateurs (connexion résiduelle, poids partagé)
+                # doit quand même recevoir la somme exacte, pas juste la
+                # dernière contribution -- backward_graph_sparse! avait ce
+                # risque avec une simple affectation à chaque fois.
+                if in_nd.gradient === nothing
+                    in_nd.gradient = grads[i]
+                else
+                    in_nd.gradient .+= grads[i]
+                end
+            end
             in_nd.backwarded = true
             # NB : pour un nœud partagé par plusieurs consommateurs (poids
             # liés, branches multiples), ce log peut être émis plus d'une
@@ -360,6 +433,17 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
         nd_out.backwarded = true
         if !nd_out.is_param
             nd_out.gradient = nothing
+        end
+    end
+
+    # Nettoyage final : une feuille non entraînable (ex. l'entrée :x ou les
+    # labels :y) n'est jamais visitée comme nd_out ci-dessus puisqu'elle n'a
+    # pas de règle -- sans ce passage, son gradient temporaire ne serait
+    # jamais libéré. Redondant mais inoffensif pour les nœuds déjà nettoyés
+    # plus haut.
+    for (_, nd) in g.nodes[ns]
+        if !nd.is_param
+            nd.gradient = nothing
         end
     end
     return g

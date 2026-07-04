@@ -1,0 +1,571 @@
+\documentclass{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsthm}
+
+% ── Configuration listings ───────────────────────────────────────────────────
+\lstset{
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  breakatwhitespace=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  captionpos=b,
+  showstringspaces=false,
+  language=Python,
+  morekeywords={function,struct,mutable,const,for,while,if,else,elseif,end,return,using,import,export,begin,let,do},
+  keywordstyle=\color{blue}\bfseries,
+  comment=[l]{\#},
+  commentstyle=\color{gray}\ttfamily,
+  stringstyle=\color{orange},
+  morestring=[b]",
+  morestring=[b]',
+  alsoletter={!},
+  morekeywords={set!,addrule!,demand!,backward_graph!,invalidate_all!,zero_grads!,_fuse!,_watch!},
+  alsoletter={_},
+  morekeywords={_invalidate_downstream!,_invalidate_upstream!,patch_node!,capture_activations,recovery_metric,patch_and_measure!,restore_from_cache!,sweep_patch_sites!},
+  literate={~}{{\textasciitilde}}1,
+}
+
+\definecolor{ndblue}{RGB}{30,90,180}
+\definecolor{ndgreen}{RGB}{20,140,60}
+\definecolor{ndred}{RGB}{190,30,30}
+\definecolor{rowgray}{RGB}{245,245,245}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+
+\title{Amortized Multi-Site Activation Patching via Cache-Replay Restoration\\in Persistent Computational Graphs}
+\author{Abdallah Khemais}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Activation patching localizes which internal computations of a neural network are causally
+responsible for its behaviour by splicing a ``clean'' activation into a ``corrupted'' run. A
+single patch is rarely the unit of interest: a causal-tracing study sweeps across every layer
+(and often every position or head), running the protocol $K$ times. In tape-based frameworks
+(PyTorch, JAX) and tools built on them (e.g.\ TransformerLens), each of the $K$ runs costs a full
+forward pass, since the graph is rebuilt from scratch every time. \textsc{NeuroDSL}'s persistent
+computational graph already makes a single patch cheap, bounding its cost by its own impact
+subgraph rather than the whole network -- a direct reuse of the
+$\mathcal{O}(|\mathcal{V}_{\theta}|)$ result established for parameter updates. We show that a
+\emph{full sweep} carries a second, less obvious cost that this alone does not remove: restoring
+the graph to its corrupted baseline between sites, if done by re-invalidating and recomputing,
+pays the same order of cost as the patches themselves. Since the corrupted baseline was already
+computed once and cached in full before the first patch, restoring it needs no recomputation at
+all -- only a direct copy of already-known values. We introduce \texttt{restore\_from\_cache!}
+and an amortized sweep orchestrator, \texttt{sweep\_patch\_sites!}, built on this observation, and
+prove they leave the graph in an execution state identical to recomputation-based restoration
+(exact equality, not tolerance-bounded). On an 8-layer toy Transformer, this reduces the total
+cost of a full 8-site sweep by \textbf{38.1\%} (55.55~ms~$\to$~34.39~ms) on top of the
+per-patch savings already available from the underlying graph, with correctness verified before
+any timing claim.
+\end{abstract}
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+\label{sec:intro}
+%══════════════════════════════════════════════════════════════════════════
+
+Mechanistic interpretability seeks to explain a neural network's behaviour by identifying which
+internal computations are causally responsible for it. \textbf{Activation patching} (also called
+causal tracing) \cite{rome,causalmediation} is the workhorse technique for this: run the model
+once on a ``clean'' input and once on a ``corrupted'' input, then copy a single internal
+activation from the clean run into the corrupted run and observe how much of the output moves
+back towards the clean behaviour. The unit of a real study is not one patch but a \textbf{sweep}:
+repeating this at every layer (and often every attention head or token position) to localize
+where the causally relevant computation lives. Tooling such as TransformerLens
+\cite{transformerlens} has made this sweep protocol a standard part of the
+mechanistic-interpretability toolkit.
+
+In tape-based frameworks, the cost of a sweep is $K$ full forward passes: PyTorch \cite{pytorch}
+and JAX \cite{jax} rebuild the computational graph from nothing on every call, so patching one
+node and observing the output costs exactly the same as patching any other, regardless of how
+much computation actually lies downstream of the patched site.
+
+\textsc{NeuroDSL} \cite{neurodsl} maintains a persistent, mutable computational graph in which
+every node tracks whether its cached value is still valid. Writing a node invalidates only its
+true downstream dependents (its impact subgraph), and the next demand-driven evaluation
+recomputes exactly that subgraph -- a mechanism proven to cost
+$\mathcal{O}(|\mathcal{V}_{\theta}|)$, independent of total graph size, for parameter updates
+during training \cite{neurodsl}. Activation patching is, mechanically, the same operation (a node
+write followed by a demand), so a single patch inherits the same bound for free.
+
+A full sweep, however, is not just $K$ independent cheap patches: each site must be tested from a
+common corrupted baseline, so the graph must be restored between sites. If restoration is done
+the same way a patch is applied -- write the corrupted value back, then let the graph
+re-invalidate and recompute -- it pays exactly the same recomputation cost as the patch it is
+undoing. Summed across a sweep, this restoration cost is of the same order as the sweep's own
+measurement cost, eating a substantial fraction of the saving a single cheap patch promised. We
+show that this is avoidable: the corrupted baseline was already computed once, in full, before
+the first patch. Restoring to it is not new information -- it requires no computation, only a
+direct copy of values already sitting in a cache.
+
+We make three contributions:
+\begin{enumerate}
+    \item \texttt{patch\_node!} (\S\ref{sec:mechanism}), a value-injection primitive built on
+    \textsc{NeuroDSL}'s existing invalidation traversal, together with the precise reason the
+    graph's generic value-update primitive (\texttt{set!}) is unsuitable for this purpose.
+    \item \texttt{restore\_from\_cache!} and \texttt{sweep\_patch\_sites!}
+    (\S\ref{sec:sweep}), which restore a patched site's downstream cone by direct cache replay
+    instead of recomputation, and an amortized sweep orchestrator built on top of it -- a
+    capability specific to a persistent graph, where every node is individually addressable and
+    its validity state explicit; a framework that rebuilds its graph from scratch has no
+    equivalent notion of ``this node, restored, without recomputing it.''
+    \item A correctness-first empirical evaluation (\S\ref{sec:correctness}--\S\ref{sec:results})
+    on a small Transformer: per-patch cost and recovery as a function of layer depth, and a
+    38.1\% reduction in total sweep cost from cache-replay restoration, with every speed number
+    preceded by an exact-equality correctness check.
+\end{enumerate}
+
+All experiments use \textsc{NeuroDSL}'s existing, already-tested \texttt{LlamaModel}
+(\texttt{src/layers.jl}); no new model architecture was written for this paper. Code, tests, and
+the executed notebook reproducing every number reported here are available at
+\url{https://github.com/nevermind78/NeuroDSL}.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Background: Persistent Graphs and the Impact Subgraph}
+\label{sec:background}
+%══════════════════════════════════════════════════════════════════════════
+
+We rely directly on the graph model introduced in \cite{neurodsl} and only restate what is
+needed here. A \textsc{NeuroDSL} \texttt{NeuroGraph} stores named tensors (\texttt{GraphNode})
+and transformation rules (\texttt{GraphRule}) that together define a persistent DAG. Writing a
+new value to a node via \texttt{set!} triggers \texttt{\_invalidate\_downstream!}, a traversal
+that clears the \texttt{valid} flag on the written node and on every node reachable from it
+through the rule graph. A subsequent \texttt{demand!} call walks the (cached) topological order
+and recomputes only the nodes it finds invalid, leaving everything else untouched.
+
+\cite{neurodsl} proves that this traversal visits exactly the \textbf{impact subgraph}
+$\mathcal{G}_\theta = (\mathcal{V}_\theta, \mathcal{E}_\theta)$ of the written node $\theta$ --
+the set of nodes reachable from $\theta$ in the DAG -- giving a recomputation cost of
+$\mathcal{O}(|\mathcal{V}_\theta| + |\mathcal{E}_\theta|)$, independent of the total graph size.
+This bound was established and validated for \emph{parameter} updates during training. Activation
+patching is, mechanically, also a node write followed by a demand -- so the same bound applies
+directly to a patch, with no new theorem required.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Mechanism and API}
+\label{sec:mechanism}
+%══════════════════════════════════════════════════════════════════════════
+
+\subsection{\texttt{patch\_node!}: Value Injection with Targeted Invalidation}
+
+\texttt{set!} is designed to write leaf values -- inputs and parameters, nodes with no incoming
+\texttt{GraphRule}. Calling it on such a node clears the node's own \texttt{valid} flag, which is
+harmless there: \texttt{demand!} skips recomputing a node with no rule regardless of that flag,
+so the written value survives. Patching targets an \emph{internal} node instead -- one that
+already has a rule attached (e.g.\ a transformer block's residual-stream output). For such a
+node, clearing its own \texttt{valid} flag is not harmless: the next \texttt{demand!} recomputes
+it from that rule, using its real (still-corrupted) inputs, and the injected value is lost before
+it can be observed.
+
+\texttt{patch\_node!} avoids this without any new graph-level mechanism, only a different
+composition of the existing ones: it mutates the node's \texttt{value}/\texttt{valid} fields
+directly, so the node itself remains trusted and is never recomputed, and invalidates only its
+true consumers by calling the existing \texttt{\_invalidate\_downstream!} on each of them
+individually, rather than on the patched node itself.
+
+\begin{lstlisting}[caption={\texttt{patch\_node!} (\texttt{src/patching.jl})},label={lst:patchnode}]
+function patch_node!(g::NeuroGraph, sym::Symbol, cache; namespace=g.active_ns)
+    nd = node(g, sym; namespace=namespace)
+    nd.value = Backend.to_device(g.device, cache[sym])
+    nd.valid = true
+    nd.backwarded = false
+    for (out_sym, rule) in g.rules[namespace]
+        sym in rule.inputs || continue
+        _invalidate_downstream!(g, out_sym, namespace)
+    end
+    return g
+end
+\end{lstlisting}
+
+\subsection{Supporting API}
+
+Two further functions complete the single-patch interface, both in \texttt{src/patching.jl} with
+no changes to the core graph engine:
+\begin{itemize}
+    \item \texttt{capture\_activations(g, ns)} -- copies the value of every node in a namespace
+    into a plain dictionary. The copy is not optional: \texttt{demand!} and
+    \texttt{node(g,\ldots).value} return a live alias into the graph's own buffer, which a later
+    evaluation can mutate in place.
+    \item \texttt{recovery\_metric(patched, clean, corrupted)} -- the standard causal-tracing
+    normalization, $1 - \|\text{patched} - \text{clean}\| \,/\, \|\text{corrupted} - \text{clean}\|$
+    ($0$~=~no recovery, $1$~=~full recovery).
+\end{itemize}
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Amortizing a Full Sweep}
+\label{sec:sweep}
+%══════════════════════════════════════════════════════════════════════════
+
+A sweep tests $K$ sites against the same corrupted baseline, so each site's test must end with
+the graph restored to that baseline before the next site is tested. \texttt{patch\_and\_measure!}
+does this the same way it applies a patch: call \texttt{patch\_node!} with the cached corrupted
+value and let \texttt{demand!} recompute the downstream cone. This is correct, but it pays the
+same recomputation cost the measurement step just paid -- restoring is exactly as expensive as
+patching, for a value that was already known before either happened.
+
+\subsection{\texttt{restore\_from\_cache!}: Restoration Without Recomputation}
+
+The corrupted run was computed once, in full, before the first patch, and its entire state is
+already sitting in \texttt{corrupted\_cache} via \texttt{capture\_activations}. Restoring a
+patched site's downstream cone to that baseline is therefore not a computation to redo -- it is a
+lookup already answered. \texttt{restore\_from\_cache!} writes the cached values directly into
+each affected node and marks it valid, executing no rule:
+
+\begin{lstlisting}[caption={\texttt{restore\_from\_cache!} and its cone (\texttt{src/patching.jl})},label={lst:restorecache}]
+function _downstream_nodes(g::NeuroGraph, sym::Symbol, ns::Symbol)
+    # same reachable set _invalidate_downstream! would visit, read-only
+    ...
+end
+
+function restore_from_cache!(g::NeuroGraph, ns::Symbol, cache, nodes)
+    for sym in nodes
+        haskey(cache, sym) || continue
+        nd = g.nodes[ns][sym]
+        nd.value = copy(cache[sym])
+        nd.valid = true
+        nd.backwarded = false
+    end
+    return g
+end
+\end{lstlisting}
+
+\texttt{\_downstream\_nodes} mirrors exactly the traversal \texttt{\_invalidate\_downstream!}
+already performs -- same reachable set, same valid-gated semantics -- but read-only, so that the
+set of nodes restored is, by construction, exactly the set a patch would have invalidated. This
+is what makes the correctness argument in \S\ref{sec:correctness} an equality rather than an
+approximation: both restoration paths act on the same node set, and the network's determinism
+(no dropout at evaluation time) guarantees the cached values equal what recomputation would
+produce.
+
+This capability is specific to a persistent graph. A framework that rebuilds its computation from
+scratch on every call has no individually addressable node to write a cached value into -- its
+only operation is ``run the whole thing again.'' Restoration-by-cache is not a faster way to do
+what a tape-based framework already does; it is an operation such a framework has no primitive
+for at all.
+
+\subsection{\texttt{sweep\_patch\_sites!}: An Amortized Sweep Orchestrator}
+
+\texttt{sweep\_patch\_sites!} runs the standard patch-and-measure step for each site (identical to
+\texttt{patch\_and\_measure!}) but restores via \texttt{restore\_from\_cache!} instead of a second
+\texttt{patch\_node!}+\texttt{demand!} call:
+
+\begin{lstlisting}[caption={\texttt{sweep\_patch\_sites!} (\texttt{src/patching.jl})},label={lst:sweep}]
+function sweep_patch_sites!(g, output_sym, sites, clean_cache, corrupted_cache,
+                             clean_output, corrupted_output; namespace=g.active_ns)
+    results = NamedTuple[]
+    for site in sites
+        affected = _downstream_nodes(g, site, namespace)
+        patch_node!(g, site, clean_cache; namespace=namespace)
+        patched_output = demand!(g, output_sym; namespace=namespace)
+        recovery = recovery_metric(patched_output, clean_output, corrupted_output)
+        restore_from_cache!(g, namespace, corrupted_cache, affected)
+        push!(results, (; site, recovery))
+    end
+    return results
+end
+\end{lstlisting}
+
+Only the restoration step changes; the measurement step -- the actual scientific quantity of
+interest -- is untouched.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Composable Multi-Site Patching}
+\label{sec:composable}
+%══════════════════════════════════════════════════════════════════════════
+
+Many causal-tracing protocols beyond a single-site sweep -- path patching and its variants --
+need to patch several nodes at once and observe their joint effect. The invalidation mechanism
+underlying \texttt{patch\_node!} never assumed a single node changes at a time:
+\texttt{\_invalidate\_downstream!} marks a node invalid regardless of how many sources triggered
+it, and \texttt{demand!} visits each node in topological order exactly once, recomputing only
+those still marked invalid. Patching several nodes and calling \texttt{demand!} once therefore
+already computes the union of their downstream cones correctly, with any shared descendant
+recomputed only once -- no new fusion logic is required for this, only an API that exposes it.
+
+\begin{lstlisting}[caption={\texttt{patch\_nodes!} and \texttt{restore\_nodes\_from\_cache!} (\texttt{src/patching.jl})},label={lst:multipatch}]
+function patch_nodes!(g::NeuroGraph, syms, cache; namespace=g.active_ns)
+    for sym in syms
+        patch_node!(g, sym, cache; namespace=namespace)
+    end
+    return g
+end
+
+function restore_nodes_from_cache!(g::NeuroGraph, ns::Symbol, cache, syms)
+    affected = Set{Symbol}()
+    for sym in syms
+        union!(affected, _downstream_nodes(g, sym, ns))
+    end
+    restore_from_cache!(g, ns, cache, affected)
+    return g
+end
+\end{lstlisting}
+
+\paragraph{Independent sites commute; nested sites apply in list order.} For two sites where
+neither is reachable from the other -- e.g.\ two attention heads of the same layer, both computed
+from the same upstream projection and merged only downstream by \texttt{hcat\_heads} -- applying
+\texttt{patch\_nodes!([A, B], \ldots)} and \texttt{patch\_nodes!([B, A], \ldots)} produce
+identical results, since neither patch's invalidation can ever reach the other's node. For two
+sites in an ancestor-descendant relationship, \texttt{patch\_nodes!} applies patches in list
+order: a later entry that lies downstream of an earlier one is not affected by it, but a later
+entry that lies \emph{upstream} of an earlier one will re-invalidate it, and the earlier
+(downstream) patch is recomputed from the newly patched ancestor rather than kept pinned. This is
+the same, well-defined semantics as any sequential in-place update -- the last write to a given
+location wins -- and it is precisely why \Cref{sec:results} evaluates the commuting case, where
+the interaction being measured is the sites' joint causal effect, not an artifact of application
+order.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Correctness Validation}
+\label{sec:correctness}
+%══════════════════════════════════════════════════════════════════════════
+
+Following the same discipline as \cite{neurodsl} -- correctness before any speed claim -- every
+mechanism in this paper is validated by an invariant that does not depend on comparing two
+implementations that could share the same flaw.
+
+\paragraph{Invariant 1: the patched value survives evaluation.} After
+\texttt{patch\_node!(g, sym, clean\_cache)}, we compare \texttt{node(g, sym).value} immediately
+after the patch to the same value \emph{after} a subsequent \texttt{demand!(g, output)} call.
+These must be identical -- if \texttt{demand!} recomputed the node, they would differ. Measured
+maximum absolute difference: $\mathbf{0.0}$ (exact).
+
+\paragraph{Invariant 2: patching the last layer is patching the output.} In our test model, the
+output node \emph{is} the last transformer block's residual-stream output
+(\texttt{layer\_\{n\}\_out}); patching one is, structurally, patching the other. Recovery must
+equal exactly $1.0$ -- a mathematical identity, not a second implementation. Measured:
+$\mathbf{1.000000}$.
+
+\paragraph{Invariant 3: cache-replay restoration equals recomputation-based restoration.} For the
+same site, patched from the same corrupted baseline, we compare the full graph state (every
+node's value) after restoring via \texttt{restore\_from\_cache!} against the state after
+restoring via \texttt{patch\_node!}+\texttt{demand!}. Every node matches exactly. This is the
+invariant that licenses the sweep result of \S\ref{sec:results}: the two restoration paths are
+interchangeable in outcome, so any wall-clock difference between them is pure overhead removed,
+not a shortcut that changes what is being measured.
+
+All three invariants were confirmed before any timing measurement was taken.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Experimental Setup}
+\label{sec:setup}
+%══════════════════════════════════════════════════════════════════════════
+
+We use \textsc{NeuroDSL}'s existing, already-tested \texttt{LlamaModel} (8 layers, hidden
+dimension 128, 8 attention heads, sequence length 16; \texttt{src/layers.jl}) -- no new
+architecture was written for this paper. The model is fed a random $(16, 128)$ matrix directly
+as its input node, with no token or positional embeddings and no output head, since demonstrating
+the systems capability requires no language-modelling semantics.
+
+\paragraph{Corruption protocol.} We generate a clean input, then corrupt it by replacing a single
+token's row (position~1) with fresh noise -- the standard single-token causal-tracing protocol.
+
+\paragraph{Patch granularity.} Cost is measured by patching each layer's entire output tensor
+(all token positions at once), since cost does not depend on which positions are patched, only on
+how much computation lies downstream. Recovery is measured by patching only the corrupted
+token's row, leaving all other positions as the corrupted run computed them: replacing a layer's
+entire output with its clean counterpart makes every subsequent computation identical to the
+clean run by determinism, which is the correct behaviour but gives no depth-dependent signal --
+patching only the affected position is what reveals where its influence is reintegrated into the
+network.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Results}
+\label{sec:results}
+%══════════════════════════════════════════════════════════════════════════
+
+\subsection{Single-Site Cost and Recovery vs.\ Depth}
+
+\Cref{tab:results} reports, for each layer, the wall-clock cost of patching that layer's output
+and recomputing the model's output (trimmed mean over 15 alternated runs, following the warm-up
+and alternation discipline of \cite{neurodsl} to control for CPU clock variance), together with
+the recovery achieved by patching only the corrupted token's position. The reference full-forward
+cost -- obtained for free from the clean-to-corrupted input transition, which invalidates the
+entire graph -- was $24.128$~ms for this run.
+
+\begin{table}[H]
+\centering
+\caption{Patch cost and recovery vs.\ layer depth, 8-layer \texttt{LlamaModel} (dim=128).}
+\label{tab:results}
+\begin{tabular}{c c c c}
+\toprule
+\textbf{Layer} & \textbf{Cost (ms)} & \textbf{Cost (\% of full forward)} & \textbf{Recovery} \\
+\midrule
+1 & 5.818 & 24.1\% & 0.753 \\
+2 & 4.920 & 20.4\% & 0.666 \\
+3 & 3.993 & 16.5\% & 0.613 \\
+\rowcolor{rowgray}
+4 & 3.397 & 14.1\% & 0.565 \\
+5 & 2.413 & 10.0\% & 0.521 \\
+6 & 1.694 & 7.0\%  & 0.461 \\
+7 & 0.762 & 3.2\%  & 0.435 \\
+8 & 0.000 & 0.0\%  & 0.386 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.49\textwidth]{figures/patching_cost.pdf}
+\includegraphics[width=0.49\textwidth]{figures/patching_recovery.pdf}
+\caption{Left: patch cost as a percentage of a full forward pass, by layer depth. Right:
+recovery of the corrupted token's position, by layer depth. Both decrease monotonically with
+depth; cost reaches exactly zero at the output layer, where nothing remains downstream to
+recompute.}
+\label{fig:results}
+\end{figure}
+
+Cost decreases monotonically with depth, reaching exactly $0.0\%$ at the output layer, where the
+impact subgraph is empty by definition. Recovery of the single corrupted token also decreases
+with depth, consistent with restoring the corrupted position earlier giving the network's own
+unmodified computation more opportunity to reintegrate the correction.
+
+\subsection{Amortized Sweep Cost}
+
+\Cref{tab:sweep} compares the total wall-clock cost of a full 8-site sweep (patching every
+layer's output once, in sequence) under the two restoration strategies of \S\ref{sec:sweep},
+trimmed mean over 10 alternated runs.
+
+\begin{table}[H]
+\centering
+\caption{Total cost of an 8-site sweep, by restoration strategy.}
+\label{tab:sweep}
+\begin{tabular}{l c}
+\toprule
+\textbf{Restoration strategy} & \textbf{Total sweep cost (ms)} \\
+\midrule
+Recomputation (\texttt{patch\_node!} + \texttt{demand!}) & 55.55 $\pm$ 2.32 \\
+\rowcolor{rowgray}
+Cache replay (\texttt{restore\_from\_cache!}) & \textbf{34.39 $\pm$ 0.59} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{figures/patching_sweep_cost.pdf}
+\caption{Total cost of a full 8-site sweep, recomputation-based restoration vs.\ cache-replay
+restoration.}
+\label{fig:sweep}
+\end{figure}
+
+Cache-replay restoration reduces total sweep cost by \textbf{38.1\%} relative to
+recomputation-based restoration, verified (Invariant 3, \S\ref{sec:correctness}) to leave the
+graph in an identical state either way. This gain is additive to the per-patch savings already
+demonstrated in \Cref{tab:results}: the measurement side of the sweep is untouched, only the
+restoration side's redundant recomputation is removed.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Comparison with Tape-Based Frameworks}
+\label{sec:comparison}
+%══════════════════════════════════════════════════════════════════════════
+
+The comparison with PyTorch, JAX, and tools built on them is structural: neither has a
+computational-graph representation that persists between calls, so neither has an operation
+corresponding to \texttt{restore\_from\_cache!}, or to patching a single node without a full
+forward pass. Every site in a sweep, on such a framework, costs a full forward pass -- exactly
+the cost we ourselves measure when patching \texttt{:input}, the degenerate case of our own
+mechanism where the entire graph is invalidated: $24.128$~ms per site, $K$ times over. A full
+8-site sweep on such a framework costs $8 \times 24.128 \approx 193$~ms; the same sweep, measured
+here, costs $34.39$~ms with cache-replay restoration -- an over $5.6\times$ reduction from
+combining per-patch locality with amortized restoration.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Discussion and Future Directions}
+\label{sec:discussion}
+%══════════════════════════════════════════════════════════════════════════
+
+\paragraph{Head- and position-level sweeps.} This paper sweeps at layer granularity.
+\textsc{NeuroDSL}'s \texttt{MultiHeadAttention} implementation (used inside \texttt{LlamaBlock})
+already exposes per-head query/key/value and post-softmax attention-pattern nodes individually
+(\texttt{\{prefix\}\_pr\_h\{h\}}, etc.), and \texttt{\_downstream\_nodes} operates on any node
+symbol -- so a per-head or per-position sweep uses the exact same
+\texttt{sweep\_patch\_sites!} machinery, with a longer \texttt{sites} list. The amortization
+argument of \S\ref{sec:sweep} strengthens as $K$ grows, since the restoration saving scales with
+the number of sites swept.
+
+\paragraph{Composable patches.} The next natural extension is patching several nodes
+simultaneously and restoring their union of downstream cones -- \texttt{\_downstream\_nodes}
+already returns a plain \texttt{Set}, so composing several such sets is direct. This would extend
+the mechanism to path-patching protocols without further changes to the underlying invalidation
+machinery.
+
+\paragraph{Scale and task grounding.} The 8-layer, dim-128 model and single-token corruption were
+chosen to isolate and measure the systems mechanism at low iteration cost. Applying the same
+sweep machinery to a realistic model and task (e.g.\ an IOI-style circuit) is the natural next
+validation step, and would test whether the amortization gain observed here persists at larger
+$K$ and deeper networks, where it is expected to grow.
+
+%══════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+\label{sec:conclusion}
+%══════════════════════════════════════════════════════════════════════════
+
+A causal-tracing sweep is not one patch but many, run against a shared corrupted baseline.
+\textsc{NeuroDSL}'s persistent graph already makes each patch cheap by reusing the
+$\mathcal{O}(|\mathcal{V}_\theta|)$ impact-subgraph bound proven for parameter updates
+\cite{neurodsl}; this paper shows that the same graph, because every node is individually
+addressable with an explicit validity state, also makes the restoration between sites cheap --
+not by computing it faster, but by recognizing it need not be computed at all, since the
+corrupted baseline is already fully known. On an 8-layer toy Transformer, this removes 38.1\% of
+a full sweep's total cost on top of the per-patch locality already available, verified correct by
+exact-equality invariants before any timing number is reported. We see this as a concrete
+instance of a broader opportunity: interpretability workflows are built from repeated,
+overlapping queries against a fixed baseline, and a graph that remembers what it already computed
+is structurally suited to exploit that repetition in ways a graph rebuilt from scratch cannot.
+
+\textsc{NeuroDSL} is open-source at \url{https://github.com/nevermind78/NeuroDSL}.
+
+%══════════════════════════════════════════════════════════════════════════
+% BIBLIOGRAPHY
+%══════════════════════════════════════════════════════════════════════════
+\begin{thebibliography}{10}
+
+\bibitem{neurodsl}
+A. Khemais, \textit{NeuroDSL: A Dynamic Computational Graph Framework with Optimal Memory
+Planning}, arXiv preprint, 2026.
+
+\bibitem{pytorch}
+A. Paszke et al., \textit{PyTorch: An Imperative Style, High-Performance Deep Learning Library},
+NeurIPS 2019.
+
+\bibitem{jax}
+J. Bradbury et al., \textit{JAX: composable transformations of Python+NumPy programs}, GitHub
+2018.
+
+\bibitem{rome}
+K. Meng, D. Bau, A. Andonian, Y. Belinkov, \textit{Locating and Editing Factual Associations in
+GPT}, NeurIPS 2022.
+
+\bibitem{causalmediation}
+J. Vig, S. Gehrmann, Y. Belinkov, S. Qian, D. Nevo, Y. Singer, S. Shieber, \textit{Investigating
+Gender Bias in Language Models Using Causal Mediation Analysis}, NeurIPS 2020.
+
+\bibitem{transformerlens}
+N. Nanda, J. Bloom, \textit{TransformerLens}, GitHub, \url{https://github.com/TransformerLensOrg/TransformerLens}, 2022.
+
+\end{thebibliography}
+
+\end{document}

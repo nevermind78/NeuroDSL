@@ -23,6 +23,7 @@ include("layers.jl")
 include("viz.jl")
 include("dsl_macros.jl")
 include("backward_sparse.jl")
+include("patching.jl")
 
 
 export NeuroGraph, GraphNode, GraphRule, CtxStore
@@ -52,4 +53,7 @@ export backward_graph_sparse!
 export RewriteRule, CompilerConfig, CompiledPlan, compile, scan_summary
 export FULL_LLAMA_RULES, FULL_GPT_RULES, MEMORY_RULES
 export is_dirty, recompile!
+export capture_activations, patch_node!, recovery_metric, patch_and_measure!
+export restore_from_cache!, sweep_patch_sites!
+export patch_nodes!, restore_nodes_from_cache!
 end

@@ -20,32 +20,40 @@ Cette fonction est utile pour :
 """
 function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
                                  ctx_store::CtxStore = CtxStore(),
-                                 namespace::Symbol = g.active_ns)
+                                 namespace::Symbol = g.active_ns,
+                                 prune_frozen::Bool = false)
     ns = namespace
-    
+
     # 1. Réinitialiser TOUS les gradients
     for (_, nd) in g.nodes[ns]
         nd.gradient = nothing
         nd.backwarded = false
     end
-    
+
     # 2. Initialiser le gradient de la loss
     ln = g.nodes[ns][loss_sym]
     @assert length(ln.value) == 1 "Loss must be scalar"
     ln.gradient = Backend.ones32(g.device, size(ln.value)...)
     ln.backwarded = false
-    
+
+    needs_bwd = prune_frozen ? _compute_needs_bwd(g, ns) : nothing
+
     # 3. Backward : parcours topologique inverse
     for out_sym in reverse(topo_order!(g; namespace=ns))
         !haskey(g.rules[ns], out_sym) && continue
         rule = g.rules[ns][out_sym]
         nd_out = g.nodes[ns][out_sym]
-        
+
         # Sauter si pas de gradient entrant
         nd_out.gradient === nothing && continue
-        
+
         # Sauter si pas de règle backward
         !haskey(GRAD_RULES, rule.op) && continue
+
+        # Garde défensive (voir backward_graph! pour l'explication complète) :
+        # la garde symétrique côté entrées, plus bas, empêche déjà nd_out
+        # d'être jamais atteint ici pour un sous-arbre entièrement gelé.
+        needs_bwd !== nothing && !needs_bwd[out_sym] && continue
         
         # Récupérer le contexte forward
         ctx = get(ctx_store, out_sym, nothing)
@@ -62,14 +70,29 @@ function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
         # Propager les gradients vers les entrées
         for (i, in_sym) in enumerate(rule.inputs)
             in_nd = g.nodes[ns][in_sym]
-            
+
+            if needs_bwd !== nothing && !needs_bwd[in_sym]
+                # Sous-arbre prouvé sans paramètre entraînable en amont --
+                # même logique que backward_graph!, voir ce fichier.
+                continue
+            end
+
             if in_nd.is_param
                 # 🔑 Paramètre entraînable → accumuler le gradient
                 accum_grad!(in_nd, grads[i])
             else
-                # 🔑 Paramètre gelé → passer le gradient pour la propagation
-                # mais il sera effacé à la fin
-                in_nd.gradient = grads[i]
+                # 🔑 Paramètre gelé → passer le gradient pour la propagation,
+                # il sera effacé à la fin. Sommer (pas juste affecter) si une
+                # deuxième contribution arrive : un nœud gelé à plusieurs
+                # consommateurs (connexion résiduelle, poids partagé) doit
+                # recevoir la somme exacte, sinon seule la dernière
+                # contribution survivrait et le gradient propagé plus en
+                # amont serait faux.
+                if in_nd.gradient === nothing
+                    in_nd.gradient = grads[i]
+                else
+                    in_nd.gradient .+= grads[i]
+                end
             end
             in_nd.backwarded = true
         end

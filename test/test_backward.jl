@@ -9,11 +9,12 @@ using Statistics
 #               retourne (Bool, Float32) pour logger les valeurs exactes
 # ─────────────────────────────────────────────────────────────────────────────
 function grad_check(g, param_sym, loss_sym;
-                    eps=Float32(1e-4), tol=Float32(1e-3), verbose=true)
+                    eps=Float32(1e-4), tol=Float32(1e-3), verbose=true,
+                    prune_frozen::Bool=false)
     NeuroDSL.invalidate_all!(g)
     ctx = NeuroDSL.CtxStore()
     NeuroDSL.demand!(g, loss_sym; ctx_store=ctx)
-    NeuroDSL.backward_graph!(g, loss_sym; ctx_store=ctx)
+    NeuroDSL.backward_graph!(g, loss_sym; ctx_store=ctx, prune_frozen=prune_frozen)
     grad_a = Array(NeuroDSL.node(g, param_sym).gradient)
 
     pn = NeuroDSL.node(g, param_sym)
@@ -171,6 +172,171 @@ end
         NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:L, [:pred, :target], :mse_loss; namespace=:t_mse))
         ok, _ = grad_check(g, :pred, :L; eps=Float32(1e-3), tol=Float32(5e-3))
         @test ok
+    end
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# prune_frozen — élagage des sous-arbres sans paramètre entraînable en amont.
+# Contrat : désactivé par défaut, et les gradients des paramètres entraînables
+# doivent être identiques (élagage activé ou non) sur toutes les topologies.
+# ─────────────────────────────────────────────────────────────────────────────
+@testset "Backward pruning (prune_frozen)" begin
+    dev = NeuroDSL.Backend.CPUDevice()
+    D = 4
+
+    function build_seq4(namespace::Symbol, trainable_idx::Int)
+        g = NeuroDSL.NeuroGraph(device=dev, namespace=namespace)
+        NeuroDSL.set!(g, :x, randn(Float32, 2, D); namespace=namespace)
+        NeuroDSL.set!(g, :y, randn(Float32, 2, D); atom_type=NeuroDSL.Datom, namespace=namespace)
+        for i in 1:4
+            NeuroDSL.set!(g, Symbol("W$i"), randn(Float32, D, D) .* 0.1f0;
+                          is_param=(i == trainable_idx), namespace=namespace)
+        end
+        prev = :x
+        for i in 1:4
+            h = Symbol("h$i")
+            NeuroDSL.addrule!(g, NeuroDSL.GraphRule(h, [prev, Symbol("W$i")], :matmul;
+                attrs=Dict{Symbol,Any}(:trans_b=>true), namespace=namespace))
+            prev = h
+        end
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:loss, [prev, :y], :mse_loss; namespace=namespace))
+        return g
+    end
+
+    @testset "grad_check avec prune_frozen=true" begin
+        g = build_seq4(:prune_gc, 4)
+        ok, _ = grad_check(g, :W4, :loss; prune_frozen=true)
+        @test ok
+    end
+
+    @testset "Préfixe séquentiel entièrement gelé (4 couches, seule la dernière entraînable)" begin
+        g = build_seq4(:prune_seq, 4)
+
+        ctx = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx, namespace=:prune_seq)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx, namespace=:prune_seq)
+        grad_full = copy(Array(g.nodes[:prune_seq][:W4].gradient))
+        backwarded_full = Dict(s => g.nodes[:prune_seq][s].backwarded for s in (:h1, :h2, :h3, :h4))
+
+        ctx2 = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx2, namespace=:prune_seq)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx2, namespace=:prune_seq, prune_frozen=true)
+        grad_pruned = Array(g.nodes[:prune_seq][:W4].gradient)
+        backwarded_pruned = Dict(s => g.nodes[:prune_seq][s].backwarded for s in (:h1, :h2, :h3, :h4))
+
+        @test isapprox(grad_full, grad_pruned; atol=Float32(1e-6))
+        @test g.nodes[:prune_seq][:W1].gradient === nothing
+        @test g.nodes[:prune_seq][:W2].gradient === nothing
+        @test g.nodes[:prune_seq][:W3].gradient === nothing
+
+        # Preuve déterministe (pas de chronométrage) que l'élagage saute bien
+        # le préfixe gelé : h1/h2/h3 sont traités sans élagage, jamais avec.
+        @test backwarded_full[:h1] && backwarded_full[:h2] && backwarded_full[:h3]
+        @test !backwarded_pruned[:h1] && !backwarded_pruned[:h2] && !backwarded_pruned[:h3]
+        @test backwarded_pruned[:h4]   # alimente directement W4, doit rester traité
+    end
+
+    @testset "Réseau branché (nœud partagé gelé, une branche entraînable)" begin
+        ns = :prune_branch
+        g = NeuroDSL.NeuroGraph(device=dev, namespace=ns)
+        NeuroDSL.set!(g, :x,   randn(Float32, 2, D); namespace=ns)
+        NeuroDSL.set!(g, :y,   randn(Float32, 2, D); atom_type=NeuroDSL.Datom, namespace=ns)
+        NeuroDSL.set!(g, :W1,  randn(Float32, D, D) .* 0.1f0; is_param=true,  namespace=ns)
+        NeuroDSL.set!(g, :W2a, randn(Float32, D, D) .* 0.1f0; is_param=false, namespace=ns)
+        NeuroDSL.set!(g, :W2b, randn(Float32, D, D) .* 0.1f0; is_param=true,  namespace=ns)
+
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:h1,  [:x, :W1],   :matmul; attrs=Dict{Symbol,Any}(:trans_b=>true), namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:h2a, [:h1, :W2a], :matmul; attrs=Dict{Symbol,Any}(:trans_b=>true), namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:h2b, [:h1, :W2b], :matmul; attrs=Dict{Symbol,Any}(:trans_b=>true), namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:sum, [:h2a, :h2b], :add; namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:loss, [:sum, :y], :mse_loss; namespace=ns))
+
+        ctx = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx, namespace=ns)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx, namespace=ns)
+        grad_W1_full  = copy(Array(g.nodes[ns][:W1].gradient))
+        grad_W2b_full = copy(Array(g.nodes[ns][:W2b].gradient))
+
+        ctx2 = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx2, namespace=ns)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx2, namespace=ns, prune_frozen=true)
+        grad_W1_pruned  = Array(g.nodes[ns][:W1].gradient)
+        grad_W2b_pruned = Array(g.nodes[ns][:W2b].gradient)
+
+        @test isapprox(grad_W1_full, grad_W1_pruned; atol=Float32(1e-6))
+        @test isapprox(grad_W2b_full, grad_W2b_pruned; atol=Float32(1e-6))
+        @test g.nodes[ns][:W2a].gradient === nothing
+        # h1 alimente la branche entraînable (h2b) : ne doit jamais être élagué,
+        # même s'il alimente AUSSI une branche gelée (h2a).
+        @test g.nodes[ns][:h1].backwarded == true
+    end
+
+    @testset "Aucun paramètre entraînable nulle part" begin
+        ns = :prune_none
+        g = NeuroDSL.NeuroGraph(device=dev, namespace=ns)
+        NeuroDSL.set!(g, :x,  randn(Float32, 2, D); namespace=ns)
+        NeuroDSL.set!(g, :y,  randn(Float32, 2, D); atom_type=NeuroDSL.Datom, namespace=ns)
+        NeuroDSL.set!(g, :W1, randn(Float32, D, D) .* 0.1f0; is_param=false, namespace=ns)
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:h1, [:x, :W1], :matmul; attrs=Dict{Symbol,Any}(:trans_b=>true), namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:loss, [:h1, :y], :mse_loss; namespace=ns))
+
+        ctx = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx, namespace=ns)
+        @test_nowarn NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx, namespace=ns, prune_frozen=true)
+        @test g.nodes[ns][:W1].gradient === nothing
+        @test g.nodes[ns][:h1].backwarded == false
+    end
+
+    @testset "Seule la première couche est entraînable (aucune opportunité d'élagage)" begin
+        g = build_seq4(:prune_first, 1)
+        needs_bwd = NeuroDSL._compute_needs_bwd(g, :prune_first)
+        # Seuls les nœuds calculés (avec règle) représentent une opportunité
+        # d'élagage potentielle -- les feuilles gelées (W2/W3/W4) sont
+        # correctement à `false` (ce sont des feuilles, rien à élaguer
+        # au-delà), ça ne veut pas dire qu'une branche de calcul est sautée.
+        @test all(needs_bwd[s] for s in keys(g.rules[:prune_first]))
+
+        ctx = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx, namespace=:prune_first)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx, namespace=:prune_first)
+        grad_full = copy(Array(g.nodes[:prune_first][:W1].gradient))
+
+        ctx2 = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx2, namespace=:prune_first)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx2, namespace=:prune_first, prune_frozen=true)
+        grad_pruned = Array(g.nodes[:prune_first][:W1].gradient)
+
+        @test isapprox(grad_full, grad_pruned; atol=Float32(1e-6))
+    end
+
+    @testset "Tous les paramètres entraînables (élagage = no-op complet)" begin
+        ns = :prune_all
+        g = NeuroDSL.NeuroGraph(device=dev, namespace=ns)
+        NeuroDSL.set!(g, :x, randn(Float32, 2, D); namespace=ns)
+        NeuroDSL.set!(g, :y, randn(Float32, 2, D); atom_type=NeuroDSL.Datom, namespace=ns)
+        for i in 1:4
+            NeuroDSL.set!(g, Symbol("W$i"), randn(Float32, D, D) .* 0.1f0; is_param=true, namespace=ns)
+        end
+        prev = :x
+        for i in 1:4
+            h = Symbol("h$i")
+            NeuroDSL.addrule!(g, NeuroDSL.GraphRule(h, [prev, Symbol("W$i")], :matmul;
+                attrs=Dict{Symbol,Any}(:trans_b=>true), namespace=ns))
+            prev = h
+        end
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:loss, [prev, :y], :mse_loss; namespace=ns))
+
+        ctx = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx, namespace=ns)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx, namespace=ns)
+        backwarded_full = Set(s for s in (:h1, :h2, :h3, :h4) if g.nodes[ns][s].backwarded)
+
+        ctx2 = NeuroDSL.CtxStore()
+        NeuroDSL.demand!(g, :loss; ctx_store=ctx2, namespace=ns)
+        NeuroDSL.backward_graph!(g, :loss; ctx_store=ctx2, namespace=ns, prune_frozen=true)
+        backwarded_pruned = Set(s for s in (:h1, :h2, :h3, :h4) if g.nodes[ns][s].backwarded)
+
+        @test backwarded_full == backwarded_pruned == Set([:h1, :h2, :h3, :h4])
     end
 end
 

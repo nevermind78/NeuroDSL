@@ -62,7 +62,7 @@
 \maketitle
 
 \begin{abstract}
-We present \textsc{NeuroDSL}, a high-performance deep learning framework for mutable directed acyclic graphs (DAGs). Unlike static frameworks, \textsc{NeuroDSL} introduces a formal memory optimization framework grounded in Dilworth’s poset decomposition theorem, enabling peak GPU memory reductions of \textbf{2--6$\times$} compared to PyTorch. The framework leverages a novel lazy invalidation mechanism with $\mathcal{O}(|\mathcal{V}_{\theta}|)$ local complexity, ensuring efficient partial updates in deep architectures. Our system provides automated, semantically-preserving operator fusion with $\epsilon$-numerical equivalence and an incremental backward pass that is proven \emph{numerically exact} against full backpropagation on every topology we tested, together with measured speedups of up to \textbf{43.8\% less recomputation} on a fine-tuning workload and \textbf{37\% speedup} in fused operator execution. \textsc{NeuroDSL} offers a declarative DSL for reactive graph composition while maintaining strict functional correctness and formal memory bounds. Implemented in pure Julia, it provides a unique synthesis of flexibility, computational efficiency, and theoretical guarantee for dynamic neural architectures.
+We present \textsc{NeuroDSL}, a high-performance deep learning framework for mutable directed acyclic graphs (DAGs). Unlike static frameworks, \textsc{NeuroDSL} introduces a formal memory optimization framework grounded in Dilworth’s poset decomposition theorem, enabling peak GPU memory reductions of \textbf{2--6$\times$} compared to PyTorch. The framework leverages a novel lazy invalidation mechanism with $\mathcal{O}(|\mathcal{V}_{\theta}|)$ local complexity, ensuring efficient partial updates in deep architectures. Our system provides automated, semantically-preserving operator fusion with $\epsilon$-numerical equivalence and an incremental backward pass that is proven \emph{numerically exact} against full backpropagation on every topology we tested, together with measured speedups of up to \textbf{86.4\% less recomputation} on a fine-tuning workload when frozen parameters are contiguous with the graph's inputs (and no gain otherwise, a condition we characterize explicitly) and \textbf{37\% speedup} in fused operator execution. \textsc{NeuroDSL} offers a declarative DSL for reactive graph composition while maintaining strict functional correctness and formal memory bounds. Implemented in pure Julia, it provides a unique synthesis of flexibility, computational efficiency, and theoretical guarantee for dynamic neural architectures.
 \end{abstract}
 
 %══════════════════════════════════════════════════════════════════════════
@@ -427,7 +427,7 @@ addrule!(g, :qkv, inputs=[:Wqkv2,:x], fn=compute_qkv, ns=:attn2)
 \label{sec:incremental_backward}
 %══════════════════════════════════════════════════════════════════════════
 
-To further reduce computation when only part of the graph changes, \textsc{NeuroDSL} introduces \texttt{\_invalidate\_upstream!}. When a parameter is modified, this function clears the gradients of all nodes that depend on it, while leaving other gradients intact. The subsequent \texttt{backward\_graph!} then only recomputes the affected gradients, yielding significant savings (see \Cref{tab:incr_backward}).
+To reduce backward computation when some parameters are frozen (fine-tuning, transfer learning, partial architecture updates), \textsc{NeuroDSL} exposes an opt-in \texttt{prune\_frozen} flag on \texttt{backward\_graph!} and \texttt{backward\_graph\_sparse!}. In a single forward topological pass, it computes which nodes have at least one trainable (\texttt{is\_param=true}) ancestor; the reverse pass then skips gradient computation and propagation entirely for any node without one, rather than merely avoiding its storage. Gradient values for trainable parameters are provably unaffected -- we verify this by exact equality between the pruned and unpruned code paths on identical inputs, not just numerical tolerance (see \Cref{tab:incr_backward}). The flag defaults to \texttt{false}, so existing call sites are unaffected unless a caller opts in.
 
 \begin{figure}[H]
 \centering
@@ -781,11 +781,11 @@ On a tiny model (10$\times$5 matrix multiply + sum, forward and backward timed s
 \end{table}
 
 \subsection{Dynamic Optimisations}
-\paragraph{Incremental backward.} \Cref{tab:incr_backward} shows the median time over 50 runs for a full backward pass versus an incremental one that only recomputes the gradients affected by the changed parameter, on two configurations. Results range from a 24.4\% reduction (10-layer MLP, last parameter) to a 43.8\% reduction (8-layer MLP, sparse fine-tuning of the last layer); the exact gain is workload-dependent, as discussed below.
+\paragraph{Incremental backward.} \Cref{tab:incr_backward} reports \texttt{prune\_frozen}'s effect on two configurations, chosen deliberately to show both when the mechanism helps and when it does not. On an 8-layer MLP (dim=512, GPU) where only the last layer is trainable, skipping the seven frozen layers' backward computation entirely yields an \textbf{86.4\% speedup} (13.94~ms $\to$ 1.89~ms, trimmed median over 15 alternated runs), with the trainable layer's gradient identical between the pruned and unpruned paths to a maximum error of $0.0$. On the GPT-2-shaped model of \Cref{sec:scalability} (12 transformer blocks with attention, RMSNorm, and residual connections), the same mechanism yields an \textbf{85.0\% speedup} when the token/position embeddings are frozen along with the first 10 blocks -- but only \textbf{$-$17.9\%} (a small net slowdown from the reachability precomputation) when the embeddings remain trainable. A single trainable node at the graph's root keeps every downstream node reachable from a trainable parameter, leaving nothing to prune: \texttt{prune\_frozen} only helps when the frozen region reaches the graph's inputs, it is not a blanket optimization.
 
 \begin{table}[H]
 \centering
-\caption{Incremental backward validation on deep MLPs.}
+\caption{\texttt{prune\_frozen} validation: performance gain and gradient exactness.}
 \label{tab:incr_backward}
 \begin{tabularx}{\textwidth}{X c c}
 \toprule
@@ -793,23 +793,24 @@ On a tiny model (10$\times$5 matrix multiply + sum, forward and backward timed s
 \midrule
 \multicolumn{3}{c}{\textit{Performance gain}} \\
 \cmidrule{1-3}
-10-layer MLP (dim=64) full recomputation & 44\,943.8 $\mu$s & baseline \\
-10-layer MLP (dim=64) incremental (last param) & 33\,999.6 $\mu$s & 24.4\% faster \\
+8-layer MLP ($d=512$, GPU), only layer 8 trainable & $13.94 \to 1.89\text{ ms}$ & \textbf{86.4\% speedup} \\
 \rowcolor{rowgray}
-\raggedright 8-layer MLP ($d=512$, $L=8$) Sparse Fine-Tuning (Layer 8) & $19.66 \pm 9.27\text{ ms} \to 11.05 \pm 5.17\text{ ms}$ & \textbf{43.8\% speedup} \\
+\raggedright GPT-2-shaped model, blocks 1--10 \emph{and} embeddings frozen & $106.2 \to 16.0\text{ ms}$ & \textbf{85.0\% speedup} \\
+GPT-2-shaped model, blocks 1--10 frozen, embeddings trainable & $106.1 \to 125.1\text{ ms}$ & $-$17.9\% (no pruning opportunity) \\
 \midrule
-\multicolumn{3}{c}{\textit{Gradient drift validation}} \\
+\multicolumn{3}{c}{\textit{Gradient exactness (pruned vs.\ unpruned, trainable layer)}} \\
 \cmidrule{1-3}
-12-layer MLP (dim=512, RMSNorm) & relative error $=$ 0.0 & full vs.\ sparse backward \\
+8-layer MLP ($d=512$, GPU) & max error $=$ 0.0 & same code, \texttt{prune\_frozen} on/off \\
+GPT-2-shaped model (both configurations above) & max error $=$ 0.0 & same code, \texttt{prune\_frozen} on/off \\
 \bottomrule
 \end{tabularx}
 \end{table}
-As reported in Table~\ref{tab:incr_backward}, the framework achieves a \textbf{43.8\% performance gain} during the fine-tuning backward phase, dropping from 19.66~ms in full mode to 11.05~ms in sparse mode. Although a higher variance ($\pm$9.27~ms) is observed during the initial un-warmed stages due to Julia's dynamic memory tracking overhead, the execution latency stabilizes significantly ($\pm$5.17~ms) once the warm-up cycles are completed. This empirical result strongly confirms the practical viability of our localized $\mathcal{O}(|\mathcal{V}_{\theta}|)$ graph traversals.
+As reported in Table~\ref{tab:incr_backward}, \texttt{prune\_frozen} genuinely skips computation rather than merely avoiding allocation: on the 8-layer MLP, the fraction of the network actually recomputed drops from 8/8 layers to 1/8, matching the observed \textbf{86.4\%} wall-clock reduction. The GPT-2-shaped model's two rows make the mechanism's precondition concrete: the same code, the same architecture, and nearly the same number of frozen parameters yield either an \textbf{85.0\%} gain or a small loss, depending solely on whether the frozen region includes the graph's root.
 
 \paragraph{Gradient drift validation.}
-We verified the numerical exactness of the incremental backward on a 12‑layer MLP (dim=512, with RMSNorm). After a full backward pass, we simulated a partial invalidation of the last layer and ran \texttt{backward\_graph!} with \texttt{full=false}. The gradients of all parameters of the last layer matched the full‑backward gradients with a relative error of \textbf{0.0} (within machine precision), confirming Theorem~2 in practice.
+We verified the numerical exactness of \texttt{prune\_frozen} on both configurations of Table~\ref{tab:incr_backward}: for each, we ran \texttt{backward\_graph!} once with \texttt{prune\_frozen=false} and once with \texttt{prune\_frozen=true} on the same graph state, and compared the trainable layer's gradient. Both configurations matched to a maximum absolute error of \textbf{0.0} (exact equality, not just within machine precision), confirming that pruning removes only computation whose result would otherwise be discarded, never a genuine contribution to a trainable parameter's gradient.
 
-\paragraph{Speed is not yet a general guarantee.} What is solidly established, across multiple graph topologies (sequential, branching, residual, multiple frozen layers), is the numerical exactness result above. The \emph{speed} gain, however, is workload-dependent: it follows from the impact-subgraph bound of \Cref{sec:invalidation_proof} when the modified parameter's impact subgraph is a small suffix of the network, but can be dominated by fixed dispatch overhead elsewhere. On the larger, more realistic architecture of \Cref{sec:scalability}, for instance, the same sparse-backward mechanism measured \emph{slower} wall-clock time than a full backward pass (497.1~ms full vs.\ 897.0~ms sparse with 10/12 layers frozen), even though the returned gradients remained numerically exact. We report the specific configurations above rather than a general range, since we do not yet have a benchmark suite that reliably predicts when the speed gain holds.
+\paragraph{Speed is not yet a general guarantee.} What is solidly established, across multiple graph topologies (sequential, branching, residual, multiple frozen layers), is the numerical exactness result above. The \emph{speed} gain is conditional: it requires the frozen region to reach the graph's inputs, as Table~\ref{tab:incr_backward}'s two GPT-2-shaped rows demonstrate directly -- freezing the same 10 blocks yields either an 85.0\% speedup or a small slowdown depending only on whether the embeddings are also frozen. The pre-existing, separate \texttt{sparse=true} code path (which avoids gradient-storage allocation for frozen parameters but does not skip their computation) shows a related but distinct failure mode on the same architecture: it measured \emph{slower} wall-clock time than a full backward pass (497.1~ms full vs.\ 897.0~ms sparse with 10/12 layers frozen), even though the returned gradients remained numerically exact. We report the specific configurations above rather than a general range, since we do not yet have a benchmark suite that reliably predicts when either mechanism's speed gain holds.
 
 \paragraph{Operator fusion.} Fusing \texttt{matmul+relu} on a small network reduces forward time by \textbf{37.2\%} on CPU (verified, \texttt{notebook/notebook.ipynb}). On GPU, this claim went through three revisions during preparation of this paper, each backed by direct measurement (\texttt{notebook/neurodsl\_benchmarks.ipynb}). An earlier version claimed a 53.8\% GPU speedup with no reproducible source. Re-measuring it directly first exposed a regression ($\sim$4.2$\times$ slower), traced to \texttt{\_fused\_matmul\_relu\_kernel!} (\texttt{src/kernels.jl}) being a hand-written CUDA kernel that reimplemented matmul from scratch, streaming the full reduction dimension from global memory with no reuse, while the unfused path dispatches to cuBLAS (via CUDA.jl). Adding shared-memory tiling (the pattern already used for RMSNorm/softmax elsewhere in the file) narrowed this to 1.9--2.4$\times$ slower, but a hand-tiled kernel still cannot match cuBLAS's register blocking, tensor cores, and autotuning. The fix that actually closes the gap follows the same principle real GPU libraries use for fused epilogues (cuDNN, cuBLASLt, TensorRT): \emph{do not reimplement the matmul} -- call cuBLAS via \texttt{LinearAlgebra.mul!} for the matmul itself, and fuse only the cheap elementwise ReLU on top via a broadcast. This unifies the GPU and CPU code paths (both now save only NeuroDSL's own rule-dispatch bookkeeping, exactly as the CPU path always did) and removes the custom kernel entirely. We verified this final version numerically correct against an independent reference (max relative error $\sim 10^{-6}$ across 5 matrix shapes and both values of \texttt{trans\_b}) before re-benchmarking: across 12 runs on two GPUs (RTX A5500 Laptop, RTX 3060 Ti), the gain ranges from \textbf{$-$5.5\% to $+$28.1\%} (median $+$2.8\%) -- roughly at parity with the unfused path, a qualitative change from consistently regressing to consistently competitive, though CV remains high (30--60\%) for the reasons discussed in \Cref{sec:transformer} and no single run's decimal should be over-interpreted.
 
@@ -898,11 +899,12 @@ Transformer speed, GPU (range, dim=256--1024, 2 GPUs) & 2.3--11.0 ms & 0.64--0.9
 Peak GPU memory (dim=1024)   & 34.61 MiB & 2.15$\times$ less than PyTorch eager (source: \texttt{notebook\_py.ipynb}, currently untracked -- \Cref{sec:transformer}) \\
 Iris test accuracy           & 100\%     & -- \\
 Fusion speedup, CPU (simple chain) / GPU (cuBLAS epilogue) & 37.2\% / $+$2.8\% median & GPU: parity, was 4.2$\times$ slower before the cuBLAS fix, \Cref{sec:evaluation} \\
-Incremental backward gain (8-layer MLP, last layer) & 43.8\% & vs full backward \\
-Incremental gradient drift (12-layer MLP) & 0.0 (machine precision) & vs full backward \\
+\texttt{prune\_frozen} gain (8-layer MLP, last layer, GPU) & 86.4\% & vs full backward, \Cref{sec:incremental_backward} \\
+\texttt{prune\_frozen} gain (GPT-2-shaped, embeddings frozen) & 85.0\% & vs $-$17.9\% if embeddings trainable \\
+\texttt{prune\_frozen} gradient exactness & 0.0 (exact) & pruned vs.\ unpruned, both configs above \\
 Reactive early stopping      & 97.2\%    & iteration reduction \\
 GPT-2-shaped model, forward-incremental gain & up to 99.7\% & fine-tuning, toy scale, CPU \\
-GPT-2-shaped model, sparse-backward wall-clock & 80.4\% slower & counterexample, see \Cref{sec:scalability} \\
+GPT-2-shaped model, \texttt{sparse=true} wall-clock & 80.4\% slower & counterexample (allocation-only path), \Cref{sec:scalability} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -932,7 +934,7 @@ Despite its strengths, \textsc{NeuroDSL} has several current limitations that mo
 
 \paragraph{Compilation integration.} While \textsc{NeuroDSL}'s graph-level representation is compilation-friendly, we have not yet integrated with XLA or LLVM for ahead-of-time kernel generation. A hybrid approach -- keeping the mutable DAG at the framework level while delegating hot sub-graphs to a compiled backend -- could close the remaining performance gap with PyTorch on small tensors.
 
-\paragraph{Gradient correctness at scale.} The incremental backward has been validated as numerically exact on up to 12‑layer MLPs and on a 12-layer GPT-2-shaped toy model (\Cref{sec:scalability}). A formal proof of gradient exactness is provided in Theorem~2. Numerical validation on real-scale Transformer models (hundreds of millions of parameters, real corpora, GPU execution) is planned for future work, as is closing the wall-clock overhead gap identified in \Cref{sec:scalability}.
+\paragraph{Gradient correctness at scale.} \texttt{prune\_frozen} has been validated as numerically exact (max error $0.0$ against the unpruned path) on an 8-layer MLP and on a 12-layer GPT-2-shaped toy model, including with attention and residual connections (\Cref{sec:scalability}). A formal proof of gradient exactness is provided in Theorem~2. Numerical validation on real-scale Transformer models (hundreds of millions of parameters, real corpora, GPU execution) is planned for future work, as is characterizing more precisely which architectures satisfy \texttt{prune\_frozen}'s frozen-region-reaches-the-input precondition, identified in \Cref{sec:incremental_backward}.
 
 %══════════════════════════════════════════════════════════════════════════
 \section{Conclusion}
