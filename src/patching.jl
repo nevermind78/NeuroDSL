@@ -425,3 +425,80 @@ function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
     end
     return selected, trajectory
 end
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Élagage arrière de la recherche gloutonne
+#
+# `greedy_patch_search!` n'ajoute jamais que des sites -- elle ne teste jamais
+# si un site déjà retenu est devenu superflu une fois les autres en place.
+# `backward_prune!` pose directement cette question a posteriori sur une
+# trajectoire déjà obtenue.
+#
+# Piège évité par construction : les sites retenus par la recherche gloutonne
+# peuvent être en relation ancêtre-descendant (ex. une tête de couche 1 est en
+# amont d'une tête de couche 2 retenue plus tard, via le flux résiduel).
+# Essayer de "défaire" un seul site en présence d'autres patches actifs
+# (patch_node! sur ce site + demand!) invaliderait en aval tout site
+# descendant déjà patché, et demand! le RECALCULERAIT depuis sa propre règle
+# -- effaçant silencieusement son patch actif, sans erreur ni avertissement.
+# La solution : ne jamais défaire un patch isolément. Pour tester un
+# sous-ensemble S, repartir de zéro (restaurer TOUTE l'union des cônes des
+# sites originaux à l'état corrompu, via restore_from_cache! déjà prouvé
+# exact) puis ré-appliquer patch_nodes!(S, clean_cache) dans l'ordre
+# topologique naturel de `selected` -- même principe de prudence que
+# _adaptive_restore!, mais simplifié : reset complet plutôt qu'un cas par cas
+# sur le recoupement.
+# ══════════════════════════════════════════════════════════════════════════════
+
+"""
+    backward_prune!(g, output_sym, selected, clean_cache, corrupted_cache,
+                     clean_output, corrupted_output; namespace=g.active_ns, tol=1f-6)
+
+Teste, sur la trajectoire `selected` d'une recherche gloutonne déjà terminée,
+si un site peut être retiré sans faire chuter la récupération cumulée de plus
+de `tol`. Ne défait jamais un patch isolément (voir note ci-dessus) : chaque
+sous-ensemble testé est obtenu en restaurant l'union complète des cônes des
+sites de `selected` à l'état corrompu, puis en ré-appliquant seulement les
+sites du sous-ensemble, dans leur ordre d'origine. Retourne `(remaining,
+pruned)`.
+"""
+function backward_prune!(g::NeuroGraph, output_sym::Symbol, selected,
+                          clean_cache, corrupted_cache, clean_output, corrupted_output;
+                          namespace::Symbol=g.active_ns, tol::Float32=1f-6)
+    selected = collect(selected)
+    full_cone = Set{Symbol}()
+    for sym in selected
+        union!(full_cone, _downstream_nodes(g, sym, namespace))
+    end
+
+    function recovery_of(subset)
+        restore_from_cache!(g, namespace, corrupted_cache, full_cone)
+        patch_nodes!(g, subset, clean_cache; namespace=namespace)
+        out = demand!(g, output_sym; namespace=namespace)
+        return recovery_metric(out, clean_output, corrupted_output)
+    end
+
+    full_recovery = recovery_of(selected)
+    remaining = copy(selected)
+    pruned = Symbol[]
+
+    changed = true
+    while changed
+        changed = false
+        for site in remaining
+            trial = filter(s -> s != site, remaining)
+            r = recovery_of(trial)
+            if r >= full_recovery - tol
+                remaining = trial
+                push!(pruned, site)
+                changed = true
+                break
+            end
+        end
+    end
+
+    # Restaure l'état du graphe sur le sous-ensemble final retenu.
+    recovery_of(remaining)
+
+    return remaining, pruned
+end

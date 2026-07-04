@@ -334,6 +334,78 @@
         @test isapprox(r_final_independent, trajectory[end].cumulative_recovery; atol=Float32(1e-5))
     end
 
+    @testset "backward_prune! : jamais de corruption silencieuse (cas ancêtre-descendant)" begin
+        # layer_1_mha_ao_h1 / h2 (couche 1, têtes sœurs) sont en amont de
+        # layer_2_out (couche 2) via le flux résiduel -- exactement la
+        # relation rencontrée sur la tâche d'induction (têtes de couche 1 en
+        # amont d'une tête de couche 2 retenue par la recherche gloutonne).
+        ns = :backward_prune_ancestor
+        Random.seed!(37)
+        g, output_sym = build_model(ns)
+        clean_cache, corrupted_cache, clean_output, corrupted_output =
+            clean_and_corrupted_runs(g, output_sym, ns)
+
+        site_up1 = Symbol(:layer_1_mha_ao_h1)
+        site_up2 = Symbol(:layer_1_mha_ao_h2)
+        site_down = Symbol(:layer_2_out)
+
+        # Précondition : site_down est bien en aval de site_up1 (relation
+        # ancêtre-descendant, pas seulement des sites frères).
+        cone_up1 = NeuroDSL._downstream_nodes(g, site_up1, ns)
+        @test site_down ∈ cone_up1
+
+        selected = [site_up1, site_up2, site_down]
+        full_cone = union(NeuroDSL._downstream_nodes(g, site_up1, ns),
+                           NeuroDSL._downstream_nodes(g, site_up2, ns),
+                           NeuroDSL._downstream_nodes(g, site_down, ns))
+
+        # Récupération de référence de l'ensemble complet, obtenue
+        # indépendamment de backward_prune! (reset total + patch_nodes!).
+        NeuroDSL.restore_from_cache!(g, ns, corrupted_cache, full_cone)
+        NeuroDSL.patch_nodes!(g, selected, clean_cache; namespace=ns)
+        out_full = NeuroDSL.demand!(g, output_sym; namespace=ns)
+        full_recovery_independent = NeuroDSL.recovery_metric(out_full, clean_output, corrupted_output)
+
+        remaining, pruned = NeuroDSL.backward_prune!(g, output_sym, selected, clean_cache, corrupted_cache,
+                                                       clean_output, corrupted_output; namespace=ns)
+
+        @test Set(remaining) ∪ Set(pruned) == Set(selected)
+        @test isempty(intersect(Set(remaining), Set(pruned)))
+
+        # La récupération du sous-ensemble retenu, recalculée INDÉPENDAMMENT
+        # depuis un état frais, doit rester au moins aussi bonne que celle de
+        # l'ensemble complet moins la tolérance -- exactement la garantie que
+        # backward_prune! est censé fournir.
+        NeuroDSL.restore_from_cache!(g, ns, corrupted_cache, full_cone)
+        NeuroDSL.patch_nodes!(g, remaining, clean_cache; namespace=ns)
+        out_remaining = NeuroDSL.demand!(g, output_sym; namespace=ns)
+        r_remaining_independent = NeuroDSL.recovery_metric(out_remaining, clean_output, corrupted_output)
+        @test r_remaining_independent >= full_recovery_independent - 1f-5
+
+        # Si site_down a été conservé, sa valeur active doit être EXACTEMENT
+        # la valeur propre -- jamais corrompue par le retrait d'un site en
+        # amont (le piège que backward_prune! est construit pour éviter).
+        if site_down ∈ remaining
+            @test isapprox(Array(NeuroDSL.node(g, site_down; namespace=ns).value),
+                            Array(clean_cache[site_down]); atol=Float32(1e-6))
+        end
+
+        NeuroDSL.restore_from_cache!(g, ns, corrupted_cache, full_cone)
+
+        # Démonstration explicite du piège que backward_prune! évite : retirer
+        # naïvement site_up1 (patch_node! vers le corrompu + demand!) alors
+        # que site_down est actif EFFACE silencieusement le patch de
+        # site_down -- exactement ce que backward_prune! ne fait jamais.
+        NeuroDSL.patch_nodes!(g, [site_up1, site_up2, site_down], clean_cache; namespace=ns)
+        NeuroDSL.demand!(g, output_sym; namespace=ns)
+        NeuroDSL.patch_node!(g, site_up1, corrupted_cache; namespace=ns)   # retrait naïf
+        NeuroDSL.demand!(g, output_sym; namespace=ns)
+        value_after_naive_removal = Array(NeuroDSL.node(g, site_down; namespace=ns).value)
+        @test !isapprox(value_after_naive_removal, Array(clean_cache[site_down]); atol=Float32(1e-6))
+
+        NeuroDSL.restore_from_cache!(g, ns, corrupted_cache, full_cone)
+    end
+
     @testset "restore_from_cache_batched! (GPU) == restore_from_cache! -- égalité exacte" begin
         if NeuroDSL.Backend.CUDA_AVAILABLE
             cuda_dev = NeuroDSL.Backend.CUDADevice()

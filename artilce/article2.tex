@@ -103,13 +103,34 @@ hint: it recovers a small set of heads reaching $99.94\%$ of the causal effect, 
 found first -- confirmed by inspecting their attention patterns, a measurement entirely
 independent of the search that found them -- attend with $99.8\%$ and $100\%$ weight directly to
 the token position the induction algorithm must copy from. The fast mechanism this paper
-introduces also finds the right answer. Since every number above comes from an 8-layer CPU model,
+introduces also finds the right answer. A backward pass over that trajectory then asks whether
+every retained head is still necessary once the others are present -- a question greedy addition
+never poses -- and, avoiding a silent-invalidation hazard specific to removal rather than addition,
+finds that the last-added, layer-2 head costs no measurable recovery when dropped: four layer-1
+heads alone already carry the circuit. Since every number above comes from an 8-layer CPU model,
 we additionally re-run the correctness invariants and the sweep-amortization measurement on a
-$\sim$0.81-billion-parameter model on GPU: correctness holds exactly, unchanged by scale or
-device, but the amortization gain drops to $9.9$--$14.3\%$ -- real, but far more modest than the
-CPU figure, because a cache-replay copy that is nearly free relative to CPU recomputation is
-instead a non-negligible kernel launch on GPU. We report this honestly rather than presenting the
-CPU number as if it were scale-invariant.
+$\sim$0.81-billion-parameter model on GPU: correctness holds exactly, unchanged by scale or device.
+A single early timed run suggested the amortization gain collapsed to $9.9$--$14.3\%$ at this
+scale; querying the GPU driver traces this to a power-management state that declines to boost
+clocks for our bursty workload, not a property of the mechanism. Diagnosing \emph{why} restoration
+itself was not scale-free -- a per-node copy loop paying a fixed driver-submission cost per launch,
+dominated by launch count rather than data volume -- motivates a new batched kernel,
+\texttt{restore\_from\_cache\_batched!}, restoring an entire cone in one launch instead of one per
+node, verified identical to the existing mechanism byte-for-byte. Two independent unlocked-clock
+launches suggested a striking $49$--$68\%$ gain, but agreement between two runs was not enough:
+locking the GPU's clock to a fixed frequency (with the machine owner's explicit permission) to
+remove the clock-state confound entirely reveals that the unlocked measurements were systematically
+inflated, not merely noisy -- under controlled conditions, the existing mechanism recovers
+$18$--$21\%$ and the batched kernel $31$--$32\%$, both real but below the $36.1\%$ CPU figure. We
+report the full arc -- the misleading single run, the still-misleading agreement of two unlocked
+runs, and the controlled measurement that corrects both -- rather than any one number in isolation.
+A roofline argument predicts this shortfall should shrink as model width grows, since
+recomputation's cost scales with weights and activations while restoration's scales with
+activations alone; testing this directly at two further widths ($\sim$0.05B and $\sim$1.82B
+parameters, same locked-clock protocol) confirms it only partially -- gain does rise from
+$\sim$0.81B to $\sim$1.82B as predicted, but the smallest model tested has the highest gain of the
+three, a regime the compute-side argument alone does not explain, and we report this non-monotonic
+result plainly rather than only the two points that would have looked like confirmation.
 \end{abstract}
 
 %══════════════════════════════════════════════════════════════════════════
@@ -151,7 +172,7 @@ show that this is avoidable: the corrupted baseline was already computed once, i
 the first patch. Restoring to it is not new information -- it requires no computation, only a
 direct copy of values already sitting in a cache.
 
-We make eight contributions:
+We make nine contributions:
 \begin{enumerate}
     \item \texttt{patch\_node!} (\S\ref{sec:mechanism}), a value-injection primitive built on
     \textsc{NeuroDSL}'s existing invalidation traversal, together with the precise reason the
@@ -183,6 +204,14 @@ We make eight contributions:
     reaching $99.94\%$ of the causal effect, and the two heads it finds first are independently
     confirmed, by inspecting attention patterns the search never examined, to attend almost
     entirely to the exact token position the induction algorithm must copy from.
+    \item \texttt{backward\_prune!} (\S\ref{sec:induction}), applied to the trajectory above:
+    greedy search only ever adds sites, so having found five, we ask whether any has become
+    redundant once the others are present. Doing so safely requires more care than removing
+    sibling sites (\S\ref{sec:composable}), since three of the five lie strictly upstream of a
+    fourth via the residual stream; \texttt{backward\_prune!} avoids the resulting
+    silent-invalidation hazard by never undoing a site in place, testing every candidate subset
+    from a full reset instead. It removes the last-added, layer-2 site with no measurable loss,
+    showing the four layer-1 heads alone already constitute the discovered circuit's causal core.
     \item A correctness-first empirical evaluation (\S\ref{sec:correctness}--\S\ref{sec:results})
     on a small Transformer: per-patch cost and recovery as a function of layer depth (cross-checked
     by a marginal-cost decomposition that sums to exactly the independently-measured full-forward
@@ -190,11 +219,23 @@ We make eight contributions:
     recovery comparison for two composed sites, and a 4-step greedy search trajectory whose final
     recovery is independently reproducible, with every speed number preceded by an
     exact-equality correctness check.
-    \item A scale check the CPU benchmark alone cannot provide (\S\ref{sec:gpuscale}): on a
-    $\sim$0.81-billion-parameter model on GPU, all correctness invariants hold exactly, unchanged
-    by scale or device, but the amortization gain drops to $9.9$--$14.3\%$, far below the CPU
-    figure -- traced to cache-replay's copy becoming a non-negligible GPU kernel launch rather than
-    a near-free operation, not to any failure of the underlying mechanism.
+    \item A scale check the CPU benchmark alone cannot provide, and a fix for what it finds
+    (\S\ref{sec:gpuscale}): on a $\sim$0.81-billion-parameter model on GPU, all correctness
+    invariants hold exactly, unchanged by scale or device. A single timed run misleadingly
+    suggested the amortization gain collapsed to $9.9$--$14.3\%$; querying the GPU driver traces
+    this to a power-management state, not the mechanism. Diagnosing the actual bottleneck --
+    \texttt{restore\_from\_cache!}'s per-node copy loop, dominated by fixed per-launch driver
+    overhead rather than data volume -- motivates \texttt{restore\_from\_cache\_batched!}, a custom
+    kernel restoring an entire cone in one launch, verified identical to the existing mechanism.
+    Two independent unlocked-clock launches suggested $49$--$68\%$, but locking the GPU clock (with
+    the machine owner's permission) to remove the confound entirely reveals this was itself
+    inflated: under controlled conditions, the existing mechanism recovers $18$--$21\%$ and the
+    batched kernel $31$--$32\%$, both below the CPU figure but the latter a validated, substantial
+    improvement over the former. A roofline argument (\S\ref{sec:roofline}) explains this shortfall
+    and predicts it should shrink with model width; testing that prediction at two further widths
+    (\S\ref{sec:multiscale}, $\sim$0.05B and $\sim$1.82B parameters, same protocol) confirms it only
+    partially -- gain rises from $\sim$0.81B to $\sim$1.82B as predicted, but the smallest model has
+    the highest gain of the three, a regime the compute-side argument alone does not cover.
 \end{enumerate}
 
 All experiments use \textsc{NeuroDSL}'s existing, already-tested \texttt{LlamaModel}
@@ -916,13 +957,49 @@ $100.0\%$ of their weight directly to $i_{\text{src}}$, the exact position the i
 must copy from. This is the textbook induction-head signature \cite{induction}, confirmed by a
 measurement entirely independent of the causal search that found the heads in the first place.
 
+\subsection{Backward Pruning: Is Every Selected Site Necessary?}
+\label{sec:backwardprune}
+
+\S\ref{sec:search}'s search only ever adds sites; it never asks whether a site already selected
+has become redundant once the others are in place. Here, the two heads found first already account
+for $99.6\%$ of the final $99.94\%$ recovery (\Cref{tab:induction-greedy}); the three subsequent
+additions raise it by only $0.3$ cumulative points. One of them, Layer 1 Head 1, does not attend to
+the source position at all -- its top attention weight ($0.566$) falls on an unrelated position --
+a hint that its retention may reflect a small residual gain rather than genuine participation in
+the circuit.
+
+\texttt{backward\_prune!} (new, \texttt{src/patching.jl}) tests this directly on the
+already-obtained trajectory. A correctness hazard applies here that sibling-site removal
+(\S\ref{sec:composable}) does not: three of the five selected sites (the layer-1 heads) lie
+strictly upstream of the fifth (Layer 2, Head 1) via the residual stream. Undoing an upstream site
+in place while a downstream site remains active would invalidate the downstream site, and the next
+\texttt{demand!} would silently recompute it from its rule -- discarding its patch without warning,
+the same ancestor-descendant hazard already noted for patch \emph{ordering}
+(\S\ref{sec:composable}), here arising from removal rather than addition. \texttt{backward\_prune!}
+avoids this by never undoing a single site in place: each candidate subset is tested by resetting
+the full union of all five sites' downstream cones to the corrupted baseline
+(\texttt{restore\_from\_cache!}, exact per Invariant 3) and reapplying only that subset's sites, in
+their original order, via \texttt{patch\_nodes!} -- always topologically safe, since layer-1 sites
+already precede the layer-2 site in the search's own selection order.
+
+Applied to \Cref{tab:induction-greedy}'s trajectory, \texttt{backward\_prune!} removes Layer 2,
+Head 1 -- the last site added, and the only layer-2 site -- with no measurable loss: recovery on
+the sliced target row moves from $0.9994$ to $0.9992$, and recovery on the full output tensor
+moves from $0.9913$ to $0.9919$, i.e.\ not a loss at all. The four remaining layer-1 heads alone
+already constitute the discovered circuit's causal core. This is consistent with the attention
+evidence: Layer 2, Head 1's own attention weight on $i_{\text{src}}$ is $0.121$, an order of
+magnitude below the $0.998$--$1.0$ of the two dominant layer-1 heads -- greedy search retained it
+for a small residual gain that backward pruning shows was not actually required.
+
 \subsection{What This Establishes}
 
 The mechanism proven correct and fast on random weights (\S\ref{sec:mechanism}--\S\ref{sec:search})
 also, without modification, locates a real, previously-documented circuit -- cheaply, and with a
 result independently verifiable by inspecting attention weights the search itself never looked
 at. This connects the systems contribution to an actual interpretability outcome: fast patching is
-only useful if what it finds is right, and here it is.
+only useful if what it finds is right, and here it is. Backward pruning then shows that the same
+unmodified primitives, applied in the opposite direction, reduce what is found to its minimal
+causal core -- four heads, not five -- without a second training run or a new mechanism.
 
 %══════════════════════════════════════════════════════════════════════════
 \section{Comparison with Tape-Based Frameworks}
@@ -1001,11 +1078,9 @@ under any protective limit), but the driver's own power-management heuristic dec
 clocks for a workload of many brief, bursty kernel launches with idle gaps between them, which
 reads as low sustained utilization ($23\%$ observed) even while every launch is real, necessary
 work. This is a genuine hardware/driver characteristic, not a correctness problem -- the invariants
-above hold exactly regardless of clock state -- but it means a \emph{single} timed run on this
-class of hardware is not a reliable estimate of the underlying cost: two independent process
-launches, described below, disagree with a single-run measurement taken earlier by a wide margin,
-purely from this variance. We report medians over 20 runs per launch throughout this section, and
-compare across independent launches rather than trusting any one of them alone.
+above hold exactly regardless of clock state -- but a fluctuating clock is a confound for any
+comparison between restoration strategies whose kernel-launch patterns differ, since nothing
+guarantees the driver boosts (or fails to boost) each strategy equally.
 
 \subsection{Locating and Removing the Restoration Bottleneck}
 
@@ -1037,53 +1112,184 @@ recomputation-based restoration -- both checked in \texttt{test/test\_patching.j
 gracefully where no GPU is present. In isolation, on layer 1's cone, this reduces restoration from
 $20.5$~ms to $7.7$~ms, a $2.7\times$ speedup.
 
-\subsection{The Amortization Gain, Measured Across Independent Runs}
+\subsection{Controlling for Clock Variance}
+
+A first pair of independent launches, on the unlocked (default) clock behaviour above, gave
+$49$--$56\%$ gain for the existing mechanism and $60$--$68\%$ for the batched one -- both far above
+an earlier single-run measurement of only $9.9$--$14.3\%$ for the unmodified mechanism, and both
+still noisy (relative variation of several tens of percent run to run). Two independent launches
+agreeing with each other is necessary but not sufficient: both could still share the same bias if
+the driver's clock behaviour \emph{systematically} favours one restoration strategy over another,
+rather than jittering symmetrically around a stable truth. Since \Cref{sec:gpuscale}'s clock
+finding was specific and testable (a power-management heuristic, not thermal or power-limit
+throttling), it can be controlled directly: with the machine owner's explicit permission and
+supervision, we locked the GPU's core clock to a fixed, moderate $1402$~MHz (well below the
+$2100$~MHz rated boost, chosen deliberately conservatively) via \texttt{nvidia-smi -lgc}, run from
+an elevated terminal -- the query interface used throughout this section requires no special
+privileges, but changing clocks does. This does not disable the GPU's hardware thermal protection,
+which operates independently of this driver-level setting and would still throttle the locked
+clock down if temperatures approached unsafe levels; observed temperature under sustained load at
+this locked clock stayed at $57$--$62^\circ$C.
+
+Locking the clock had a dramatic effect on measurement stability: per-layer run-to-run ranges
+shrank from $3$--$6\times$ to roughly $1.1$--$1.5\times$, and the sweep measurements below show
+relative standard deviations of $3$--$5\%$, matching the CPU sections' own stability, instead of
+the $20$--$40\%$ seen with the clock unlocked.
+
+\subsection{The Amortization Gain, Measured Under Controlled Conditions}
 
 \Cref{tab:gpusweep} compares three restoration strategies -- recomputation, the existing
-\texttt{restore\_from\_cache!}, and the new \texttt{restore\_from\_cache\_batched!} -- across
-\emph{two independent process launches}, each a median over 20 runs, made necessary by the
-variance documented above.
+\texttt{restore\_from\_cache!}, and the new \texttt{restore\_from\_cache\_batched!} -- across two
+independent process launches with the clock locked, each a median over 20 runs.
 
 \begin{table}[H]
 \centering
-\caption{Total cost of a full 16-site sweep at GPU scale ($\sim$0.81B parameters), by restoration
-strategy, across two independent launches (median over 20 runs each).}
+\caption{Total cost of a full 16-site sweep at GPU scale ($\sim$0.81B parameters), clock locked to
+$1402$~MHz, by restoration strategy, across two independent launches (median over 20 runs each).}
 \label{tab:gpusweep}
 \begin{tabular}{l c c}
 \toprule
 \textbf{Restoration strategy} & \textbf{Launch 1 (ms)} & \textbf{Launch 2 (ms)} \\
 \midrule
-Recomputation (\texttt{patch\_node!} + \texttt{demand!}) & 3651.0 & 3438.8 \\
+Recomputation (\texttt{patch\_node!} + \texttt{demand!}) & 1275.6 & 1355.8 \\
 \rowcolor{rowgray}
-Cache replay (\texttt{restore\_from\_cache!}) & 1607.7 & 1573.3 \\
-Cache replay, batched (\texttt{restore\_from\_cache\_batched!}) & \textbf{1157.6} & \textbf{1216.5} \\
+Cache replay (\texttt{restore\_from\_cache!}) & 1044.8 & 1075.0 \\
+Cache replay, batched (\texttt{restore\_from\_cache\_batched!}) & \textbf{871.4} & \textbf{919.1} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The two launches agree well with each other ($56.0\%$ and $54.2\%$ median gain for the existing
-mechanism; $68.3\%$ and $64.6\%$ for the batched one) -- but both disagree sharply with a single
-earlier run under the same code, which measured only $9.9$--$14.3\%$ for the unmodified mechanism.
-That single-run figure was not a different regime; it was an unlucky sample of the clock-state
-variance documented above, and reporting it without a second launch to check against would have
-been exactly the toy-benchmark-presented-as-general-result failure mode this section exists to
-catch. Across two independent launches, the existing cache-replay mechanism -- unmodified from the
-CPU sections -- already recovers $49$--$56\%$ of the recomputation cost at this scale, and
-removing its redundant per-node kernel launches recovers a further $21$--$28\%$ on top, for a total
-gain of $60$--$68\%$: higher than the $36.1\%$ measured on CPU (\Cref{tab:sweep}), not lower.
+Under controlled clock conditions, the two launches agree closely: $18.1\%$ and $20.7\%$ median
+gain for the existing mechanism, $31.7\%$ and $32.2\%$ for the batched one -- both a fraction of
+the $49$--$68\%$ measured with the clock unlocked. The unlocked measurements were not simply
+noisy estimates of this same value; they were biased upward, consistent with the recomputation
+path (heavier, more sustained kernel activity) receiving more favourable, and more variable, clock
+treatment from the driver's utilization heuristic than the lighter restoration path -- exactly the
+asymmetric-treatment risk that motivated locking the clock rather than trusting a second unlocked
+launch that happened to agree with the first. Under this controlled measurement, the existing
+cache-replay mechanism recovers $18$--$21\%$ of the recomputation cost at this scale -- lower than
+the $36.1\%$ measured on CPU (\Cref{tab:sweep}) -- and the batched kernel recovers a further
+$14$--$17$ percentage points on top, for a total of $31$--$32\%$: a substantial, validated
+improvement over the naive mechanism, though still short of the CPU figure.
+
+\subsection{Why the Gap With CPU Is Expected, Not Anomalous}
+\label{sec:roofline}
+
+The measured shortfall relative to the CPU figure ($18$--$21\%$/$31$--$32\%$ against $36.1\%$,
+\Cref{tab:sweep}) is not evidence that the amortization argument weakens on GPU -- a
+roofline-style analysis \cite{roofline} of the two operations being compared predicts exactly this
+direction of effect, independent of anything specific to this implementation. Recomputing a
+downstream cone is compute-bound: it re-executes every matmul, attention, and normalization a full
+forward pass would, work a GPU accelerates over CPU FLOPs by one to two orders of magnitude.
+Restoring from cache is memory- or launch-bound: it moves bytes -- or, on this Windows/WDDM stack,
+submits one kernel launch per node -- without touching a single weight, work a GPU accelerates far
+less, and on the naive per-node path, barely at all once the fixed per-launch driver cost dominates
+(\S\ref{sec:gpuscale}'s restoration-bottleneck analysis above). A GPU's much higher FLOP-per-byte
+machine balance ($\sim$48 for this class of card, against $\sim$5--10 for a typical CPU) means
+memory-bound work is, in relative terms, \emph{more} expensive on GPU than on CPU: the same
+restoration that looks cheap next to recomputation on CPU looks less cheap next to the same
+recomputation on GPU, because the denominator (recomputation) got faster by more than the numerator
+(restoration) did.
+
+This also yields a falsifiable prediction: recomputation cost scales with both weights and
+activations traversed ($\mathcal{O}(d^2)$ for a dense layer's matmuls), while restoration's cost
+scales with activations alone ($\mathcal{O}(d)$, cache entries are never weight-sized). As model
+width $d$ grows, the compute side of this ratio grows faster than the memory side, so the
+$\sim$0.81B-parameter gain measured above should be a lower bound rather than a ceiling -- one a
+larger model should push closer to, and potentially past, the $36.1\%$ CPU figure. We test this
+directly below, rather than leaving it as an untested implication.
+
+\subsection{Testing the Prediction Across Scale}
+\label{sec:multiscale}
+
+We repeat \Cref{tab:gpusweep}'s measurement -- same 16-site sweep, same three restoration
+strategies, clock locked to the same $1402$~MHz, two independent launches, median over 20 runs
+each -- at two additional model widths, keeping head dimension fixed at 128 and the hidden/model
+dimension ratio fixed at the original model's $\sim$2.69, so only width $d$ changes: a much smaller
+model (dim 512, $\sim$0.05B parameters) and a larger one (dim 3072, $\sim$1.82B parameters, the
+largest this GPU's 17.2~GB comfortably supports once two full activation caches are held in
+memory, confirmed by a VRAM check before committing to the full protocol). \Cref{tab:multiscale}
+reports the gain range at each of the three widths now measured, correctness invariants re-verified
+at each before any timing number, exactly as in \S\ref{sec:gpuscale}.
+
+\begin{table}[H]
+\centering
+\caption{Amortization gain vs.\ model width, three scales, clock locked to $1402$~MHz, two
+independent launches each (range shown; $\sim$0.81B row reproduced from \Cref{tab:gpusweep}).}
+\label{tab:multiscale}
+\begin{tabular}{l c c}
+\toprule
+\textbf{Scale (parameters)} & \textbf{Naive gain} & \textbf{Batched gain} \\
+\midrule
+$\sim$0.05B (dim 512) & $20.6$--$23.7\%$ & $35.6$--$37.9\%$ \\
+\rowcolor{rowgray}
+$\sim$0.81B (dim 2048) & $18.1$--$20.7\%$ & $31.7$--$32.2\%$ \\
+$\sim$1.82B (dim 3072) & $26.0$--$26.9\%$ & $33.3$--$33.5\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The prediction is only partially borne out. Naive-restoration gain at the largest scale
+($26.0$--$26.9\%$) is indeed higher than at the middle scale ($18.1$--$20.7\%$), consistent with
+recomputation growing relatively more expensive as width increases. But the smallest model does
+not sit below the middle one as a simple monotonic story would require: its gain
+($20.6$--$23.7\%$ naive, $35.6$--$37.9\%$ batched) is the \emph{highest} of the three, not the
+lowest, and the batched-kernel gain at $1.82$B parameters ($33.3$--$33.5\%$) recovers only part of
+the way back toward the smallest model's level. Across all three widths the relationship is
+non-monotonic -- a dip at $\sim$0.81B, not a clean increase from $0.05$B to $1.82$B -- and we
+report this plainly rather than selecting the two points that would have looked like confirmation.
+
+A likely reason the smallest model breaks the predicted trend: the roofline argument treats
+recomputation as purely compute-bound, but at $d=512$ recomputation's own kernels -- individually
+tiny matmuls and normalizations -- are themselves launch-bound, paying close to the same fixed
+per-launch driver cost (\S\ref{sec:gpuscale}) that dominates restoration's per-node copies.
+Recomputation still issues far more kernel launches per site than the single launch
+\texttt{restore\_from\_cache\_batched!} uses regardless of node count, so the batched path's
+advantage does not disappear at small scale -- if anything, it is least diluted by genuine compute
+exactly where neither path is truly compute-bound yet. The roofline argument's compute-side
+advantage for the GPU only dominates once recomputation's kernels are large enough to leave this
+shared launch-bound floor, which the $\sim$0.81B and $\sim$1.82B models are further past, consistent
+with the partial recovery at the largest width -- but the argument as stated in \S\ref{sec:roofline}
+has nothing to say about the small-width regime where both operations still share the same floor.
+
+Reaching the largest of these three points required its own fix, in the same spirit as
+\S\ref{sec:gpuscale}'s clock-locking correction: an initial run exhausted the GPU's available VRAM
+mid-sweep (free memory reaching $0.00$~GB), producing wildly inflated and inconsistent timings -- a
+$7\times$ range between the fastest and slowest repetition, and the batched kernel appearing,
+implausibly, \emph{slower} than the naive path. This is the signature of allocator-level memory
+pressure, not a GPU compute signal -- exactly the kind of artifact this paper's
+correctness-before-speed discipline (\S\ref{sec:correctness}) is built to catch before trusting a
+number. Garbage-collecting and reclaiming VRAM after every repetition, rather than every fifth,
+restored stable free memory throughout the sweep and the expected
+batched-at-least-as-fast-as-naive ordering; \Cref{tab:multiscale} reports the corrected run.
+
+The falsifiable prediction of \S\ref{sec:roofline} is therefore neither cleanly confirmed nor
+cleanly refuted: the compute-side argument correctly predicts the direction of change from
+$0.81$B to $1.82$B parameters, but does not, on its own, predict the smallest model's behaviour,
+which needs the additional launch-bound-floor argument above. The tested range is also modest -- a
+factor of $\sim$36 between the smallest and largest model, not the several orders of magnitude
+that would be needed to observe whichever asymptotic regime the roofline argument describes -- a
+limitation of this specific 17.2~GB card, not of the argument itself.
 
 \subsection{What This Establishes}
 
 Correctness is scale-invariant, exactly as the mechanism's design (a device-agnostic value
-mutation plus a device-agnostic traversal) predicts. The amortization gain is not scale-invariant
-either, but not in the direction a single early measurement suggested: once measured across
-independent launches with the clock-state variance accounted for, and once the naive per-node
-restoration loop's own bottleneck is identified and removed, the GPU gain ($60$--$68\%$) exceeds
-the CPU figure ($36.1\%$). The more important, general lesson is methodological: a single timed
-run on hardware exhibiting driver-level power-state variance is not evidence, and the fix is not a
-bigger tolerance band but an independent second measurement -- exactly the discipline already
-applied to correctness throughout this paper, extended here to performance claims about hardware
-this paper's authors do not fully control.
+mutation plus a device-agnostic traversal) predicts, at all three widths tested. The amortization
+gain is not: at $\sim$0.81B parameters, under a clock held fixed specifically to remove a confound
+the driver's own power management otherwise introduces, cache-replay restoration is a real but more
+modest win ($18$--$21\%$) than on CPU, and the batched-kernel optimization this investigation
+motivated closes roughly half of that gap ($31$--$32\%$). Testing the roofline explanation for this
+shortfall across three model widths (\S\ref{sec:multiscale}) shows it is directionally right but
+incomplete: gain does rise from $\sim$0.81B to $\sim$1.82B parameters as the compute-side argument
+predicts, but the smallest width tested has the highest gain of the three, a regime the argument as
+stated does not cover. The more important, general lesson from this section is methodological, and
+it goes one step further than "run it twice": two independently \emph{agreeing} measurements are not
+sufficient evidence when the uncontrolled variable can plausibly bias every run in the same
+direction -- demonstrated concretely here, where two consistent unlocked-clock launches
+($49$--$56\%$ and $60$--$68\%$) both turned out to be inflated relative to two consistent
+locked-clock launches ($18$--$21\%$ and $31$--$32\%$). Removing the confound, not just averaging
+over it, is what this paper's correctness-first discipline demands when extended from software
+invariants to hardware-dependent performance claims.
 
 %══════════════════════════════════════════════════════════════════════════
 \section{Discussion and Future Directions}
@@ -1099,17 +1305,20 @@ symbol -- so a per-head or per-position sweep uses the exact same
 argument of \S\ref{sec:sweep} strengthens as $K$ grows, since the restoration saving scales with
 the number of sites swept.
 
-\paragraph{Beyond greedy addition.} \S\ref{sec:search}'s search only adds sites. A natural
-extension is backward pruning -- after a forward pass has selected a set, check whether any
-member has stopped contributing once the others are present, and remove it -- which uses the same
-\texttt{\_adaptive\_restore!} machinery in the opposite direction (patch everything, then test
-removing one site at a time). \Cref{sec:induction} already grounds the search in a real,
-documented circuit and confirms its selections independently by inspecting attention patterns;
-backward pruning would be a natural next check there specifically -- the search's three more
-marginal heads (\Cref{tab:induction-greedy}: Layer 1 Head 3, Layer 1 Head 1, Layer 2 Head 1) raise
-cumulative recovery only slightly past the two dominant heads found first, and pruning would test
-whether they remain necessary once those two are already in place, or could be dropped without
-loss.
+\paragraph{Beyond greedy addition.} \S\ref{sec:search}'s search only adds sites; backward pruning
+-- after a forward pass has selected a set, checking whether any member has stopped contributing
+once the others are present, and removing it if so -- addresses the complementary question, and
+\S\ref{sec:backwardprune} now answers it on \Cref{sec:induction}'s real, documented circuit:
+\texttt{backward\_prune!} drops the search's last-added, layer-2 site with no measurable recovery
+loss, leaving four layer-1 heads as the circuit's minimal causal core. Unlike
+\texttt{\_adaptive\_restore!} (\S\ref{sec:search}), which can restore a single site from cache
+because it never lies downstream of another active patch, a selected set can and does contain
+ancestor-descendant pairs (three of the five sites here precede the fourth via the residual
+stream) -- so \texttt{backward\_prune!} never undoes a site in place, instead resetting the full
+cone and reapplying each candidate subset from scratch. What remains open is whether pruning
+changes the search's own trajectory if interleaved with addition, rather than run once at the
+end -- unexplored here since the two-pass version already answers the necessity question this
+paper asks.
 
 \paragraph{Scale, task grounding, and combining both.} The 8-layer, dim-128 CPU model used in
 \S\ref{sec:results}--\S\ref{sec:comparison} was chosen to isolate and measure the systems mechanism
@@ -1118,9 +1327,17 @@ both at once. \Cref{sec:induction} grounds correctness -- does the mechanism fin
 on the induction task, but stays small and CPU-only, and deliberately does not re-benchmark the
 amortized sweep there, using plain recompute-based patching throughout, since that section
 validates \emph{what} is found, not \emph{how fast} finding it is. \Cref{sec:gpuscale} grounds
-scale -- does the amortization gain survive a $\sim$0.81B-parameter model on GPU -- and finds that
-it does, though far more modestly ($9.9$--$14.3\%$ instead of $36.1\%$) than a CPU toy benchmark
-would suggest; but that model has random weights, with no circuit to discover. Neither section
+scale -- does the amortization gain survive a $\sim$0.81B-parameter model on GPU -- and, once
+measured under a clock locked to remove a driver-level confound and once the naive restoration
+loop's own GPU-specific bottleneck is identified and removed, finds a validated gain of
+$31$--$32\%$, real but below the $36.1\%$ CPU figure -- a gap \S\ref{sec:roofline} argues is
+expected at this scale and predicts should narrow as model width grows. Testing that prediction at
+two further widths (\S\ref{sec:multiscale}) confirms it only partially: gain does rise from
+$\sim$0.81B to $\sim$1.82B parameters, but a much smaller ($\sim$0.05B) model has the highest gain
+of the three, a non-monotonic result the compute-side argument alone does not explain, and the
+tested range (a factor of $\sim$36) is too narrow on this hardware to see whether the predicted
+trend eventually dominates at larger scale still; but that model has random weights, with no
+circuit to discover. Neither section
 alone tests the combination a real deployment would need: automated circuit search, amortized for
 speed, on a large, trained model. That combination -- and whether a real circuit's search
 trajectory and attention-pattern confirmation (\Cref{sec:induction}) hold up when \texttt{sweep\_patch\_sites!}
@@ -1141,10 +1358,26 @@ addressable with an explicit validity state, also makes the restoration between 
 not by computing it faster, but by recognizing it need not be computed at all, since the
 corrupted baseline is already fully known. On an 8-layer toy Transformer, this removes 36.1\% of
 a full sweep's total cost on top of the per-patch locality already available, verified correct by
-exact-equality invariants before any timing number is reported. We see this as a concrete
-instance of a broader opportunity: interpretability workflows are built from repeated,
-overlapping queries against a fixed baseline, and a graph that remembers what it already computed
-is structurally suited to exploit that repetition in ways a graph rebuilt from scratch cannot.
+exact-equality invariants before any timing number is reported. Checked again at
+$\sim$0.81-billion-parameter scale on GPU, the same claim survives but more modestly ($18$--$21\%$)
+until a GPU-specific bottleneck in the naive restoration loop -- diagnosed and removed with a new
+batched kernel -- lifts it to $31$--$32\%$; reaching a number trustworthy enough to report required
+not just repeating the measurement but locking the GPU's clock to remove a driver-level confound
+that had inflated two earlier, mutually-agreeing runs alike. A roofline argument predicts this
+shortfall should shrink with model width; testing it directly at two further scales confirms the
+prediction only partially, rising as expected from $\sim$0.81B to $\sim$1.82B parameters but not at
+a much smaller $\sim$0.05B model, whose gain is the highest measured -- a non-monotonic result we
+report as measured, not smoothed into the story the theory alone would have suggested. Trained on
+a documented circuit --
+the induction task -- the same unmodified search also finds the right answer, not just a fast one:
+a small set of attention heads reaching $99.94\%$ of the causal effect, independently confirmed by
+their attention patterns; running the same primitives in the opposite direction, backward pruning
+then reduces that set to its minimal causal core, dropping one site with no measurable loss. We see
+this as a concrete instance of
+a broader opportunity: interpretability workflows are built from repeated, overlapping queries
+against a fixed baseline, and a graph that remembers what it already computed is structurally
+suited to exploit that repetition in ways a graph rebuilt from scratch
+cannot.
 
 \textsc{NeuroDSL} is open-source at \url{https://github.com/nevermind78/NeuroDSL}.
 
@@ -1186,6 +1419,10 @@ Thread, 2022.
 \bibitem{submodular}
 G. L. Nemhauser, L. A. Wolsey, M. L. Fisher, \textit{An Analysis of Approximations for
 Maximizing Submodular Set Functions -- I}, Mathematical Programming 14(1), 1978.
+
+\bibitem{roofline}
+S. Williams, A. Waterman, D. Patterson, \textit{Roofline: An Insightful Visual Performance Model
+for Multicore Architectures}, Communications of the ACM 52(4), 2009.
 
 \end{thebibliography}
 

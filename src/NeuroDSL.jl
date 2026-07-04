@@ -57,4 +57,5 @@ export capture_activations, patch_node!, recovery_metric, patch_and_measure!
 export restore_from_cache!, restore_from_cache_batched!, sweep_patch_sites!
 export patch_nodes!, restore_nodes_from_cache!
 export greedy_patch_search!
+export backward_prune!
 end
