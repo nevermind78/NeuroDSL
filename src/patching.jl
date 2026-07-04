@@ -40,8 +40,7 @@ function patch_node!(g::NeuroGraph, sym::Symbol, cache; namespace::Symbol=g.acti
     nd.value = Backend.to_device(g.device, cache[sym])
     nd.valid = true
     nd.backwarded = false
-    for (out_sym, rule) in g.rules[namespace]
-        sym ∈ rule.inputs || continue
+    for out_sym in get(_consumers_index!(g, namespace), sym, _EMPTY_SYMBOL_VEC)
         _invalidate_downstream!(g, out_sym, namespace)
     end
     return g
@@ -118,8 +117,8 @@ sur un graphe encore valide) pour capturer le cône affecté exactement comme
 function _downstream_nodes(g::NeuroGraph, sym::Symbol, ns::Symbol)
     visited = Set{Symbol}([sym])
     queue = Symbol[]
-    for (out_sym, rule) in g.rules[ns]
-        sym ∈ rule.inputs || continue
+    consumers_map = _consumers_index!(g, ns)
+    for out_sym in get(consumers_map, sym, _EMPTY_SYMBOL_VEC)
         push!(queue, out_sym)
     end
     while !isempty(queue)
@@ -132,8 +131,7 @@ function _downstream_nodes(g::NeuroGraph, sym::Symbol, ns::Symbol)
                 w ∈ visited || push!(queue, w)
             end
         end
-        for (out_sym, rule) in g.rules[ns]
-            cur ∈ rule.inputs || continue
+        for out_sym in get(consumers_map, cur, _EMPTY_SYMBOL_VEC)
             out_nd = get(g.nodes[ns], out_sym, nothing)
             if out_nd !== nothing && out_nd.valid
                 push!(queue, out_sym)

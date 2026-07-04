@@ -24,16 +24,13 @@
 """
     consumers(g, sym; ns) → Vector{Symbol}
 
-Renvoie tous les nœuds qui utilisent `sym` comme entrée d'une règle.
-Complexité O(|rules|) — acceptable pour les graphes NeuroDSL standard.
+Renvoie tous les nœuds qui utilisent `sym` comme entrée d'une règle. Lookup O(1)
+amorti via `_consumers_index!` (graph_api.jl) -- avant, un scan O(|rules|) répété
+à chaque appel.
 """
 function consumers(g::NeuroGraph, sym::Symbol;
                    ns::Symbol = g.active_ns)::Vector{Symbol}
-    result = Symbol[]
-    for (out_sym, rule) in g.rules[ns]
-        sym ∈ rule.inputs && push!(result, out_sym)
-    end
-    return result
+    return copy(get(_consumers_index!(g, ns), sym, _EMPTY_SYMBOL_VEC))
 end
 
 """

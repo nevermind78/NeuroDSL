@@ -26,7 +26,7 @@ function _apply_fusion!(g::NeuroGraph, ns::Symbol, chain::Vector{Symbol}, fused_
     # Vérifier que la chaîne est encore fuseable
     for i in 1:length(chain)-1
         sym = chain[i]
-        users = [out for (out, rule) in g.rules[ns] if sym in rule.inputs]
+        users = get(_consumers_index!(g, ns), sym, _EMPTY_SYMBOL_VEC)
         if length(users) != 1 || users[1] != chain[i+1]
             return false
         end
@@ -57,6 +57,9 @@ function _apply_fusion!(g::NeuroGraph, ns::Symbol, chain::Vector{Symbol}, fused_
         delete!(g.nodes[ns], sym)
     end
     delete!(g.rules[ns], chain[end])
+    # Réinitialisation explicite du cache de consommateurs -- ne pas dépendre
+    # implicitement du fait que l'addrule! ci-dessous le réinitialise aussi.
+    g._consumers_cache[ns] = nothing
 
     # Ajouter la règle fusionnée
     addrule!(g, GraphRule(fused_output, fused_inputs, fused_op;

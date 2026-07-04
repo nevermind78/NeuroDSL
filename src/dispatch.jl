@@ -603,7 +603,7 @@ register_op!(name::Symbol, fn::Function) = (CUSTOM_OPS[name] = fn; println("✅ 
 _unwrap_value(v::T) where {T} = v
 
 function demand!(g::NeuroGraph, name::Symbol;
-                 ctx_store::Union{CtxStore,Nothing}=nothing, 
+                 ctx_store::Union{CtxStore,Nothing}=nothing,
                  namespace=g.active_ns,
                  log::Union{Nothing, ExecutionLog}=nothing) # <--- AJOUT
     ns = namespace
@@ -618,7 +618,7 @@ function demand!(g::NeuroGraph, name::Symbol;
         nd_i = g.nodes[ns][sym]
         nd_i.valid && nd_i.value !== nothing && continue
         haskey(g.rules[ns], sym) || continue
-        
+
         # On passe le log à execute_rule!
         execute_rule!(g, g.rules[ns][sym]; ctx_store=ctx_store, namespace=ns, log=log)
         sym == name && break

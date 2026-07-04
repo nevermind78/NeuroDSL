@@ -54,6 +54,12 @@ mutable struct NeuroGraph
     rules         :: Dict{Symbol, Dict{Symbol, GraphRule}}
     grad_registry :: Dict{Symbol, Function}
     _topo_cache   :: Dict{Symbol, Union{Nothing, Vector{Symbol}}}
+    # Table (symbole d'entrée) -> (symboles de sortie qui l'utilisent), mise en
+    # cache comme _topo_cache et invalidée aux mêmes points de mutation
+    # structurelle (addrule!) -- voir _consumers_index! (graph_api.jl). Remplace
+    # le scan de toutes les règles du namespace répété à chaque nœud visité par
+    # _invalidate_downstream!/_invalidate_upstream!/patch_node!/_downstream_nodes.
+    _consumers_cache :: Dict{Symbol, Union{Nothing, Dict{Symbol, Vector{Symbol}}}}
     active_ns     :: Symbol
     device        :: Union{Backend.CPUDevice, Backend.CUDADevice}
 end
@@ -64,6 +70,7 @@ function NeuroGraph(; namespace::Symbol = :default, device = Backend.active_devi
         Dict{Symbol, Dict{Symbol, GraphRule}}(),
         Dict{Symbol, Function}(),
         Dict{Symbol, Union{Nothing, Vector{Symbol}}}(),
+        Dict{Symbol, Union{Nothing, Dict{Symbol, Vector{Symbol}}}}(),
         namespace, device)
     _ensure_namespace!(g, namespace)
     return g
