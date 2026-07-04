@@ -122,15 +122,21 @@ locking the GPU's clock to a fixed frequency (with the machine owner's explicit 
 remove the clock-state confound entirely reveals that the unlocked measurements were systematically
 inflated, not merely noisy -- under controlled conditions, the existing mechanism recovers
 $18$--$21\%$ and the batched kernel $31$--$32\%$, both real but below the $36.1\%$ CPU figure. We
-report the full arc -- the misleading single run, the still-misleading agreement of two unlocked
-runs, and the controlled measurement that corrects both -- rather than any one number in isolation.
-A roofline argument predicts this shortfall should shrink as model width grows, since
-recomputation's cost scales with weights and activations while restoration's scales with
-activations alone; testing this directly at two further widths ($\sim$0.05B and $\sim$1.82B
-parameters, same locked-clock protocol) confirms it only partially -- gain does rise from
-$\sim$0.81B to $\sim$1.82B as predicted, but the smallest model tested has the highest gain of the
-three, a regime the compute-side argument alone does not explain, and we report this non-monotonic
-result plainly rather than only the two points that would have looked like confirmation.
+initially offered a roofline-style explanation for this shortfall (recomputation is compute-bound
+and GPU-accelerated far more than restoration's memory- or launch-bound cost) and used it to
+predict that a larger model should push the gap closed. Further engineering work on the mechanism
+itself, prompted by a request to eliminate remaining CPU-side overhead, instead found the true
+cause: \texttt{patch\_node!}'s own invalidation bookkeeping was silently re-scanning every rule in
+the graph per node invalidated, an $\mathcal{O}(|\text{cone}|\times|\text{rules}|)$ cost the
+impact-subgraph bound was never meant to carry. Fixing it with a cached consumers index -- verified
+against the full test suite and a $300$-operation randomized replay, byte-identical throughout --
+does not merely shrink the shortfall: it reverses it, lifting the batched kernel's gain to
+$37$--$39\%$, \emph{above} the $36.1\%$ CPU figure, and the same fix makes the scale trend cleaner,
+not just larger, at $\sim$0.05B and $\sim$1.82B parameters alike. The roofline explanation for the
+original gap does not survive this correction -- the gap was substantially an engineering artifact,
+not a hardware limit -- and we report that retraction alongside the corrected numbers, since a
+theoretically coherent explanation for a measurement is no more trustworthy than the measurement
+it explains until both have been checked as hard as this paper checks everything else.
 \end{abstract}
 
 %══════════════════════════════════════════════════════════════════════════
@@ -230,12 +236,20 @@ We make nine contributions:
     Two independent unlocked-clock launches suggested $49$--$68\%$, but locking the GPU clock (with
     the machine owner's permission) to remove the confound entirely reveals this was itself
     inflated: under controlled conditions, the existing mechanism recovers $18$--$21\%$ and the
-    batched kernel $31$--$32\%$, both below the CPU figure but the latter a validated, substantial
-    improvement over the former. A roofline argument (\S\ref{sec:roofline}) explains this shortfall
-    and predicts it should shrink with model width; testing that prediction at two further widths
-    (\S\ref{sec:multiscale}, $\sim$0.05B and $\sim$1.82B parameters, same protocol) confirms it only
-    partially -- gain rises from $\sim$0.81B to $\sim$1.82B as predicted, but the smallest model has
-    the highest gain of the three, a regime the compute-side argument alone does not cover.
+    batched kernel $31$--$32\%$, both below the CPU figure. A roofline argument (\S\ref{sec:roofline})
+    initially explained this shortfall as a hardware-driven consequence of comparing compute-bound
+    recomputation to memory-bound restoration. Further engineering work instead found a second,
+    unrelated bottleneck: \texttt{patch\_node!}'s invalidation traversal (\S\ref{sec:consumersindex})
+    re-scanned every rule in the graph per node invalidated, an
+    $\mathcal{O}(|\text{cone}|\times|\text{rules}|)$ cost never intended by the impact-subgraph
+    bound. A cached consumers index fixes it (verified byte-identical against the full test suite
+    and a $300$-operation randomized replay) and reverses the shortfall rather than merely shrinking
+    it: the batched kernel now recovers $37$--$39\%$, \emph{above} the CPU figure, at every one of
+    three widths re-tested ($\sim$0.05B, $\sim$0.81B, $\sim$1.82B parameters,
+    \S\ref{sec:multiscale}), with a markedly cleaner fit to the roofline argument's scale-dependent
+    prediction than the pre-fix data showed. \S\ref{sec:roofline} retracts its own original
+    explanation for the shortfall in light of this: the gap was substantially an engineering
+    artifact, not evidence of a hardware limit.
 \end{enumerate}
 
 All experiments use \textsc{NeuroDSL}'s existing, already-tested \texttt{LlamaModel}
@@ -1112,6 +1126,52 @@ recomputation-based restoration -- both checked in \texttt{test/test\_patching.j
 gracefully where no GPU is present. In isolation, on layer 1's cone, this reduces restoration from
 $20.5$~ms to $7.7$~ms, a $2.7\times$ speedup.
 
+\subsection{A Second Bottleneck: Invalidation Itself}
+\label{sec:consumersindex}
+
+The batched kernel above removes redundant launches on the restoration side, but a follow-up
+investigation into the same mechanism's CPU-side bookkeeping found a second, independent
+bottleneck upstream of it: \texttt{\_invalidate\_downstream!} (\S\ref{sec:mechanism}), the
+traversal underlying every \texttt{patch\_node!} call, scans \emph{every rule in the namespace} to
+find a node's consumers, once per node visited in the cone --
+\texttt{for (out\_sym, rule) in g.rules[ns]; sym in rule.inputs} -- an
+$\mathcal{O}(|\text{cone}| \times |\text{rules}|)$ cost, not the
+$\mathcal{O}(|\text{cone}|+|\text{edges}|)$ the impact-subgraph bound (\S\ref{sec:background})
+assumes. The same pattern recurs in \texttt{\_invalidate\_upstream!}, \texttt{patch\_node!}, and
+\texttt{\_downstream\_nodes} -- everywhere a site's cone or its consumers must be found. Measured in
+isolation on a synthetic graph with $9217$ nodes and $6912$ rules: a single \texttt{patch\_node!}
+call on a $28$-node cone cost $2.373$~ms of pure invalidation bookkeeping, before any
+recomputation -- comparable in order of magnitude to recomputing hundreds of real nodes, for work
+that should cost microseconds.
+
+\texttt{\_consumers\_index!} (new, \texttt{src/graph\_api.jl}) replaces the repeated scan with a
+cached table, symbol $\to$ list of consumer symbols, built once in
+$\mathcal{O}(|\text{rules}| \times \text{arity})$ and invalidated only where the rule set itself
+changes (\texttt{addrule!}, and explicitly around the node deletions in \texttt{\_fuse!}). Every
+site that previously scanned \texttt{g.rules[ns]} now does an $\mathcal{O}(1)$ table lookup
+instead; the traversal logic itself, and every function's observable contract, is unchanged.
+Verified before any speed number, the same discipline as everywhere else in this paper: the full
+test suite ($169$ tests) passes unchanged, and a $300$-operation randomized replay (interleaved
+\texttt{set!}/\texttt{patch\_node!}/\texttt{demand!}/\texttt{restore\_from\_cache!} calls on a real
+model, full graph state dumped to a binary trace after each operation) produces output identical,
+byte for byte, to the pre-fix engine. On the isolated $9217$-node case above, this reduces the
+$2.373$~ms invalidation cost to $0.0056$~ms -- a $423\times$ reduction, and the cost no longer
+grows with graph size at all across the range tested ($73$ to $9217$ nodes).
+
+This fix is orthogonal to device: \texttt{\_invalidate\_downstream!} is pure Julia bookkeeping over
+symbols and rules, never touching a tensor, so it applies identically whether the values it
+invalidates live on CPU or GPU. Because every measurement in this paper's GPU sections calls
+\texttt{patch\_node!} -- for the recomputation baseline twice per site, for both restoration
+strategies once per site -- this bookkeeping cost was folded into every number reported so far in
+this section, undiagnosed. \Cref{tab:gpusweep} below reports the sweep re-measured with this fix in
+place; a smaller, exploratory optimization to \texttt{demand!}'s own traversal (a ``dirty set'' of
+invalid nodes, avoiding a re-scan of already-valid ones) was also implemented and measured, but
+reverted after end-to-end testing showed it was a net regression on exactly this sweep workload
+(recomputation-heavy patches invalidate cones close to the graph's full size, where the dirty
+set's own bookkeeping outweighs what it saves) -- included here only to note that not every
+plausible optimization survives contact with the actual workload, and this paper reports what
+worked, not what was tried.
+
 \subsection{Controlling for Clock Variance}
 
 A first pair of independent launches, on the unlocked (default) clock behaviour above, gave
@@ -1140,117 +1200,133 @@ the $20$--$40\%$ seen with the clock unlocked.
 
 \Cref{tab:gpusweep} compares three restoration strategies -- recomputation, the existing
 \texttt{restore\_from\_cache!}, and the new \texttt{restore\_from\_cache\_batched!} -- across two
-independent process launches with the clock locked, each a median over 20 runs.
+independent process launches with the clock locked, each a median over 20 runs, with the
+consumers-index fix of \S\ref{sec:consumersindex} in place.
 
 \begin{table}[H]
 \centering
 \caption{Total cost of a full 16-site sweep at GPU scale ($\sim$0.81B parameters), clock locked to
-$1402$~MHz, by restoration strategy, across two independent launches (median over 20 runs each).}
+$1402$~MHz, by restoration strategy, across two independent launches (median over 20 runs each),
+with the consumers-index fix (\S\ref{sec:consumersindex}) in place.}
 \label{tab:gpusweep}
 \begin{tabular}{l c c}
 \toprule
 \textbf{Restoration strategy} & \textbf{Launch 1 (ms)} & \textbf{Launch 2 (ms)} \\
 \midrule
-Recomputation (\texttt{patch\_node!} + \texttt{demand!}) & 1275.6 & 1355.8 \\
+Recomputation (\texttt{patch\_node!} + \texttt{demand!}) & 1122.9 & 1114.2 \\
 \rowcolor{rowgray}
-Cache replay (\texttt{restore\_from\_cache!}) & 1044.8 & 1075.0 \\
-Cache replay, batched (\texttt{restore\_from\_cache\_batched!}) & \textbf{871.4} & \textbf{919.1} \\
+Cache replay (\texttt{restore\_from\_cache!}) & 833.2 & 818.0 \\
+Cache replay, batched (\texttt{restore\_from\_cache\_batched!}) & \textbf{706.1} & \textbf{681.2} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Under controlled clock conditions, the two launches agree closely: $18.1\%$ and $20.7\%$ median
-gain for the existing mechanism, $31.7\%$ and $32.2\%$ for the batched one -- both a fraction of
-the $49$--$68\%$ measured with the clock unlocked. The unlocked measurements were not simply
-noisy estimates of this same value; they were biased upward, consistent with the recomputation
-path (heavier, more sustained kernel activity) receiving more favourable, and more variable, clock
-treatment from the driver's utilization heuristic than the lighter restoration path -- exactly the
-asymmetric-treatment risk that motivated locking the clock rather than trusting a second unlocked
-launch that happened to agree with the first. Under this controlled measurement, the existing
-cache-replay mechanism recovers $18$--$21\%$ of the recomputation cost at this scale -- lower than
-the $36.1\%$ measured on CPU (\Cref{tab:sweep}) -- and the batched kernel recovers a further
-$14$--$17$ percentage points on top, for a total of $31$--$32\%$: a substantial, validated
-improvement over the naive mechanism, though still short of the CPU figure.
+Under controlled clock conditions, the two launches agree closely: $25.8\%$ and $26.6\%$ median
+gain for the existing mechanism, $37.1\%$ and $38.9\%$ for the batched one. Both numbers are
+substantially higher than the $18.1$--$20.7\%$/$31.7$--$32.2\%$ this same protocol measured before
+\S\ref{sec:consumersindex}'s fix -- the invalidation-bookkeeping cost removed there was folded into
+every number in this table, on both the recomputation side (which calls \texttt{patch\_node!}
+twice per site) and the restoration side (once per site), and removing it changes the comparison
+enough to matter: the batched kernel now recovers $37$--$39\%$ of the recomputation cost at this
+scale, \emph{exceeding} the $36.1\%$ measured on CPU (\Cref{tab:sweep}), not falling short of it as
+the pre-fix measurement suggested. \S\ref{sec:roofline} revisits what this means for the
+roofline-based explanation this paper originally offered for that shortfall.
 
-\subsection{Why the Gap With CPU Is Expected, Not Anomalous}
+\subsection{The Roofline Argument, Revisited}
 \label{sec:roofline}
 
-The measured shortfall relative to the CPU figure ($18$--$21\%$/$31$--$32\%$ against $36.1\%$,
-\Cref{tab:sweep}) is not evidence that the amortization argument weakens on GPU -- a
-roofline-style analysis \cite{roofline} of the two operations being compared predicts exactly this
-direction of effect, independent of anything specific to this implementation. Recomputing a
-downstream cone is compute-bound: it re-executes every matmul, attention, and normalization a full
-forward pass would, work a GPU accelerates over CPU FLOPs by one to two orders of magnitude.
-Restoring from cache is memory- or launch-bound: it moves bytes -- or, on this Windows/WDDM stack,
-submits one kernel launch per node -- without touching a single weight, work a GPU accelerates far
-less, and on the naive per-node path, barely at all once the fixed per-launch driver cost dominates
-(\S\ref{sec:gpuscale}'s restoration-bottleneck analysis above). A GPU's much higher FLOP-per-byte
-machine balance ($\sim$48 for this class of card, against $\sim$5--10 for a typical CPU) means
-memory-bound work is, in relative terms, \emph{more} expensive on GPU than on CPU: the same
-restoration that looks cheap next to recomputation on CPU looks less cheap next to the same
-recomputation on GPU, because the denominator (recomputation) got faster by more than the numerator
-(restoration) did.
+An earlier pass of this section observed a shortfall relative to the CPU figure ($18$--$21\%$/
+$31$--$32\%$ against $36.1\%$) and offered a roofline-style explanation \cite{roofline} for it:
+recomputing a downstream cone is compute-bound (it re-executes every matmul, attention, and
+normalization a full forward pass would, work a GPU accelerates over CPU FLOPs by one to two
+orders of magnitude), while restoring from cache is memory- or launch-bound (it moves bytes, or
+submits one kernel launch per node under WDDM, work a GPU accelerates far less) -- so a GPU's much
+higher FLOP-per-byte machine balance ($\sim$48 for this class of card, against $\sim$5--10 for a
+typical CPU) should make memory-bound restoration \emph{relatively} more expensive on GPU than on
+CPU, other things being equal. That argument was internally coherent, but other things were not
+equal: \S\ref{sec:consumersindex} found that \texttt{patch\_node!}'s own invalidation bookkeeping
+carried an undiagnosed $\mathcal{O}(|\text{cone}|\times|\text{rules}|)$ cost, paid on both sides of
+the comparison but disproportionately inflating the recomputation baseline (two
+\texttt{patch\_node!} calls per site, against one for either restoration strategy). Removing that
+confound does not merely shrink the shortfall -- it reverses it: \Cref{tab:gpusweep} now shows the
+batched kernel recovering $37$--$39\%$ of the recomputation cost, \emph{above} the $36.1\%$ CPU
+figure this section previously argued the GPU should fall short of.
 
-This also yields a falsifiable prediction: recomputation cost scales with both weights and
-activations traversed ($\mathcal{O}(d^2)$ for a dense layer's matmuls), while restoration's cost
-scales with activations alone ($\mathcal{O}(d)$, cache entries are never weight-sized). As model
-width $d$ grows, the compute side of this ratio grows faster than the memory side, so the
-$\sim$0.81B-parameter gain measured above should be a lower bound rather than a ceiling -- one a
-larger model should push closer to, and potentially past, the $36.1\%$ CPU figure. We test this
-directly below, rather than leaving it as an untested implication.
+This is worth stating plainly rather than quietly editing away: the shortfall the roofline argument
+was built to explain was substantially, perhaps entirely, an artifact of an unrelated engineering
+bug, not a hardware-level effect. The roofline reasoning was a plausible-sounding explanation for a
+real measurement -- and it was wrong, or at least not the dominant cause, because the measurement
+itself was still carrying a confound the theoretical argument had no way to detect. A purely
+theoretical rebuttal of the earlier numbers would not have found this; only further engineering
+work on the mechanism itself did. The lesson generalizes beyond this one bug: an appealing
+after-the-fact explanation for a puzzling number is a hypothesis to keep testing against new code
+and new measurements, not a conclusion to file away once it sounds reasonable.
+
+The argument's other claim -- that recomputation cost scales with both weights and activations
+($\mathcal{O}(d^2)$ for a dense layer's matmuls) while restoration's scales with activations alone
+($\mathcal{O}(d)$), so gain should rise with model width $d$ -- is a separate, still-live
+prediction, since it concerns the \emph{trend} across scale rather than the \emph{absolute} gap
+this section now retracts. \S\ref{sec:multiscale} tests it directly, re-measured with the
+consumers-index fix in place, and it holds up considerably more cleanly than it did before that
+fix -- consistent with the earlier non-monotonic result there having been, at least in part, the
+same confound expressing itself differently at different graph scales.
 
 \subsection{Testing the Prediction Across Scale}
 \label{sec:multiscale}
 
 We repeat \Cref{tab:gpusweep}'s measurement -- same 16-site sweep, same three restoration
 strategies, clock locked to the same $1402$~MHz, two independent launches, median over 20 runs
-each -- at two additional model widths, keeping head dimension fixed at 128 and the hidden/model
-dimension ratio fixed at the original model's $\sim$2.69, so only width $d$ changes: a much smaller
-model (dim 512, $\sim$0.05B parameters) and a larger one (dim 3072, $\sim$1.82B parameters, the
-largest this GPU's 17.2~GB comfortably supports once two full activation caches are held in
-memory, confirmed by a VRAM check before committing to the full protocol). \Cref{tab:multiscale}
-reports the gain range at each of the three widths now measured, correctness invariants re-verified
-at each before any timing number, exactly as in \S\ref{sec:gpuscale}.
+each, consumers-index fix in place -- at two additional model widths, keeping head dimension fixed
+at 128 and the hidden/model dimension ratio fixed at the original model's $\sim$2.69, so only width
+$d$ changes: a much smaller model (dim 512, $\sim$0.05B parameters) and a larger one (dim 3072,
+$\sim$1.82B parameters, the largest this GPU's 17.2~GB comfortably supports once two full
+activation caches are held in memory, confirmed by a VRAM check before committing to the full
+protocol). \Cref{tab:multiscale} reports the gain range at each of the three widths, correctness
+invariants re-verified at each before any timing number, exactly as in \S\ref{sec:gpuscale}.
 
 \begin{table}[H]
 \centering
 \caption{Amortization gain vs.\ model width, three scales, clock locked to $1402$~MHz, two
-independent launches each (range shown; $\sim$0.81B row reproduced from \Cref{tab:gpusweep}).}
+independent launches each (range shown; $\sim$0.81B row reproduced from \Cref{tab:gpusweep}),
+consumers-index fix (\S\ref{sec:consumersindex}) in place.}
 \label{tab:multiscale}
 \begin{tabular}{l c c}
 \toprule
 \textbf{Scale (parameters)} & \textbf{Naive gain} & \textbf{Batched gain} \\
 \midrule
-$\sim$0.05B (dim 512) & $20.6$--$23.7\%$ & $35.6$--$37.9\%$ \\
+$\sim$0.05B (dim 512) & $18.5$--$26.9\%$ & $36.3$--$40.3\%$ \\
 \rowcolor{rowgray}
-$\sim$0.81B (dim 2048) & $18.1$--$20.7\%$ & $31.7$--$32.2\%$ \\
-$\sim$1.82B (dim 3072) & $26.0$--$26.9\%$ & $33.3$--$33.5\%$ \\
+$\sim$0.81B (dim 2048) & $25.8$--$26.6\%$ & $37.1$--$38.9\%$ \\
+$\sim$1.82B (dim 3072) & $30.4$--$31.5\%$ & $\mathbf{43.6}$--$\mathbf{45.7\%}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The prediction is only partially borne out. Naive-restoration gain at the largest scale
-($26.0$--$26.9\%$) is indeed higher than at the middle scale ($18.1$--$20.7\%$), consistent with
-recomputation growing relatively more expensive as width increases. But the smallest model does
-not sit below the middle one as a simple monotonic story would require: its gain
-($20.6$--$23.7\%$ naive, $35.6$--$37.9\%$ batched) is the \emph{highest} of the three, not the
-lowest, and the batched-kernel gain at $1.82$B parameters ($33.3$--$33.5\%$) recovers only part of
-the way back toward the smallest model's level. Across all three widths the relationship is
-non-monotonic -- a dip at $\sim$0.81B, not a clean increase from $0.05$B to $1.82$B -- and we
-report this plainly rather than selecting the two points that would have looked like confirmation.
+This is a materially different picture from the pre-fix measurement, which showed a clear dip at
+$\sim$0.81B for both restoration strategies -- the middle scale used to be the \emph{worst}
+performer, not an intermediate point on a rising trend. With the confound removed, naive
+restoration now rises cleanly across all three widths ($\sim$22.7\% midpoint at $0.05$B,
+$\sim$26.2\%\ at $0.81$B, $\sim$31.0\%\ at $1.82$B), matching the roofline prediction's direction
+without exception. The batched-kernel trend is not quite as clean: $0.05$B and $0.81$B are now
+statistically indistinguishable ($\sim$38.3\% and $\sim$38.0\% midpoints, well within each other's
+range) rather than the smallest model leading by a wide margin, and $1.82$B is clearly the highest
+of the three ($\sim$44.6\%\ midpoint) -- a flat-then-rising trend, not a dip, but not a strictly
+monotonic increase either. On balance this is a substantially better fit to the roofline argument's
+prediction than the pre-fix data was, and it directly supports the diagnosis in \S\ref{sec:roofline}:
+the dip previously reported at $\sim$0.81B was, at least in large part, an artifact of the same
+invalidation-bookkeeping confound that inflated the recomputation baseline more at some
+configurations than others, not a genuine feature of GPU cost structure at that width.
 
-A likely reason the smallest model breaks the predicted trend: the roofline argument treats
-recomputation as purely compute-bound, but at $d=512$ recomputation's own kernels -- individually
-tiny matmuls and normalizations -- are themselves launch-bound, paying close to the same fixed
-per-launch driver cost (\S\ref{sec:gpuscale}) that dominates restoration's per-node copies.
-Recomputation still issues far more kernel launches per site than the single launch
-\texttt{restore\_from\_cache\_batched!} uses regardless of node count, so the batched path's
-advantage does not disappear at small scale -- if anything, it is least diluted by genuine compute
-exactly where neither path is truly compute-bound yet. The roofline argument's compute-side
-advantage for the GPU only dominates once recomputation's kernels are large enough to leave this
-shared launch-bound floor, which the $\sim$0.81B and $\sim$1.82B models are further past, consistent
-with the partial recovery at the largest width -- but the argument as stated in \S\ref{sec:roofline}
-has nothing to say about the small-width regime where both operations still share the same floor.
+At every one of the three widths, the batched kernel's gain now exceeds the $36.1\%$ CPU figure --
+not just at the $\sim$0.81B scale \Cref{tab:gpusweep} highlights, but at the smallest and largest
+widths tested too. The claim this paper can support is no longer ``the GPU gain falls short of CPU
+for a reason the roofline argument explains'' (\S\ref{sec:roofline} retracts that), but rather: at
+every scale tested on this hardware, once known confounds (the clock-state bias of
+\S\ref{sec:gpuscale}, the launch-count bottleneck it motivated fixing, and the invalidation-bookkeeping
+cost documented in \S\ref{sec:consumersindex}) are controlled for, cache-replay restoration on GPU
+matches or exceeds the CPU-measured gain, and the margin by which it does so grows with model
+width -- consistent with, though not yet decisively confirming, the compute-bound-versus-memory-bound
+mechanism the roofline argument describes.
 
 Reaching the largest of these three points required its own fix, in the same spirit as
 \S\ref{sec:gpuscale}'s clock-locking correction: an initial run exhausted the GPU's available VRAM
@@ -1261,35 +1337,40 @@ pressure, not a GPU compute signal -- exactly the kind of artifact this paper's
 correctness-before-speed discipline (\S\ref{sec:correctness}) is built to catch before trusting a
 number. Garbage-collecting and reclaiming VRAM after every repetition, rather than every fifth,
 restored stable free memory throughout the sweep and the expected
-batched-at-least-as-fast-as-naive ordering; \Cref{tab:multiscale} reports the corrected run.
-
-The falsifiable prediction of \S\ref{sec:roofline} is therefore neither cleanly confirmed nor
-cleanly refuted: the compute-side argument correctly predicts the direction of change from
-$0.81$B to $1.82$B parameters, but does not, on its own, predict the smallest model's behaviour,
-which needs the additional launch-bound-floor argument above. The tested range is also modest -- a
-factor of $\sim$36 between the smallest and largest model, not the several orders of magnitude
-that would be needed to observe whichever asymptotic regime the roofline argument describes -- a
-limitation of this specific 17.2~GB card, not of the argument itself.
+batched-at-least-as-fast-as-naive ordering; \Cref{tab:multiscale} reports the corrected run. The
+tested range remains modest -- a factor of $\sim$36 between the smallest and largest model, not the
+several orders of magnitude that would be needed to observe whichever asymptotic regime the
+roofline argument ultimately predicts -- a limitation of this specific 17.2~GB card, not of the
+argument itself.
 
 \subsection{What This Establishes}
 
 Correctness is scale-invariant, exactly as the mechanism's design (a device-agnostic value
-mutation plus a device-agnostic traversal) predicts, at all three widths tested. The amortization
-gain is not: at $\sim$0.81B parameters, under a clock held fixed specifically to remove a confound
-the driver's own power management otherwise introduces, cache-replay restoration is a real but more
-modest win ($18$--$21\%$) than on CPU, and the batched-kernel optimization this investigation
-motivated closes roughly half of that gap ($31$--$32\%$). Testing the roofline explanation for this
-shortfall across three model widths (\S\ref{sec:multiscale}) shows it is directionally right but
-incomplete: gain does rise from $\sim$0.81B to $\sim$1.82B parameters as the compute-side argument
-predicts, but the smallest width tested has the highest gain of the three, a regime the argument as
-stated does not cover. The more important, general lesson from this section is methodological, and
-it goes one step further than "run it twice": two independently \emph{agreeing} measurements are not
-sufficient evidence when the uncontrolled variable can plausibly bias every run in the same
-direction -- demonstrated concretely here, where two consistent unlocked-clock launches
-($49$--$56\%$ and $60$--$68\%$) both turned out to be inflated relative to two consistent
-locked-clock launches ($18$--$21\%$ and $31$--$32\%$). Removing the confound, not just averaging
-over it, is what this paper's correctness-first discipline demands when extended from software
-invariants to hardware-dependent performance claims.
+mutation plus a device-agnostic traversal) predicts, at all three widths tested, and unaffected by
+either fix this section made along the way. The amortization gain is not scale-invariant, but the
+direction of its departure from the CPU figure reversed twice over the course of this
+investigation, and both reversals came from removing a confound rather than from anything specific
+to GPU hardware. First, an unlocked GPU clock inflated an early measurement to $49$--$68\%$,
+corrected by locking the clock to $18$--$21\%$/$31$--$32\%$ -- a real gain, but short of the
+$36.1\%$ CPU figure, which \S\ref{sec:roofline} first attributed to roofline-style hardware limits.
+Second, removing an unrelated invalidation-bookkeeping bottleneck (\S\ref{sec:consumersindex}) --
+found through further engineering work on the mechanism, not through revisiting the roofline
+argument -- lifted the batched kernel's gain to $37$--$39\%$ at this same scale, \emph{above} the
+CPU figure, and \S\ref{sec:multiscale} confirms this holds at $\sim$0.05B and $\sim$1.82B
+parameters too, with a materially cleaner fit to the roofline argument's scale-dependent prediction
+than the pre-fix data showed. The roofline explanation for the original shortfall does not survive
+this correction; the retraction in \S\ref{sec:roofline} is itself part of what this section
+establishes.
+
+The more important, general lesson is methodological, and it now applies twice over: two
+independently \emph{agreeing} measurements are not sufficient evidence when an uncontrolled
+variable can plausibly bias every run in the same direction, and a theoretically coherent
+explanation for a measurement is not sufficient evidence that the measurement itself was clean.
+Both confounds here were caught only by continuing to probe the mechanism after a plausible
+explanation was already in hand -- locking the clock instead of trusting a second unlocked
+agreement, and profiling the invalidation path instead of resting on the roofline account.
+Removing a confound, not explaining around it, is what this paper's correctness-first discipline
+demands when extended from software invariants to hardware-dependent performance claims.
 
 %══════════════════════════════════════════════════════════════════════════
 \section{Discussion and Future Directions}
@@ -1327,17 +1408,17 @@ both at once. \Cref{sec:induction} grounds correctness -- does the mechanism fin
 on the induction task, but stays small and CPU-only, and deliberately does not re-benchmark the
 amortized sweep there, using plain recompute-based patching throughout, since that section
 validates \emph{what} is found, not \emph{how fast} finding it is. \Cref{sec:gpuscale} grounds
-scale -- does the amortization gain survive a $\sim$0.81B-parameter model on GPU -- and, once
-measured under a clock locked to remove a driver-level confound and once the naive restoration
-loop's own GPU-specific bottleneck is identified and removed, finds a validated gain of
-$31$--$32\%$, real but below the $36.1\%$ CPU figure -- a gap \S\ref{sec:roofline} argues is
-expected at this scale and predicts should narrow as model width grows. Testing that prediction at
-two further widths (\S\ref{sec:multiscale}) confirms it only partially: gain does rise from
-$\sim$0.81B to $\sim$1.82B parameters, but a much smaller ($\sim$0.05B) model has the highest gain
-of the three, a non-monotonic result the compute-side argument alone does not explain, and the
-tested range (a factor of $\sim$36) is too narrow on this hardware to see whether the predicted
-trend eventually dominates at larger scale still; but that model has random weights, with no
-circuit to discover. Neither section
+scale -- does the amortization gain survive a $\sim$0.81B-parameter model on GPU -- and, after two
+rounds of finding and removing a confound (an unlocked GPU clock, then an unrelated invalidation-
+bookkeeping bottleneck, \S\ref{sec:consumersindex}), finds a validated gain of $37$--$39\%$,
+\emph{above} the $36.1\%$ CPU figure rather than the shortfall an earlier pass of this section
+attributed to roofline-style hardware limits (\S\ref{sec:roofline} retracts that explanation once
+the second confound is removed). Testing the same measurement at two further widths
+(\S\ref{sec:multiscale}) confirms the gain exceeds the CPU figure at $\sim$0.05B and $\sim$1.82B
+parameters too, with the margin growing at the largest width tested -- a materially cleaner trend
+than the pre-fix data showed, though the tested range (a factor of $\sim$36) remains too narrow on
+this hardware to see whether the trend saturates at larger scale still; and that model has random
+weights, with no circuit to discover. Neither section
 alone tests the combination a real deployment would need: automated circuit search, amortized for
 speed, on a large, trained model. That combination -- and whether a real circuit's search
 trajectory and attention-pattern confirmation (\Cref{sec:induction}) hold up when \texttt{sweep\_patch\_sites!}
@@ -1363,12 +1444,20 @@ $\sim$0.81-billion-parameter scale on GPU, the same claim survives but more mode
 until a GPU-specific bottleneck in the naive restoration loop -- diagnosed and removed with a new
 batched kernel -- lifts it to $31$--$32\%$; reaching a number trustworthy enough to report required
 not just repeating the measurement but locking the GPU's clock to remove a driver-level confound
-that had inflated two earlier, mutually-agreeing runs alike. A roofline argument predicts this
-shortfall should shrink with model width; testing it directly at two further scales confirms the
-prediction only partially, rising as expected from $\sim$0.81B to $\sim$1.82B parameters but not at
-a much smaller $\sim$0.05B model, whose gain is the highest measured -- a non-monotonic result we
-report as measured, not smoothed into the story the theory alone would have suggested. Trained on
-a documented circuit --
+that had inflated two earlier, mutually-agreeing runs alike. We initially explained the remaining
+shortfall against the $36.1\%$ CPU figure with a roofline argument -- but further work on the
+mechanism itself, not on the argument, found the real cause: \texttt{patch\_node!}'s invalidation
+traversal was re-scanning every rule in the graph per node invalidated, an
+$\mathcal{O}(|\text{cone}|\times|\text{rules}|)$ cost the impact-subgraph bound was never meant to
+carry. A cached consumers index fixes it, verified byte-identical against the full test suite and a
+$300$-operation randomized replay, and does not merely shrink the shortfall -- it reverses it: the
+batched kernel now recovers $37$--$39\%$ at this scale, above the CPU figure, and the same holds at
+$\sim$0.05B and $\sim$1.82B parameters, with a materially cleaner fit to the roofline argument's
+scale-dependent prediction than before the fix. The roofline explanation for the original gap does
+not survive this correction, and we report that retraction alongside the corrected numbers: a
+theoretically coherent explanation for a measurement is not evidence that the measurement itself
+was clean, and only continuing to probe the mechanism -- not the argument -- surfaced the
+confound this time. Trained on a documented circuit --
 the induction task -- the same unmodified search also finds the right answer, not just a fast one:
 a small set of attention heads reaching $99.94\%$ of the causal effect, independently confirmed by
 their attention patterns; running the same primitives in the opposite direction, backward pruning
