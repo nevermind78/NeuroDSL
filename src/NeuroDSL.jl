@@ -41,7 +41,7 @@ export LivenessInterval, BufferPool, MemoryPlan, plan_memory!, demand_planned!, 
 export CheckpointSchedule, forward_with_checkpointing!, backward_with_checkpointing!
 export flash_attn_fwd!, flash_attn_bwd!, MultiHeadFlashAttention, flash_attn_fwd_cpu!, flash_attn_fwd_cpu_simple!, flash_attn_bwd_cpu!
 export cast_fp16, cast_fp32, LossScaleTracker, update!, backward_with_loss_scaling!, mixed_precision_step!
-export LayerNorm, Linear, MultiHeadAttention, LlamaBlock, LlamaModel
+export LayerNorm, Linear, Embedding, MultiHeadAttention, LlamaBlock, LlamaModel
 export @addrules, Backend, debug!
 export _watch!, _fuse!, _invalidate_upstream!, _invalidate_downstream! 
 export ExecutionLog, log_event!
@@ -54,6 +54,7 @@ export RewriteRule, CompilerConfig, CompiledPlan, compile, scan_summary
 export FULL_LLAMA_RULES, FULL_GPT_RULES, MEMORY_RULES
 export is_dirty, recompile!
 export capture_activations, patch_node!, recovery_metric, patch_and_measure!
-export restore_from_cache!, sweep_patch_sites!
+export restore_from_cache!, restore_from_cache_batched!, sweep_patch_sites!
 export patch_nodes!, restore_nodes_from_cache!
+export greedy_patch_search!
 end

@@ -75,6 +75,17 @@ end
         @test ok
     end
 
+    @testset ":embedding" begin
+        g = NeuroDSL.NeuroGraph(namespace=:t_emb, device=dev)
+        NeuroDSL.set!(g, :idx, [2,4,1,3]; atom_type=NeuroDSL.Datom)
+        emb = NeuroDSL.Embedding(5, 6)
+        out = emb(g, :idx, :tok; namespace=:t_emb)
+        NeuroDSL.set!(g, :Z, randn(Float32, 4, 6); atom_type=NeuroDSL.Datom)
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:L, [out, :Z], :mse_loss; namespace=:t_emb))
+        ok, _ = grad_check(g, :tok_E, :L)
+        @test ok
+    end
+
     @testset ":matmul trans_b=false" begin
         g = NeuroDSL.NeuroGraph(namespace=:t_mm, device=dev)
         NeuroDSL.set!(g, :A, randn(Float32, 2, 3); is_param=true)

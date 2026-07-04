@@ -163,19 +163,115 @@ function restore_from_cache!(g::NeuroGraph, ns::Symbol, cache, nodes)
     return g
 end
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Restauration GPU par lots : un seul lancement de kernel au lieu d'un par nœud
+#
+# `restore_from_cache!` ci-dessus boucle nœud par nœud et copie chacun
+# séparément -- gratuit sur CPU (aucun coût de lancement), mais sur GPU chaque
+# `copy()` est une soumission séparée au driver. Sous Windows/WDDM, ce coût
+# fixe par appel (~0.01-0.02 ms, vérifié empiriquement : un lancement de
+# kernel trivial coûte quasiment le même prix qu'une copie de tenseur
+# complète) domine largement le volume de données réellement copié dès que le
+# cône contient des centaines de nœuds (mesuré : 20.5 ms pour un cône de 1876
+# nœuds, soit 0.0109 ms/nœud -- au plancher de lancement, pas au débit
+# mémoire). `_multi_copy_kernel!` regroupe tous les nœuds du cône en un seul
+# lancement -- un bloc CUDA par nœud, chaque bloc copiant son propre tableau
+# en interne -- sans toucher à `restore_from_cache!` existant, toujours
+# utilisé tel quel sur CPU et partout où aucun gain n'est en jeu.
+#
+# Chaque nœud reçoit systématiquement un tampon fraîchement alloué (jamais
+# une réutilisation de `nd.value` existant) : `patch_node!` peut faire
+# pointer `nd.value` directement vers `cache[sym]` sans copie
+# (`Backend.to_device` ne copie pas un `CuArray` déjà sur le bon device, voir
+# `src/backend.jl:21-26`), donc réutiliser le tampon existant risquerait
+# d'écrire par-dessus le cache lui-même dans ce cas précis.
+# ══════════════════════════════════════════════════════════════════════════════
+
+if Backend.CUDA_AVAILABLE
+    function _multi_copy_kernel!(dst_ptrs::CUDA.CuDeviceVector{CUDA.CuPtr{Float32}},
+                                  src_ptrs::CUDA.CuDeviceVector{CUDA.CuPtr{Float32}},
+                                  lens::CUDA.CuDeviceVector{Int32})
+        bid = blockIdx().x
+        n = Int(lens[bid])
+        dst = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, dst_ptrs[bid]), (n,))
+        src = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, src_ptrs[bid]), (n,))
+        i = Int(threadIdx().x)
+        while i <= n
+            @inbounds dst[i] = src[i]
+            i += Int(blockDim().x)
+        end
+        return
+    end
+end
+
+"""
+    restore_from_cache_batched!(g, ns, cache, nodes)
+
+Équivalent fonctionnel exact de `restore_from_cache!` -- sur CPU, délègue
+directement à `restore_from_cache!` (aucun gain à batcher sans coût de
+lancement à amortir). Sur GPU, remplace la boucle de copies séparées par un
+seul lancement de kernel couvrant tous les nœuds du cône.
+"""
+function restore_from_cache_batched!(g::NeuroGraph, ns::Symbol, cache, nodes)
+    _restore_from_cache_batched_impl!(g.device, g, ns, cache, nodes)
+end
+
+_restore_from_cache_batched_impl!(::Backend.CPUDevice, g, ns, cache, nodes) =
+    restore_from_cache!(g, ns, cache, nodes)
+
+if Backend.CUDA_AVAILABLE
+    function _restore_from_cache_batched_impl!(::Backend.CUDADevice, g::NeuroGraph, ns::Symbol, cache, nodes)
+        syms = Symbol[]
+        newvals = Any[]
+        srcs = CUDA.CuPtr{Float32}[]
+        dsts = CUDA.CuPtr{Float32}[]
+        lens = Int32[]
+        for sym in nodes
+            haskey(cache, sym) || continue
+            src = cache[sym]
+            dst = similar(src)
+            push!(syms, sym)
+            push!(newvals, dst)
+            push!(srcs, pointer(src))
+            push!(dsts, pointer(dst))
+            push!(lens, Int32(length(src)))
+        end
+        if !isempty(lens)
+            src_gpu = CUDA.CuArray(srcs)
+            dst_gpu = CUDA.CuArray(dsts)
+            len_gpu = CUDA.CuArray(lens)
+            threads = min(256, Int(maximum(lens)))
+            @cuda threads=threads blocks=length(lens) _multi_copy_kernel!(dst_gpu, src_gpu, len_gpu)
+        end
+        for (sym, val) in zip(syms, newvals)
+            nd = g.nodes[ns][sym]
+            nd.value = val
+            nd.valid = true
+            nd.backwarded = false
+        end
+        return g
+    end
+end
+
 """
     sweep_patch_sites!(g, output_sym, sites, clean_cache, corrupted_cache,
-                        clean_output, corrupted_output; namespace=g.active_ns)
+                        clean_output, corrupted_output; namespace=g.active_ns,
+                        restore_fn=restore_from_cache!)
 
 Balaie `sites` (patch + mesure comme `patch_and_measure!`), mais restaure
-via `restore_from_cache!` au lieu de patch_node!+demand! -- élimine le
-recalcul côté restauration pour un balayage complet. Retourne un vecteur de
-`(; site, recovery, patch_ms, restore_ms)`.
+via `restore_fn` (par défaut `restore_from_cache!`) au lieu de
+patch_node!+demand! -- élimine le recalcul côté restauration pour un
+balayage complet. Passer `restore_fn=restore_from_cache_batched!` pour la
+variante groupée (avantageuse sur GPU, identique à `restore_from_cache!` sur
+CPU). Retourne un vecteur de `(; site, recovery, patch_ms, restore_ms)`.
 """
 function sweep_patch_sites!(g::NeuroGraph, output_sym::Symbol, sites::AbstractVector{Symbol},
                              clean_cache, corrupted_cache,
                              clean_output, corrupted_output;
-                             namespace::Symbol=g.active_ns)
+                             namespace::Symbol=g.active_ns,
+                             restore_fn::Function=restore_from_cache!)
     results = NamedTuple[]
     for site in sites
         affected = _downstream_nodes(g, site, namespace)
@@ -187,7 +283,7 @@ function sweep_patch_sites!(g::NeuroGraph, output_sym::Symbol, sites::AbstractVe
         recovery = recovery_metric(patched_output, clean_output, corrupted_output)
 
         t1 = time_ns()
-        restore_from_cache!(g, namespace, corrupted_cache, affected)
+        restore_fn(g, namespace, corrupted_cache, affected)
         restore_ms = (time_ns() - t1) / 1e6
 
         push!(results, (; site, recovery, patch_ms, restore_ms))
@@ -240,4 +336,92 @@ function restore_nodes_from_cache!(g::NeuroGraph, ns::Symbol, cache, syms)
     end
     restore_from_cache!(g, ns, cache, affected)
     return g
+end
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Recherche gloutonne automatisée sur des combinaisons de sites
+#
+# `restore_from_cache!` n'est prouvée correcte (Invariant 3) que pour annuler
+# UN SEUL patch appliqué depuis l'état pleinement corrompu. Ici, on teste un
+# candidat PAR-DESSUS des sites déjà retenus (`selected`) : si le cône du
+# candidat recoupe le cône d'un site déjà retenu (deux têtes de la même
+# couche convergent par exemple vers le même hcat_heads), le restaurer via le
+# cache corrompu réinitialiserait aussi la partie partagée à sa valeur
+# ENTIÈREMENT corrompue -- effaçant silencieusement l'effet du site déjà
+# retenu sur cette même partie du graphe, qui reste pourtant actif. Ce n'est
+# pas un bug de `restore_from_cache!` (son contrat reste correct pour ce
+# qu'il promet), c'est une limite à respecter : on ne l'utilise que quand
+# c'est prouvé sûr (cônes disjoints), et on retombe sur la restauration par
+# recalcul -- toujours correcte, quel que soit le recoupement -- sinon.
+# ══════════════════════════════════════════════════════════════════════════════
+
+"""
+    _adaptive_restore!(g, ns, cand, cand_cone, selected_cone_union, corrupted_cache, output_sym)
+
+Restaure `cand` : par cache (bon marché) si `cand_cone` ne recoupe pas
+`selected_cone_union` (sûr, Invariant 3), sinon par recalcul
+(`patch_node!`+`demand!`, toujours correct, y compris en présence d'un
+recoupement avec des sites déjà retenus et actifs).
+"""
+function _adaptive_restore!(g::NeuroGraph, ns::Symbol, cand::Symbol, cand_cone,
+                             selected_cone_union, corrupted_cache, output_sym::Symbol)
+    if isempty(intersect(cand_cone, selected_cone_union))
+        restore_from_cache!(g, ns, corrupted_cache, cand_cone)
+    else
+        patch_node!(g, cand, corrupted_cache; namespace=ns)
+        demand!(g, output_sym; namespace=ns)
+    end
+    return g
+end
+
+"""
+    greedy_patch_search!(g, output_sym, candidates, clean_cache, corrupted_cache,
+                          clean_output, corrupted_output; max_sites=length(candidates),
+                          namespace=g.active_ns)
+
+À chaque étape, teste chaque candidat restant par-dessus les sites déjà
+retenus (patch + mesure + `_adaptive_restore!`), retient celui qui maximise
+la récupération jointe si elle améliore le meilleur score courant, sinon
+s'arrête. Retourne `(selected, trajectory)` : la liste des sites retenus
+dans l'ordre choisi, et la trajectoire de récupération cumulée.
+"""
+function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
+                               clean_cache, corrupted_cache, clean_output, corrupted_output;
+                               max_sites::Int=length(candidates), namespace::Symbol=g.active_ns)
+    selected = Symbol[]
+    remaining = collect(candidates)
+    trajectory = NamedTuple[]
+    best_so_far = 0.0
+    selected_cone_union = Set{Symbol}()
+
+    for _ in 1:max_sites
+        best_site = nothing
+        best_recovery = best_so_far
+        for cand in remaining
+            cand_cone = _downstream_nodes(g, cand, namespace)
+            patch_node!(g, cand, clean_cache; namespace=namespace)
+            out = demand!(g, output_sym; namespace=namespace)
+            r = recovery_metric(out, clean_output, corrupted_output)
+
+            _adaptive_restore!(g, namespace, cand, cand_cone, selected_cone_union,
+                                corrupted_cache, output_sym)
+
+            if r > best_recovery
+                best_recovery = r
+                best_site = cand
+            end
+        end
+        best_site === nothing && break
+
+        best_cone = _downstream_nodes(g, best_site, namespace)
+        patch_node!(g, best_site, clean_cache; namespace=namespace)
+        demand!(g, output_sym; namespace=namespace)
+
+        push!(selected, best_site)
+        filter!(s -> s != best_site, remaining)
+        union!(selected_cone_union, best_cone)
+        best_so_far = best_recovery
+        push!(trajectory, (; site=best_site, cumulative_recovery=best_recovery))
+    end
+    return selected, trajectory
 end

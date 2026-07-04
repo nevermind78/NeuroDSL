@@ -262,4 +262,139 @@
         @test !isempty(intersect(cone_a, cone_b))   # les cônes se recoupent bien
         @test length(cone_union) < length(cone_a) + length(cone_b)
     end
+
+    @testset "Restauration adaptative == restauration par recalcul (cônes qui se recoupent)" begin
+        # site_a est déjà retenu (comme le ferait greedy_patch_search! après une
+        # première étape) ; site_b est testé PAR-DESSUS, avec un cône qui
+        # recoupe celui de site_a (convergence via hcat_heads). La
+        # restauration adaptative doit alors tomber sur le chemin par
+        # recalcul (jamais sur le cache, qui effacerait l'effet actif de
+        # site_a) -- et donner un état identique à un recalcul direct, tout
+        # en laissant site_a actif.
+        ns = :adaptive_restore_overlap
+        Random.seed!(23)
+        g, output_sym = build_model(ns)
+        clean_cache, corrupted_cache, clean_output, corrupted_output =
+            clean_and_corrupted_runs(g, output_sym, ns)
+
+        site_a = Symbol(:layer_2_mha_ao_h1)
+        site_b = Symbol(:layer_2_mha_ao_h2)
+
+        cone_a = NeuroDSL._downstream_nodes(g, site_a, ns)
+        NeuroDSL.patch_node!(g, site_a, clean_cache; namespace=ns)
+        NeuroDSL.demand!(g, output_sym; namespace=ns)
+        selected_cone_union = cone_a
+
+        cone_b = NeuroDSL._downstream_nodes(g, site_b, ns)
+        @test !isempty(intersect(cone_a, cone_b))   # précondition : les cônes se recoupent
+
+        # Chemin 1 : restauration adaptative
+        NeuroDSL.patch_node!(g, site_b, clean_cache; namespace=ns)
+        NeuroDSL.demand!(g, output_sym; namespace=ns)
+        NeuroDSL._adaptive_restore!(g, ns, site_b, cone_b, selected_cone_union, corrupted_cache, output_sym)
+        state_adaptive = NeuroDSL.capture_activations(g, ns)
+
+        # Chemin 2 : restauration par recalcul directe (référence)
+        NeuroDSL.patch_node!(g, site_b, clean_cache; namespace=ns)
+        NeuroDSL.demand!(g, output_sym; namespace=ns)
+        NeuroDSL.patch_node!(g, site_b, corrupted_cache; namespace=ns)
+        NeuroDSL.demand!(g, output_sym; namespace=ns)
+        state_recompute = NeuroDSL.capture_activations(g, ns)
+
+        @test all(isapprox(Array(state_adaptive[k]), Array(state_recompute[k]); atol=Float32(1e-6))
+                  for k in keys(state_recompute))
+        # site_a doit rester actif après la restauration adaptative de site_b
+        @test isapprox(Array(g.nodes[ns][site_a].value), Array(clean_cache[site_a]); atol=Float32(1e-6))
+    end
+
+    @testset "greedy_patch_search! : récupération finale vérifiable indépendamment" begin
+        ns = :greedy_verify
+        Random.seed!(29)
+        g, output_sym = build_model(ns)
+        clean_cache, corrupted_cache, clean_output, corrupted_output =
+            clean_and_corrupted_runs(g, output_sym, ns)
+
+        candidates = [Symbol(:layer_2_mha_ao_h, h) for h in 1:n_heads]
+        selected, trajectory = NeuroDSL.greedy_patch_search!(
+            g, output_sym, candidates, clean_cache, corrupted_cache,
+            clean_output, corrupted_output; max_sites=3, namespace=ns)
+
+        @test length(selected) <= 3
+        @test !isempty(selected)
+        @test length(trajectory) == length(selected)
+
+        # Recalcul indépendant de la récupération finale : patcher tous les
+        # sites retenus d'un coup via patch_nodes! (déjà existant), sans
+        # passer par la logique de recherche.
+        NeuroDSL.patch_nodes!(g, selected, clean_cache; namespace=ns)
+        out_final = NeuroDSL.demand!(g, output_sym; namespace=ns)
+        r_final_independent = NeuroDSL.recovery_metric(out_final, clean_output, corrupted_output)
+        NeuroDSL.restore_nodes_from_cache!(g, ns, corrupted_cache, selected)
+
+        @test isapprox(r_final_independent, trajectory[end].cumulative_recovery; atol=Float32(1e-5))
+    end
+
+    @testset "restore_from_cache_batched! (GPU) == restore_from_cache! -- égalité exacte" begin
+        if NeuroDSL.Backend.CUDA_AVAILABLE
+            cuda_dev = NeuroDSL.Backend.CUDADevice()
+            ns = :batched_restore_gpu
+            Random.seed!(31)
+            g = NeuroDSL.NeuroGraph(namespace=ns, device=cuda_dev)
+            NeuroDSL.set!(g, :input, randn(Float32, seq_len, dim); namespace=ns)
+            output_sym = NeuroDSL.LlamaModel(n_layers, dim, n_heads, hidden_dim)(g, :input; namespace=ns)
+
+            X_clean = randn(Float32, seq_len, dim)
+            NeuroDSL.set!(g, :input, X_clean; namespace=ns)
+            clean_output = copy(NeuroDSL.demand!(g, output_sym; namespace=ns))
+            clean_cache = NeuroDSL.capture_activations(g, ns)
+
+            X_corrupted = copy(X_clean)
+            X_corrupted[1, :] .= randn(Float32, dim)
+            NeuroDSL.set!(g, :input, X_corrupted; namespace=ns)
+            corrupted_output = copy(NeuroDSL.demand!(g, output_sym; namespace=ns))
+            corrupted_cache = NeuroDSL.capture_activations(g, ns)
+
+            patch_sym = Symbol(:layer_, n_layers ÷ 2, :_out)
+            affected = NeuroDSL._downstream_nodes(g, patch_sym, ns)
+
+            # restore_from_cache_batched! doit donner un état EXACTEMENT identique
+            # à restore_from_cache! (même copie, juste un chemin d'exécution différent).
+            NeuroDSL.patch_node!(g, patch_sym, clean_cache; namespace=ns)
+            NeuroDSL.demand!(g, output_sym; namespace=ns)
+            NeuroDSL.restore_from_cache!(g, ns, corrupted_cache, affected)
+            state_ref = NeuroDSL.capture_activations(g, ns)
+
+            NeuroDSL.patch_node!(g, patch_sym, clean_cache; namespace=ns)
+            NeuroDSL.demand!(g, output_sym; namespace=ns)
+            NeuroDSL.restore_from_cache_batched!(g, ns, corrupted_cache, affected)
+            state_batched = NeuroDSL.capture_activations(g, ns)
+
+            @test all(Array(state_ref[k]) == Array(state_batched[k]) for k in keys(state_ref))
+
+            # Vérification supplémentaire contre la restauration par recalcul
+            # (même esprit que l'Invariant 3 déjà établi, avec la variante groupée).
+            NeuroDSL.patch_node!(g, patch_sym, clean_cache; namespace=ns)
+            NeuroDSL.demand!(g, output_sym; namespace=ns)
+            NeuroDSL.patch_node!(g, patch_sym, corrupted_cache; namespace=ns)
+            NeuroDSL.demand!(g, output_sym; namespace=ns)
+            state_recompute = NeuroDSL.capture_activations(g, ns)
+
+            @test all(isapprox(Array(state_batched[k]), Array(state_recompute[k]); atol=Float32(1e-5))
+                      for k in keys(state_recompute))
+
+            # sweep_patch_sites! avec restore_fn=restore_from_cache_batched! doit
+            # donner les mêmes recovery que la variante par défaut.
+            sites = [Symbol(:layer_, i, :_out) for i in 1:n_layers]
+            results_default = NeuroDSL.sweep_patch_sites!(g, output_sym, sites, clean_cache, corrupted_cache,
+                                                            clean_output, corrupted_output; namespace=ns)
+            results_batched = NeuroDSL.sweep_patch_sites!(g, output_sym, sites, clean_cache, corrupted_cache,
+                                                            clean_output, corrupted_output; namespace=ns,
+                                                            restore_fn=NeuroDSL.restore_from_cache_batched!)
+            @test all(isapprox(a.recovery, b.recovery; atol=Float32(1e-5))
+                      for (a, b) in zip(results_default, results_batched))
+        else
+            println("⚠️  GPU non disponible — test restore_from_cache_batched! ignoré.")
+            @test true
+        end
+    end
 end

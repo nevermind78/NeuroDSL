@@ -20,6 +20,15 @@
         @test size(val) == (3,16)
     end
 
+    @testset "Embedding shape" begin
+        g = NeuroDSL.NeuroGraph(namespace=:t_emb, device=dev)
+        NeuroDSL.set!(g,:idx, [1,3,2,5]; atom_type=NeuroDSL.Datom, namespace=:t_emb)
+        out = NeuroDSL.Embedding(10,16)(g,:idx,:tok; namespace=:t_emb)
+        val = NeuroDSL.demand!(g, out; namespace=:t_emb)
+        @test size(val) == (4,16)
+        @test length(NeuroDSL.params(g; namespace=:t_emb)) == 1
+    end
+
     @testset "MultiHeadAttention shape" begin
         g = NeuroDSL.NeuroGraph(namespace=:t_mha, device=dev)
         NeuroDSL.set!(g,:x, randn(Float32,4,16))

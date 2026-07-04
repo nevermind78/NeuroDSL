@@ -1,4 +1,17 @@
 
+# ── Embedding ─────────────────────────────────────────────────────────────────
+struct Embedding; vocab_size::Int; dim::Int; end
+
+function (m::Embedding)(g::NeuroGraph, idx_sym::Symbol, prefix::Symbol;
+                        namespace=g.active_ns)
+    en=Symbol(prefix,:_E); on=Symbol(prefix,:_out)
+    k=1f0/sqrt(Float32(m.dim))
+    E=(Backend.rand32(g.device,m.vocab_size,m.dim) .- 0.5f0) .* (2k)
+    set!(g,en,E;is_param=true,namespace=namespace)
+    addrule!(g,GraphRule(on,[en,idx_sym],:embedding;namespace=namespace))
+    return on
+end
+
 # ── LayerNorm (= RMSNorm ici, style Llama) ────────────────────────────────────
 struct LayerNorm; dim::Int; eps::Float32; end
 LayerNorm(dim::Int; eps=1f-6) = LayerNorm(dim, Float32(eps))
