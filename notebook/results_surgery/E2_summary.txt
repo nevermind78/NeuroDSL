@@ -1,0 +1,16 @@
+----------------------------------------------------------------------
+bras         |   loss t=1 |   loss fin |  |alpha| fin |     ‖∇θ‖ max
+----------------------------------------------------------------------
+rezero       |     3.9236 |     1.8771 |    2.676e-04 |    3.277e-02
+net2net      |     3.9236 |     1.9517 |    7.410e-01 |    1.649e+00
+degenerate   |     3.9236 |     1.9252 |    0.000e+00 |    0.000e+00
+----------------------------------------------------------------------
+
+Assertions :
+  [PASS] Prop.4 — dL/dalpha != 0 au premier backward (rezero)
+  [PASS] Prop.4 — |alpha| > 0 en <= 5 pas (rezero)
+  [PASS] Prop.4 — ‖∇θ‖ devient non nul après l'escape (rezero)
+  [PASS] Prop.3 — dL/dalpha == 0 sur toute la run (degenerate)
+  [PASS] Prop.3 — ‖∇θ‖ == 0 sur toute la run (degenerate)
+  [PASS] Prop.3 — alpha ne bouge jamais (degenerate)
+  [PASS] Net2Net — le bras (b) apprend (loss décroît)

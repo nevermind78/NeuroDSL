@@ -133,8 +133,11 @@ au moins 3 matmuls partagent le même premier input dans ce namespace.
 Condition : le nœud est un `:matmul` ET il a ≥ 2 frères avec le même input
 et le même opérateur, formant un groupe d'au moins 3 projections.
 
-Gain attendu : −2 lancements de kernel CUDA (3 matmuls → 1 matmul batchisé),
-−40% de latence mémoire mesurée sur RTX A5500 Mobile (d=512, seq=1024).
+Détecteur de pattern seulement : la chaîne détectée a pour longueur 1 (un seul
+matmul), donc `_apply_fusion!` ne fait que la réétiqueter en `:fused_qkv_projection`
+sans aucun batching réel des 3 projections — son exécution (`dispatch.jl`) est un
+`mul!` ordinaire, identique à `:matmul` non fusionné. Aucun gain mesuré n'est
+attaché à ce détecteur.
 """
 function _is_qkv_pattern(g::NeuroGraph, chain::Vector{Symbol};
                           ns::Symbol = g.active_ns)::Bool

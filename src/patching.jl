@@ -500,3 +500,37 @@ function backward_prune!(g::NeuroGraph, output_sym::Symbol, selected,
 
     return remaining, pruned
 end
+
+"""
+    position_patch_cache(base_cache, patch_sym, clean_cache, row::Int) -> Dict{Symbol,Any}
+
+Construit un cache hybride qui ne diffère de `base_cache[patch_sym]` qu'à la
+ligne `row` (remplacée par `clean_cache[patch_sym][row,:]`) -- restreint un
+patch à une seule position plutôt qu'au nœud entier (patcher un nœud entier
+restaure trivialement 100% par déterminisme, sans information). Aucun
+changement à `patch_node!` : la sélectivité de position est un artifice côté
+appelant, `patch_node!` continue de recevoir un cache de forme normale.
+Promu depuis `notebook/patching.ipynb`/`notebook/induction.ipynb`, où cette
+fonction était dupliquée à l'identique dans les deux.
+"""
+function position_patch_cache(base_cache, patch_sym::Symbol, clean_cache, row::Int)
+    hybrid = copy(base_cache[patch_sym])
+    hybrid[row, :] .= clean_cache[patch_sym][row, :]
+    return Dict(patch_sym => hybrid)
+end
+
+"""
+    set_params!(g, ns, weights::Dict{Symbol,<:AbstractArray})
+
+Injecte des poids déjà connus (circuit construit à la main, poids chargés) sur
+des paramètres existants -- fine enveloppe autour de `set!`, qui gère déjà le
+transfert CPU/CUDA (`Backend.to_device`). Convertit en `Float32` (les tenseurs
+pré-entraînés réels sont souvent en Float16/BFloat16 ; `NeuroGraph.nodes` est
+`Float32` uniquement, `src/types.jl`).
+"""
+function set_params!(g::NeuroGraph, ns::Symbol, weights::Dict{Symbol,<:AbstractArray})
+    for (sym, arr) in weights
+        set!(g, sym, Float32.(arr); is_param=true, namespace=ns)
+    end
+    return g
+end

@@ -393,6 +393,7 @@ function _viz_graph_css(t)
 .edge-fwd     { stroke: $(t.edge_fwd);   stroke-width: 2.5px; stroke-opacity: 1; }
 .edge-bwd     { stroke: $(t.edge_bwd);   stroke-width: 2.5px; stroke-opacity: 1; }
 .edge-final   { stroke: $(t.edge_final); stroke-width: 2.5px; stroke-opacity: 1; }
+.edge-historical { stroke: #d4a373; stroke-width: 2.5px; stroke-opacity: 1; stroke-dasharray: 6 4; }
 .tooltip-left, .tooltip-right {
   position: fixed;
   /* légèrement transparent (pas opaque à 100%) : un nœud voisin recouvert
@@ -551,7 +552,8 @@ end
 # ═════════════════════════════════════════════════════════════════════════════
 function _viz_shared_js(marker_colors::NTuple{4,String}, sep_stroke::String)
     marker_defs = join(["  ['$id', '$color']" for (id, color) in
-                        zip(("arr-default","arr-fwd","arr-bwd","arr-final"), marker_colors)], ",\n")
+                        zip(("arr-default","arr-fwd","arr-bwd","arr-final","arr-historical"),
+                            (marker_colors..., "#d4a373"))], ",\n")
     """
 const NH = 48;
 function estimateTextWidth(text, fontSize) {
@@ -671,6 +673,7 @@ function trunc(s, max=35) { return s.length > max ? s.slice(0, max-1) + '…' : 
 let hoveredNodeId = null;
 let currentParamFull = {};
 let currentParamGrid = {};
+let currentGradGrid = {};
 let openNodeIds = [];          // nœuds dont le tableau est ouvert, dans l'ordre de clic
 let activeCellByNode = {};     // nodeId -> {r,c} : cellule sélectionnée pour le graphe d'évolution
 let weightCharts = {};         // "nodeId:r:c" -> instance Chart.js, détruite/reconstruite à chaque rendu
@@ -805,6 +808,7 @@ function buildGraphSVG() {
   nLayer.id = 'node-layer';
   NODES.forEach(n => {
     const g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('id', 'nodegroup-' + n.id);
     const rect = document.createElementNS(SVGNS, 'rect');
     rect.setAttribute('x', n.x); rect.setAttribute('y', n.y);
     rect.setAttribute('width', n.w); rect.setAttribute('height', n.h);
@@ -955,6 +959,17 @@ function renderEventsUpTo(events, idx) {
 function fwdContentHTML(nodeId, v) {
   if (isGridVal(v.fwd)) return gridToTableHTML(v.fwd);
   if (v.fwd) return '<pre class="ntbl-raw">' + v.fwd + '</pre>';
+  // Un paramètre suivi par époque (params_grid) dont cette époque ne
+  // contient pas d'entrée n'a pas "pas encore de valeur calculée" -- il
+  // n'existait simplement pas encore dans le graphe à ce moment (cas d'une
+  // greffe/insertion en cours d'entraînement). Retomber sur FULL_GRIDS
+  // (l'état final statique) le dirait silencieusement "déjà là", ce qui est
+  // faux : distinct du cas générique (nœud non suivi par époque, ex. une
+  // activation), qui garde son repli statique existant.
+  const isTrackedParam = !!(NMAP[nodeId] && NMAP[nodeId].is_param) && typeof SNAPSHOTS !== 'undefined';
+  if (isTrackedParam) {
+    return gridToTableHTML(currentParamGrid[nodeId], "n'existait pas encore à cette époque");
+  }
   const fallback = currentParamGrid[nodeId] || FULL_GRIDS[nodeId];
   return gridToTableHTML(fallback, 'pas encore calculé');
 }
@@ -969,6 +984,15 @@ function bwdContentHTML(nodeId, v, clickable) {
     : ' class="ntbl-raw"';
   if (isGridVal(v.bwd)) return '<div' + attrs + '>' + gridToTableHTML(v.bwd) + '</div>';
   if (v.bwd) return '<pre' + attrs + '>' + v.bwd + '</pre>';
+  // Sans repli, un paramètre n'affichait son gradient QUE si on avait rejoué
+  // pas-à-pas ("Étape ▶") jusqu'à son événement backward pour cette époque --
+  // en pratique jamais fait par défaut, donc la section (et le bouton pour
+  // ouvrir sa courbe d'évolution) restait invisible en permanence. Même
+  // repli que fwdContentHTML, sur currentGradGrid (grads_grid de l'époque).
+  const isTrackedParam = !!(NMAP[nodeId] && NMAP[nodeId].is_param) && typeof SNAPSHOTS !== 'undefined';
+  if (isTrackedParam && currentGradGrid[nodeId]) {
+    return '<div' + attrs + '>' + gridToTableHTML(currentGradGrid[nodeId]) + '</div>';
+  }
   return null;
 }
 
@@ -1022,13 +1046,17 @@ function refreshNodeTable() {
 // Historique complet (tous les snapshots, pas seulement jusqu'à l'étape
 // courante) de la cellule (r,c) du paramètre nodeId — ne s'applique qu'au
 // viewer animé (SNAPSHOTS n'existe pas côté trace statique, cf. plus bas).
+// x = s.epoch (l'époque réelle), pas l'indice du snapshot dans SNAPSHOTS --
+// sinon Chart.js trace un axe 0..11 (nombre de captures) et arrondit ses
+// graduations à des valeurs qui n'ont aucun rapport avec l'entraînement réel
+// (ex. "15" alors qu'aucune capture n'a lieu à l'époque 15).
 function buildHistoryFrom(gridKey, nodeId, r, c) {
   if (typeof SNAPSHOTS === 'undefined') return null;
   const xs = [], ys = [];
-  SNAPSHOTS.forEach((s, i) => {
+  SNAPSHOTS.forEach(s => {
     const g = s[gridKey] && s[gridKey][nodeId];
     if (g && g.rows && g.rows[r] && typeof g.rows[r][c] === 'number') {
-      xs.push(i); ys.push(g.rows[r][c]);
+      xs.push(s.epoch); ys.push(g.rows[r][c]);
     }
   });
   return xs.length ? { xs, ys } : null;
@@ -1036,11 +1064,11 @@ function buildHistoryFrom(gridKey, nodeId, r, c) {
 function buildWeightHistory(nodeId, r, c) { return buildHistoryFrom('params_grid', nodeId, r, c); }
 function buildWeightGradHistory(nodeId, r, c) { return buildHistoryFrom('grads_grid', nodeId, r, c); }
 
-function currentGlobalSnapIdx() {
+function currentGlobalEpoch() {
   if (typeof EPOCHS === 'undefined') return -1;
   const epochVal = EPOCHS[currentEpochIdx];
   const snap = epochSnapshots[epochVal] && epochSnapshots[epochVal][currentSnapIdxInEpoch];
-  return snap ? SNAPSHOTS.indexOf(snap) : -1;
+  return snap ? snap.epoch : -1;
 }
 
 // Crée le graphe s'il n'existe pas encore pour cette clé, sinon met juste à
@@ -1048,9 +1076,9 @@ function currentGlobalSnapIdx() {
 // chaque étape, pour ne pas perturber une interaction en cours sur la carte.
 function syncHistoryChart(canvas, key, hist, color, fillColor) {
   if (!canvas || !hist) return;
-  const curIdx = currentGlobalSnapIdx();
-  const ci = hist.xs.indexOf(curIdx);
-  const curPoint = ci >= 0 ? [{ x: curIdx, y: hist.ys[ci] }] : [];
+  const curEpoch = currentGlobalEpoch();
+  const ci = hist.xs.indexOf(curEpoch);
+  const curPoint = ci >= 0 ? [{ x: curEpoch, y: hist.ys[ci] }] : [];
   const existing = weightCharts[key];
   if (existing) {
     existing.data.datasets[0].data = hist.xs.map((x, i) => ({ x, y: hist.ys[i] }));
@@ -1074,6 +1102,7 @@ function syncHistoryChart(canvas, key, hist, color, fillColor) {
       plugins: { legend: { display: false } },
       scales: {
         x: { type: 'linear', ticks: { color: '#6b7280', font: { size: 9 }, maxTicksLimit: 6 },
+             title: { display: true, text: 'Époque', color: '#6b7280', font: { size: 9 } },
              grid: { color: '#2d3143' } },
         y: { ticks: { color: '#6b7280', font: { size: 9 } }, grid: { color: '#2d3143' } }
       }
@@ -1482,12 +1511,25 @@ end
 # ═════════════════════════════════════════════════════════════════════════════
 # save_interactive_graph_animated — trace d'entraînement avec slider d'époques
 # ═════════════════════════════════════════════════════════════════════════════
+"""
+    save_interactive_graph_animated(graph, snapshots, filepath; title, losses, graft_edges)
+
+`graft_edges` documente une topologie mutée en cours d'entraînement (ex. `insert_block!`) :
+la structure du graphe (`EDGES`) n'est capturée qu'UNE FOIS, à l'état final, donc une arête
+remplacée (ex. par un rebranchement de consommateur) n'y apparaît jamais. Chaque tuple
+`(last_valid_epoch, from, to)` fait redessiner cette arête disparue, visible seulement pour
+les époques `<= last_valid_epoch` -- l'appelant doit la capturer lui-même (ex. via
+`consumers(g, sym; ns)`) juste AVANT l'appel qui la remplace. Les nœuds/arêtes du bloc greffé
+lui-même n'ont besoin d'aucune métadonnée : leur existence par époque se déduit directement
+des événements déjà présents dans chaque snapshot (voir le JS `computeExistingSet`).
+"""
 function save_interactive_graph_animated(
         graph::NeuroGraph,
         snapshots::Vector{TrainingSnapshot},
         filepath::String;
         title="NeuroDSL Training Trace",
-        losses::Vector{Float32}=Float32[])
+        losses::Vector{Float32}=Float32[],
+        graft_edges::Vector{<:Tuple{Int,Symbol,Symbol}}=Tuple{Int,Symbol,Symbol}[])
 
     ns = graph.active_ns
     d  = _graph_viz_json(graph, ns)
@@ -1509,6 +1551,7 @@ function save_interactive_graph_animated(
   ) for s in snapshots])
 
     losses_json = JSON.json([Float64(l) for l in losses])
+    graft_edges_json = JSON.json([[epoch, string(s), string(t)] for (epoch, s, t) in graft_edges])
 
     epoch_to_snapshots = Dict{Int,Vector{TrainingSnapshot}}()
     for s in snapshots
@@ -1667,11 +1710,54 @@ const FULL_VALS    = $(d.full_json);
 const FORMULAS     = $(d.formulas_json);
 const SHORT_LABELS = $(d.short_labels_json);
 const EPOCHS       = $epochs_json;
+const GRAFT_EDGES  = $graft_edges_json;
 
 $shared_js
 
 buildGraphSVG();
 const nodeVals = Object.fromEntries(NODES.map(n => [n.id, { fwd: '', bwd: '' }]));
+
+// ── Existence par époque (chirurgie à chaud) ────────────────────────────────
+// Un nœud/arête créé en cours d'entraînement (ex. insert_block!) est présent
+// dans NODES/EDGES dès le début (structure capturée UNE FOIS, à l'état final)
+// -- sans ce mécanisme, il apparaîtrait à toutes les époques, y compris avant
+// sa création réelle. Vérité terrain = les événements déjà enregistrés dans
+// chaque snapshot (aucune métadonnée supplémentaire nécessaire : demand! logue
+// tout nœud existant au moment de l'appel, y compris les feuilles).
+function computeExistingSet(snap) {
+  const s = new Set();
+  snap.events.forEach(ev => s.add(ev.node));
+  return s;
+}
+
+// Arêtes historiques (GRAFT_EDGES) : une arête que la greffe a remplacée
+// (insert_block! réécrit la règle du consommateur) ne survit jamais dans
+// EDGES -- dessinées une fois ici, par-dessus le calque normal, visibles
+// seulement pour les époques <= last_valid_epoch.
+const graftEdgeEls = GRAFT_EDGES.map(([lastValidEpoch, s, d], i) => {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', polylinePath(edgePts(s, d)));
+  path.setAttribute('class', 'edge edge-historical');
+  path.setAttribute('id', 'edge-hist-' + i);
+  path.setAttribute('marker-end', 'url(#arr-historical)');
+  document.getElementById('edge-layer').appendChild(path);
+  return { lastValidEpoch, el: path };
+});
+
+function applyExistenceVisibility(snap) {
+  const existing = computeExistingSet(snap);
+  NODES.forEach(n => {
+    const grp = document.getElementById('nodegroup-' + n.id);
+    if (grp) grp.style.display = existing.has(n.id) ? '' : 'none';
+  });
+  EDGES.forEach(([s, d]) => {
+    const el = document.getElementById('edge-' + s + '-' + d);
+    if (el) el.style.display = (existing.has(s) && existing.has(d)) ? '' : 'none';
+  });
+  graftEdgeEls.forEach(({ lastValidEpoch, el }) => {
+    el.style.display = (snap.epoch <= lastValidEpoch) ? '' : 'none';
+  });
+}
 
 const epochSnapshots = {};
 EPOCHS.forEach(e => { epochSnapshots[e] = SNAPSHOTS.filter(s => s.epoch == e); });
@@ -1779,8 +1865,10 @@ function renderStep() {
   const epochVal = EPOCHS[currentEpochIdx];
   const snap = epochSnapshots[epochVal][currentSnapIdxInEpoch];
   if (!snap) return;
+  applyExistenceVisibility(snap);
   currentParamFull = snap.params_full || {};
   currentParamGrid = snap.params_grid || {};
+  currentGradGrid = snap.grads_grid || {};
   document.getElementById('badge-epoch').textContent = 'Epoch ' + snap.epoch + '  |  iter ' + snap.iter;
   document.getElementById('badge-loss').textContent = 'Loss : ' + snap.loss.toFixed(6);
   const total = snap.events.length;

@@ -1,4 +1,4 @@
-using Test
+using Test, Random
 
 # Déterminer le chemin absolu du dossier src et test
 src_dir = joinpath(@__DIR__, "..", "src")
@@ -15,4 +15,10 @@ using NeuroDSL
     include(joinpath(test_dir, "test_runtime_optimizations.jl"))
     include(joinpath(test_dir, "test_backward_sparse.jl"))
     include(joinpath(test_dir, "test_patching.jl"))
+    include(joinpath(test_dir, "test_oracle_replay.jl"))
+    include(joinpath(test_dir, "test_property_invariants.jl"))
+    include(joinpath(test_dir, "test_serialization.jl"))
+    include(joinpath(test_dir, "test_pretrained_scale.jl"))
+    include(joinpath(test_dir, "test_surgery.jl"))
+    include(joinpath(test_dir, "test_graft_shadow.jl"))
 end

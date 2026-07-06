@@ -156,6 +156,9 @@
         NeuroDSL.compile(g, NeuroDSL.CompilerConfig(rules=[made_up]); namespace=ns)
         @test g.rules[ns][:z].op == :relu   # refusé : pas de GRAD_RULES pour :made_up_op_no_grad
 
+        # Un op sans AUCUN chemin d'exécution (ni câblé en dur, ni register_op!) doit rester
+        # refusé même avec training=false : ce garde (_has_dispatch_support) est inconditionnel,
+        # contrairement au garde gradient ci-dessus qui ne s'applique qu'en training=true.
         ns2 = :c_gate2
         g2 = NeuroDSL.NeuroGraph(namespace=ns2, device=dev)
         NeuroDSL.set!(g2, :x, randn(Float32, 2, 3); is_param=true)
@@ -163,7 +166,30 @@
         NeuroDSL.addrule!(g2, NeuroDSL.GraphRule(:h, [:x, :W], :matmul; namespace=ns2))
         NeuroDSL.addrule!(g2, NeuroDSL.GraphRule(:z, [:h], :relu; namespace=ns2))
         NeuroDSL.compile(g2, NeuroDSL.CompilerConfig(rules=[made_up], training=false); namespace=ns2)
-        @test g2.rules[ns2][:z].op == :made_up_op_no_grad   # autorisé explicitement
+        @test g2.rules[ns2][:z].op == :relu   # refusé même en inference : aucun exécuteur pour cet op
+
+        # Un op sans GRAD_RULES mais AVEC un vrai exécuteur (register_op!) doit, lui, être
+        # autorisé en training=false — c'est le seul garde qui saute en mode inference.
+        NeuroDSL.register_op!(:made_up_op_dispatchable, (dev, out, inputs, attrs, out_sym, out_node, ctx_store) -> (out .= inputs[1]; out))
+        made_up_dispatchable = NeuroDSL.RewriteRule(:made_up_fusion_dispatchable, (:matmul, :relu), :made_up_op_dispatchable; cost_delta=0.9f0)
+
+        ns3 = :c_gate3
+        g3 = NeuroDSL.NeuroGraph(namespace=ns3, device=dev)
+        NeuroDSL.set!(g3, :x, randn(Float32, 2, 3); is_param=true)
+        NeuroDSL.set!(g3, :W, randn(Float32, 3, 4))
+        NeuroDSL.addrule!(g3, NeuroDSL.GraphRule(:h, [:x, :W], :matmul; namespace=ns3))
+        NeuroDSL.addrule!(g3, NeuroDSL.GraphRule(:z, [:h], :relu; namespace=ns3))
+        NeuroDSL.compile(g3, NeuroDSL.CompilerConfig(rules=[made_up_dispatchable]); namespace=ns3)
+        @test g3.rules[ns3][:z].op == :relu   # refusé par défaut : toujours pas de GRAD_RULES
+
+        ns4 = :c_gate4
+        g4 = NeuroDSL.NeuroGraph(namespace=ns4, device=dev)
+        NeuroDSL.set!(g4, :x, randn(Float32, 2, 3); is_param=true)
+        NeuroDSL.set!(g4, :W, randn(Float32, 3, 4))
+        NeuroDSL.addrule!(g4, NeuroDSL.GraphRule(:h, [:x, :W], :matmul; namespace=ns4))
+        NeuroDSL.addrule!(g4, NeuroDSL.GraphRule(:z, [:h], :relu; namespace=ns4))
+        NeuroDSL.compile(g4, NeuroDSL.CompilerConfig(rules=[made_up_dispatchable], training=false); namespace=ns4)
+        @test g4.rules[ns4][:z].op == :made_up_op_dispatchable   # autorisé : dispatch OK, seul le garde gradient saute
     end
 end
 

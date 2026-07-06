@@ -1,0 +1,25 @@
+----------------------------------------------------------------------
+   k |      cône | greffe(ms) | recompute(ms) |  total(ms)
+----------------------------------------------------------------------
+   1 |         3 |      0.812 |        14.976 |     15.789
+   2 |         3 |      0.793 |        12.651 |     13.444
+   3 |         3 |      0.773 |        10.793 |     11.567
+   4 |         3 |      0.839 |         9.325 |     10.164
+   5 |         3 |      1.979 |         7.552 |      9.531
+   6 |         3 |      0.753 |         5.743 |      6.495
+   7 |         3 |      0.794 |         4.205 |      4.998
+----------------------------------------------------------------------
+
+Assertions :
+  [PASS] Localité — coût de recompute décroît (monotone, tol. bruit 10%) avec k
+  [FAIL] Localité — corrélation recompute vs taille de cône r > 0.95 (r = NaN)
+  [PASS] Localité — coût k=7 < 50% du coût k=1
+  [PASS] Greffe+invalidation « petite » : médiane < coût de recompute à k=1
+
+Lecture pour le papier :
+  - la colonne recompute(ms) vs cone_size est la validation directe du
+    Théorème de localité (coût ∝ |V_k+|, indépendant de la taille totale) ;
+  - graft(ms) mesure la partie bookkeeping (construction + invalidation) --
+    si elle NE décroît PAS avec k alors qu'elle devrait suivre le cône,
+    suspecter un scan O(|cone|×|rules|) plutôt que l'index de consommateurs.
+

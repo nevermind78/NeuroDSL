@@ -186,14 +186,30 @@ function node(g::NeuroGraph, name::Symbol; namespace=g.active_ns)
     return g.nodes[namespace][name]
 end
 
+"""
+    addrule!(g, rule) -> NeuroGraph
+
+Installe `rule` sous `rule.output`. Si `rule.output` n'existe pas encore, crée un `GraphNode`
+frais (`valid=false`). Si `rule.output` existe DÉJÀ (redéfinition d'une règle -- ex. fusion,
+chirurgie de graphe), réinvalide explicitement le nœud lui-même et son cône aval via
+`_invalidate_downstream!` : le nœud a désormais une règle différente (`inputs`/`op` différents),
+sa valeur en cache ne correspond plus à ce qu'il est censé calculer. Découvert comme un vrai
+trou du filet de sécurité pendant la conception de `src/graph_surgery.jl` (l'appelant devait
+auparavant réinvalider lui-même, sans quoi une valeur périmée était servie silencieusement) --
+corrigé ici à la source plutôt que de compter sur chaque appelant pour s'en souvenir.
+"""
 function addrule!(g::NeuroGraph, rule::GraphRule)
     ns = rule.namespace; _ensure_namespace!(g, ns)
+    is_redefinition = haskey(g.nodes[ns], rule.output)
     g.rules[ns][rule.output] = rule
     g._topo_cache[ns] = nothing
     g._consumers_cache[ns] = nothing
-    haskey(g.nodes[ns], rule.output) ||
-        (g.nodes[ns][rule.output] = GraphNode(rule.output, nothing;
-            atom_type=rule.atom_type, namespace=ns, valid=false))
+    if is_redefinition
+        _invalidate_downstream!(g, rule.output, ns)
+    else
+        g.nodes[ns][rule.output] = GraphNode(rule.output, nothing;
+            atom_type=rule.atom_type, namespace=ns, valid=false)
+    end
     return g
 end
 

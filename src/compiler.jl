@@ -15,6 +15,15 @@
 
 function _apply_fusion!(g::NeuroGraph, ns::Symbol, chain::Vector{Symbol}, fused_op::Symbol;
                         training::Bool = true)
+    # Garde de sécurité dispatch : refuser, quel que soit `training`, une fusion vers un op
+    # qui n'a aucune branche d'exécution réelle (seulement une entrée d'inférence de forme).
+    # Sans ce garde, `training=false` (inference) laisse passer plusieurs règles de
+    # compiler_config.jl/compiler_rules.jl (:fused_swiglu, :fused_sdpa, :scaled_matmul,
+    # :flash_attention, ...) qui planteraient au premier demand! avec "Opérateur inconnu".
+    if fused_op !== :identity && !_has_dispatch_support(fused_op)
+        return false
+    end
+
     # Garde de sécurité training : refuser une fusion vers un op sans règle de
     # gradient tant que training=true, plutôt que de laisser backward_graph!
     # planter plus tard. :identity est exempté (élimination algébrique pure,

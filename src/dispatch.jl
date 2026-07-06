@@ -54,7 +54,7 @@ function _infer_output_shape(op::Symbol, inputs, attrs)
         return (size(X, 1), size(W, 1))
     elseif op == :hcat_heads
         return (size(inputs[1], 1), sum(size(x, 2) for x in inputs))
-    elseif op in (:add, :mul, :rmsnorm, :swiglu, :softmax,:scale_mask, :rope, :dropout, :relu, :wsum, :nsum, :tanh, :identity,:scale_add,:linear2)
+    elseif op in (:add, :mul, :rmsnorm, :swiglu, :softmax,:scale_mask, :rope, :dropout, :relu, :wsum, :nsum, :tanh, :identity,:scale_add,:linear2,:scalar_gate)
         return size(inputs[1])
     elseif op == :embedding
         E, idx = inputs[1], inputs[2]
@@ -599,6 +599,26 @@ end
 
 const CUSTOM_OPS = Dict{Symbol,Function}()
 register_op!(name::Symbol, fn::Function) = (CUSTOM_OPS[name] = fn; println("✅ Op :$name registered"))
+
+# Ops fusionnés dont l'exécution réelle existe dans _dispatch_op ci-dessus (pas seulement
+# une entrée d'inférence de forme). `:identity` est traité séparément (toujours autorisé,
+# voir _apply_fusion! dans compiler.jl). Utilisé pour empêcher `compile()` d'introduire un
+# nœud dont le op ne peut jamais être exécuté par `demand!` (voir _has_dispatch_support).
+const _DISPATCH_EXECUTABLE_FUSED_OPS = Set{Symbol}([
+    :fused_matmul_relu, :fused_matmul_add, :fused_matmul_add_relu, :fused_qkv_projection,
+])
+
+"""
+    _has_dispatch_support(op::Symbol) → Bool
+
+`true` si `op` a un chemin d'exécution réel dans `_dispatch_op` (soit câblé en dur, soit
+enregistré via `register_op!`). Plusieurs `RewriteRule` de `compiler_config.jl`/
+`compiler_rules.jl` (ex. `:fused_swiglu`, `:fused_sdpa`, `:scaled_matmul`, `:flash_attention`)
+n'ont qu'une entrée d'inférence de forme, jamais de branche d'exécution — les appliquer via
+`compile()` produirait un nœud qui plante au premier `demand!` avec "Opérateur inconnu".
+"""
+_has_dispatch_support(op::Symbol)::Bool =
+    op ∈ _DISPATCH_EXECUTABLE_FUSED_OPS || haskey(CUSTOM_OPS, op)
 
 _unwrap_value(v::T) where {T} = v
 
