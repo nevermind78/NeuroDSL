@@ -568,12 +568,11 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
         logits, labels_raw = inputs[1], inputs[2]
         labels = Int.(vec(labels_raw))
         loss = cross_entropy_loss(logits, labels)
-        # S'assurer que la loss est dans un tenseur (1,1)
-        if size(output_buffer) == (1,)
-            output_buffer[1] = loss
-        else
-            output_buffer[1, 1] = loss
-        end
+        # Affectation broadcast (pas setindex! scalaire) -- fonctionne pour
+        # (1,) et (1,1), et évite un "scalar indexing disallowed" sur CUDA
+        # (setindex! direct sur un CuArray, même à un seul élément, force une
+        # opération scalaire hors-kernel, interdite par défaut par GPUArrays).
+        output_buffer .= loss
         if ctx_store !== nothing
             _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
                 :logits => logits, 

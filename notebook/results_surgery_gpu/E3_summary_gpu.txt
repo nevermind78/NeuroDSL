@@ -1,0 +1,26 @@
+----------------------------------------------------------------------
+   k |      cône | greffe(ms) | recompute(ms) |  total(ms)
+----------------------------------------------------------------------
+   1 |       289 |      1.415 |        10.604 |     12.018
+   2 |       248 |      1.403 |         9.654 |     11.057
+   3 |       207 |      1.525 |         9.639 |     11.163
+   4 |       166 |      1.418 |         7.742 |      9.160
+   5 |       125 |      1.549 |         6.025 |      7.574
+   6 |        84 |      1.607 |         4.140 |      5.748
+   7 |        43 |      1.365 |         3.089 |      4.454
+----------------------------------------------------------------------
+
+Assertions :
+  [PASS] Localité — coût de recompute décroît (monotone, tol. bruit 10%) avec k
+  [PASS] Localité — corrélation recompute vs taille de cône r > 0.95 (r = 0.9796)
+  [PASS] Localité — coût k=7 < 50% du coût k=1
+
+Lecture GPU vs CPU : sous Windows/WDDM, chaque lancement de kernel coûte un
+surcoût fixe (~0.01-0.02 ms, déjà mesuré dans ce projet pour la
+restauration par cache -- voir src/patching.jl, section "Restauration GPU
+par lots"). À cette échelle (quelques centaines de nœuds), ce surcoût peut
+dominer le calcul réel -- si le gain GPU par rapport au CPU est faible ou
+négatif ici, ce n'est pas une réfutation de la localité (la corrélation
+coût/cône ci-dessus est la vraie preuve), c'est une question d'échelle : le
+GPU n'amortit son propre coût fixe qu'à partir d'un cône bien plus large.
+

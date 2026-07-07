@@ -1,0 +1,9 @@
+Préconditions (Prop. 2) :
+  composantes -0.0 dans le flux résiduel : 0 / 4096   [OK]
+  valeurs non finies dans R(x)           : 0 / 4096   [OK]
+--------------------------------------------------
+Éléments comparés : 1600
+Mismatches bit    : 0  (0.00e+00 %)
+Max |Δ| flottant  : 0.000e+00
+Préconditions     : satisfaites
+Verdict           : BIT-EXACT [OK]

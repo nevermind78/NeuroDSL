@@ -280,7 +280,8 @@ GRAD_RULES[:cross_entropy] = (dev, dy, ctx, inputs) -> begin
     logits = ctx[:logits]
     labels = vec(ctx[:labels])  # S'assurer que c'est un vecteur
     dlogits = cross_entropy_grad(logits, labels)
-    dlogits .*= dy[1]
+    dlogits .*= dy   # dy est de forme (1,) -- broadcast, pas dy[1] (setindex/getindex
+                      # scalaire interdit sur CUDA ; broadcasting donne le même résultat)
     (dlogits, nothing)
 end
 
