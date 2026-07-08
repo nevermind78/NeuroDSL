@@ -211,7 +211,11 @@ if Backend.CUDA_AVAILABLE
 
     function rmsnorm_bwd!(::Backend.CUDADevice, dx, dgamma, dout, x, gamma, rms_inv)
         nr, nc = size(x)
-        xn_cu = CUDA.zeros(Float32, nr, nc)
+        # similar() (pas CUDA.zeros) : les deux noyaux ci-dessous écrivent chaque élément
+        # exactement une fois (aucune accumulation, aucune lecture avant écriture), donc
+        # l'initialisation à zéro est un travail perdu -- et similar() est ce que les
+        # allocateurs/traceurs mémoire (ex. MemTrack des notebooks) interceptent réellement.
+        xn_cu = similar(x, nr, nc)
         threads_pb_xn = 256
         blocks_xn = cld(nr * nc, threads_pb_xn)
         @cuda threads=threads_pb_xn blocks=blocks_xn _rmsnorm_bwd_xn_kernel!(xn_cu, x, rms_inv, nr, nc)
@@ -221,7 +225,7 @@ if Backend.CUDA_AVAILABLE
         smem_size_dgamma = cld(threads_pb_dgamma, WARPSIZE) * sizeof(Float32)
         @cuda threads=threads_pb_dgamma blocks=blocks_dgamma shmem=smem_size_dgamma _rmsnorm_bwd_dgamma_kernel!(dgamma, dout, xn_cu, nr, nc)
 
-        corr_cu = CUDA.zeros(Float32, nr)
+        corr_cu = similar(rms_inv, nr)
         threads_pb_corr = min(256, nc)
         blocks_corr = nr
         smem_size_corr = cld(threads_pb_corr, WARPSIZE) * sizeof(Float32)

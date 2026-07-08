@@ -119,7 +119,7 @@ function format_tensor_preview(value; max_rows::Int=8, max_cols::Int=10)
             n = length(v)
             n <= max_cols && return format_tensor_full(v)
             head = join([@sprintf("%.4f", Float64(x)) for x in v[1:max_cols]], ", ")
-            return "[" * head * ", …]  ($n éléments)"
+            return "[" * head * ", …]  ($n elements)"
         elseif ndims(v) == 2
             rows, cols = size(v)
             (rows <= max_rows && cols <= max_cols) && return format_tensor_full(v)
@@ -131,7 +131,7 @@ function format_tensor_preview(value; max_rows::Int=8, max_cols::Int=10)
                 push!(row_strs, line)
             end
             rows > rshow && push!(row_strs, "⋮")
-            return "[" * join(row_strs, "\n ") * "]\n($(rows)×$(cols) — aperçu $(rshow)×$(cshow))"
+            return "[" * join(row_strs, "\n ") * "]\n($(rows)×$(cols) — preview $(rshow)×$(cshow))"
         else
             return "$(ndims(v))-tensor"
         end
@@ -157,7 +157,7 @@ function format_tensor_grid(value; max_rows::Int=64, max_cols::Int=64)
     try
         v = Array(value)
         if ndims(v) == 0
-            return Dict("shape" => "scalaire", "rows" => Any[[_safe_num(Float64(v[]))]],
+            return Dict("shape" => "scalar", "rows" => Any[[_safe_num(Float64(v[]))]],
                         "trunc_rows" => false, "trunc_cols" => false)
         elseif ndims(v) == 1
             n = length(v)
@@ -385,6 +385,11 @@ function _viz_graph_css(t)
   fill: $(t.node_final_fill); stroke: $(t.node_final_stroke); stroke-width: 2.5px;
   filter: drop-shadow(0 2px 8px $(t.node_final_shadow));
 }
+/* Nœud dont le gradient de l'époque courante est suivi (voir applyGradientColoring
+   dans save_interactive_graph_animated) -- le remplissage (magnitude) est posé en
+   style inline par-dessus la classe ; cette bordure violette marque le nœud comme
+   "gradient suivi" même quand la magnitude est proche de zéro et donc peu visible. */
+.node-has-grad { stroke: #9d7cd8; stroke-width: 1.8px; }
 .node-label { font-family: 'Consolas', monospace; font-size: 10.5px; font-weight: 700;
               fill: $(t.node_label_fill); pointer-events: none; }
 .node-val   { font-family: 'Consolas', monospace; font-size: 9.5px; fill: $(t.node_val_fill);  pointer-events: none; }
@@ -497,13 +502,11 @@ table.ntbl td.ntbl-cell-active { outline: 2px solid #d4a373; outline-offset: -2p
 }
 .ntbl-raw-clickable { cursor: pointer; border-radius: 4px; padding: 2px 4px; margin: -2px -4px; }
 .ntbl-raw-clickable:hover { background: $(t.node_shadow); text-decoration: underline; }
-/* Courbe de valeur et courbe de gradient côte à côte (pas empilées) : la
-   carte est redimensionnable (resize:both) donc l'utilisateur peut l'élargir
-   pour leur laisser de la place. */
-.ntbl-plot-slot {
-  margin-top: 10px; padding-top: 8px; border-top: 1px dashed $(t.node_default_stroke);
-  display: flex; gap: 12px; align-items: flex-start;
-}
+/* Chaque section (Valeur/Gradient) est une rangée : le tableau à gauche, sa
+   courbe d'évolution à droite -- la carte est redimensionnable (resize:both)
+   donc l'utilisateur peut l'élargir pour leur laisser de la place. */
+.ntbl-row { display: flex; gap: 12px; align-items: flex-start; }
+.ntbl-row > .ntbl-table-wrap { flex: 1 1 0; min-width: 0; }
 .ntbl-plot-block { flex: 1 1 0; min-width: 0; }
 .ntbl-plot-title {
   font-size: 9.5px; font-family: 'Consolas', monospace; color: $(t.node_op_stroke);
@@ -512,7 +515,6 @@ table.ntbl td.ntbl-cell-active { outline: 2px solid #d4a373; outline-offset: -2p
 .ntbl-plot-block canvas { width: 100% !important; height: 130px !important; }
 .ntbl-plot-header { display: flex; align-items: center; justify-content: space-between; }
 .ntbl-plot-header .ntbl-close { font-size: 12px; padding: 1px 6px; }
-.ntbl-plot-grad { padding-left: 12px; border-left: 1px dotted $(t.node_default_stroke); }
 """
 end
 
@@ -526,8 +528,8 @@ function _viz_table_panel_html()
 <div id="node-table-panel">
   <div class="ntbl-resize" id="ntblResize"></div>
   <div class="ntbl-header">
-    <span id="ntbl-title">Cliquez sur un nœud pour explorer ses valeurs</span>
-    <button class="ntbl-close" onclick="closeAllNodeTables()" title="Tout fermer">✕ Tout fermer</button>
+    <span id="ntbl-title">Click a node to explore its values</span>
+    <button class="ntbl-close" onclick="closeAllNodeTables()" title="Close all">✕ Close all</button>
   </div>
   <div class="ntbl-body" id="ntbl-body"></div>
 </div>
@@ -759,7 +761,7 @@ function updateTooltips(nodeId, rectElement) {
 
   const showLeft = n.is_param && currentParamFull[nodeId];
   if (showLeft) {
-    tooltipLeft.innerHTML = "<b>📦 Poids (" + nodeId + ")</b><pre>" + currentParamFull[nodeId] + "</pre>";
+    tooltipLeft.innerHTML = "<b>📦 Weights (" + nodeId + ")</b><pre>" + currentParamFull[nodeId] + "</pre>";
     tooltipLeft.style.display = 'block';
   } else {
     tooltipLeft.style.display = 'none';
@@ -768,11 +770,11 @@ function updateTooltips(nodeId, rectElement) {
   const fwdVal = (v && v.fwd) ? valToText(v.fwd) : (FULL_VALS[nodeId] || '?');
   let rightHtml = "";
   if (FORMULAS[nodeId] && FORMULAS[nodeId] !== nodeId) {
-    rightHtml += "<b>📐 Formule</b><pre>" + FORMULAS[nodeId] + "</pre>";
+    rightHtml += "<b>📐 Formula</b><pre>" + FORMULAS[nodeId] + "</pre>";
   }
   rightHtml += "<b>➡️ Forward (" + nodeId + ")</b><pre>" + fwdVal + "</pre>";
   if (v && v.bwd) rightHtml += "<b>🔻 Gradient (" + nodeId + ")</b><pre>" + valToText(v.bwd) + "</pre>";
-  rightHtml += "<div class='ntbl-hint'>🖱️ Cliquer sur le nœud pour explorer en tableau</div>";
+  rightHtml += "<div class='ntbl-hint'>🖱️ Click the node to explore it in the table view</div>";
   tooltipRight.innerHTML = rightHtml;
   tooltipRight.style.display = 'block';
 
@@ -968,10 +970,10 @@ function fwdContentHTML(nodeId, v) {
   // activation), qui garde son repli statique existant.
   const isTrackedParam = !!(NMAP[nodeId] && NMAP[nodeId].is_param) && typeof SNAPSHOTS !== 'undefined';
   if (isTrackedParam) {
-    return gridToTableHTML(currentParamGrid[nodeId], "n'existait pas encore à cette époque");
+    return gridToTableHTML(currentParamGrid[nodeId], "did not exist yet at this epoch");
   }
   const fallback = currentParamGrid[nodeId] || FULL_GRIDS[nodeId];
-  return gridToTableHTML(fallback, 'pas encore calculé');
+  return gridToTableHTML(fallback, 'not yet computed');
 }
 // Quand une cellule de poids est sélectionnée (sel !== null), le contenu
 // backward devient cliquable : cliquer dessus affiche la courbe d'évolution
@@ -979,8 +981,14 @@ function fwdContentHTML(nodeId, v) {
 // bouton "+ Courbe du gradient" par une interaction directe sur la valeur
 // rouge déjà affichée, comme demandé.
 function bwdContentHTML(nodeId, v, clickable) {
+  // Pas d'onclick inline ici : le clic est capté par délégation sur la carte
+  // stable (attachCardClickDelegation, posée une seule fois à la création de
+  // la carte) -- cet élément, lui, est recréé à chaque rafraîchissement
+  // (innerHTML), donc un onclick inline ne survivrait pas à une lecture
+  // rapide (le nœud DOM cliqué peut être remplacé entre mousedown et
+  // mouseup avant que le clic ne se déclenche).
   const attrs = clickable
-    ? ' class="ntbl-raw ntbl-raw-clickable" onclick="toggleGradPlot(\\'' + nodeId + '\\', true)" title="Cliquer pour tracer l\\'évolution du gradient"'
+    ? ' class="ntbl-raw ntbl-raw-clickable" title="Click to plot the gradient\\'s evolution"'
     : ' class="ntbl-raw"';
   if (isGridVal(v.bwd)) return '<div' + attrs + '>' + gridToTableHTML(v.bwd) + '</div>';
   if (v.bwd) return '<pre' + attrs + '>' + v.bwd + '</pre>';
@@ -1102,7 +1110,7 @@ function syncHistoryChart(canvas, key, hist, color, fillColor) {
       plugins: { legend: { display: false } },
       scales: {
         x: { type: 'linear', ticks: { color: '#6b7280', font: { size: 9 }, maxTicksLimit: 6 },
-             title: { display: true, text: 'Époque', color: '#6b7280', font: { size: 9 } },
+             title: { display: true, text: 'Epoch', color: '#6b7280', font: { size: 9 } },
              grid: { color: '#2d3143' } },
         y: { ticks: { color: '#6b7280', font: { size: 9 } }, grid: { color: '#2d3143' } }
       }
@@ -1115,6 +1123,13 @@ function destroyChartsFor(nodeId) {
     if (k.startsWith(nodeId + ':')) { weightCharts[k].destroy(); delete weightCharts[k]; }
   });
 }
+// Détruit UN SEUL graphe (val ou grad) par sa clé exacte -- contrairement à
+// destroyChartsFor (tout le nœud), utilisé quand seule la courbe de valeur
+// OU celle de gradient change de structure, pour ne pas faire clignoter
+// l'autre courbe qui n'a pas besoin d'être reconstruite.
+function destroyChart(key) {
+  if (weightCharts[key]) { weightCharts[key].destroy(); delete weightCharts[key]; }
+}
 
 // Bascule l'affichage de la courbe de gradient pour la cellule active d'un
 // nœud, indépendamment de la sélection de cellule elle-même (on peut la
@@ -1125,6 +1140,44 @@ function toggleGradPlot(nodeId, show) {
   if (!sel) return;
   sel.showGrad = show;
   refreshNodeTable();
+}
+
+// Clic par délégation, posé UNE SEULE FOIS sur la carte (jamais recréée tant
+// que le nœud reste ouvert -- voir renderAllNodeTables) plutôt que sur les
+// <td>/<div class="ntbl-raw-clickable"> eux-mêmes, qui sont détruits et
+// reconstruits à chaque rafraîchissement du contenu (updateCardContent,
+// potentiellement plusieurs fois par seconde en lecture automatique). Un
+// handler posé directement sur ces éléments éphémères peut manquer le clic
+// si le nœud DOM visé est remplacé entre le mousedown et le mouseup de
+// l'utilisateur -- avec la délégation, seul l'ancêtre (la carte) doit encore
+// exister au moment du clic, ce qui est toujours le cas.
+function attachCardClickDelegation(card, nodeId) {
+  card.addEventListener('click', e => {
+    // fwd-table et bwd-table rendent tous deux des grilles <td data-r data-c>
+    // via le même gridToTableHTML -- un simple `closest('td[data-r]')` non
+    // scopé matcherait aussi bien un clic dans le gradient (quand il est
+    // affiché en grille, pas en valeur brute) qu'un clic dans les poids, et
+    // le traiterait TOUJOURS comme une sélection de cellule de poids, sans
+    // jamais atteindre la bascule du graphe de gradient ci-dessous. D'où le
+    // scope explicite sur [data-role="fwd-table"] avant de traiter un <td>
+    // comme une sélection de poids.
+    if (e.target.closest('[data-role="fwd-table"]')) {
+      const td = e.target.closest('td[data-r]');
+      if (!td) return;
+      const r = parseInt(td.dataset.r, 10), c = parseInt(td.dataset.c, 10);
+      const cur = activeCellByNode[nodeId];
+      if (cur && cur.r === r && cur.c === c) delete activeCellByNode[nodeId];
+      else activeCellByNode[nodeId] = { r, c, showGrad: false };
+      updateCardContent(nodeId, card);
+      return;
+    }
+    // Couvre les deux formes du contenu backward cliquable (voir bwdContentHTML) :
+    // une grille de gradient entière, ou une valeur brute scalaire -- les deux
+    // sont enveloppées dans .ntbl-raw-clickable.
+    if (e.target.closest('.ntbl-raw-clickable')) {
+      toggleGradPlot(nodeId, true);
+    }
+  });
 }
 
 // ── Redimensionnement des cartes (CSS resize:both) : Chart.js n'écoute que
@@ -1150,17 +1203,22 @@ function attachCardResizeObserver(card) {
 function cardShellHTML(nodeId) {
   return '<div class="ntbl-card-header">' +
       '<span>' + nodeId + ' — ' + trunc(SHORT_LABELS[nodeId] || nodeId, 24) + '</span>' +
-      '<button class="ntbl-close" onclick="closeNodeTable(\\'' + nodeId + '\\')" title="Fermer">✕</button>' +
+      '<button class="ntbl-close" onclick="closeNodeTable(\\'' + nodeId + '\\')" title="Close">✕</button>' +
     '</div>' +
     '<div class="ntbl-card-body">' +
-      '<div class="ntbl-section"><h4>Valeur (forward)<span class="ntbl-plot-hint" data-role="fwd-hint"></span></h4>' +
-        '<div class="ntbl-table-wrap" data-role="fwd-table"></div>' +
+      '<div class="ntbl-section"><h4>Value (forward)<span class="ntbl-plot-hint" data-role="fwd-hint"></span></h4>' +
+        '<div class="ntbl-row">' +
+          '<div class="ntbl-table-wrap" data-role="fwd-table"></div>' +
+          '<div class="ntbl-plot-block" data-role="val-plot-slot" style="display:none;"></div>' +
+        '</div>' +
       '</div>' +
       '<div class="ntbl-section" data-role="bwd-section" style="display:none;">' +
         '<h4>Gradient (backward)<span class="ntbl-plot-hint" data-role="bwd-hint"></span></h4>' +
-        '<div class="ntbl-table-wrap" data-role="bwd-table"></div>' +
+        '<div class="ntbl-row">' +
+          '<div class="ntbl-table-wrap" data-role="bwd-table"></div>' +
+          '<div class="ntbl-plot-block" data-role="grad-plot-slot" style="display:none;"></div>' +
+        '</div>' +
       '</div>' +
-      '<div class="ntbl-plot-slot" data-role="plot-slot" style="display:none;"></div>' +
     '</div>';
 }
 
@@ -1178,22 +1236,17 @@ function updateCardContent(nodeId, card) {
   fwdWrap.scrollTop = fwdTop; fwdWrap.scrollLeft = fwdLeft;
 
   const fwdHint = card.querySelector('[data-role="fwd-hint"]');
-  if (fwdHint) fwdHint.textContent = canPlot ? ' · cliquer une cellule → évolution' : '';
+  if (fwdHint) fwdHint.textContent = canPlot ? ' · click a cell → evolution' : '';
 
-  if (canPlot) {
-    fwdWrap.querySelectorAll('td[data-r]').forEach(td => {
-      td.addEventListener('click', () => {
-        const r = parseInt(td.dataset.r, 10), c = parseInt(td.dataset.c, 10);
-        const cur = activeCellByNode[nodeId];
-        if (cur && cur.r === r && cur.c === c) delete activeCellByNode[nodeId];
-        else activeCellByNode[nodeId] = { r, c, showGrad: false };
-        updateCardContent(nodeId, card);
-      });
-    });
-    if (sel) {
-      const activeTd = fwdWrap.querySelector('td[data-r="' + sel.r + '"][data-c="' + sel.c + '"]');
-      if (activeTd) activeTd.classList.add('ntbl-cell-active');
-    }
+  // Le clic sur une cellule (sélection d'un poids) est capté par délégation
+  // sur la carte (attachCardClickDelegation) -- pas d'addEventListener ici :
+  // fwdWrap.innerHTML est réécrit à chaque rafraîchissement (potentiellement
+  // plusieurs fois par seconde en lecture automatique), donc un handler posé
+  // ici sur des <td> éphémères manquerait le clic si le nœud DOM ciblé est
+  // remplacé entre le mousedown et le mouseup de l'utilisateur.
+  if (canPlot && sel) {
+    const activeTd = fwdWrap.querySelector('td[data-r="' + sel.r + '"][data-c="' + sel.c + '"]');
+    if (activeTd) activeTd.classList.add('ntbl-cell-active');
   }
 
   const bwdSection = card.querySelector('[data-role="bwd-section"]');
@@ -1205,66 +1258,88 @@ function updateCardContent(nodeId, card) {
     bwdWrap.innerHTML = bwdHtml;
     bwdWrap.scrollTop = bwdTop; bwdWrap.scrollLeft = bwdLeft;
     const bwdHint = card.querySelector('[data-role="bwd-hint"]');
-    if (bwdHint) bwdHint.textContent = (canPlot && sel) ? ' · cliquer la valeur → évolution' : '';
+    if (bwdHint) bwdHint.textContent = (canPlot && sel) ? ' · click the value → evolution' : '';
   } else {
     bwdSection.style.display = 'none';
   }
 
-  const plotSlot = card.querySelector('[data-role="plot-slot"]');
+  // Courbe de valeur : à droite du tableau de poids (val-plot-slot, dans la
+  // même .ntbl-row que fwd-table -- voir cardShellHTML), affichée dès qu'une
+  // cellule est sélectionnée.
+  const valPlotSlot = card.querySelector('[data-role="val-plot-slot"]');
   if (canPlot && sel) {
-    plotSlot.style.display = 'flex';
-    updatePlotSlot(nodeId, sel, plotSlot);
+    valPlotSlot.style.display = '';
+    updateValPlotSlot(nodeId, sel, valPlotSlot);
   } else {
-    plotSlot.style.display = 'none';
-    if (plotSlot.dataset.structKey) {
-      destroyChartsFor(nodeId);
-      plotSlot.innerHTML = '';
-      plotSlot.dataset.structKey = '';
+    valPlotSlot.style.display = 'none';
+    if (valPlotSlot.dataset.structKey) {
+      destroyChart(nodeId + ':' + valPlotSlot.dataset.structKey + ':val');
+      valPlotSlot.innerHTML = '';
+      valPlotSlot.dataset.structKey = '';
+    }
+  }
+
+  // Courbe de gradient : à droite du tableau de gradient (grad-plot-slot,
+  // dans la même .ntbl-row que bwd-table), affichée seulement si l'utilisateur
+  // l'a explicitement demandée (sel.showGrad, via toggleGradPlot).
+  const gradPlotSlot = card.querySelector('[data-role="grad-plot-slot"]');
+  if (canPlot && sel && sel.showGrad) {
+    gradPlotSlot.style.display = '';
+    updateGradPlotSlot(nodeId, sel, gradPlotSlot);
+  } else {
+    gradPlotSlot.style.display = 'none';
+    if (gradPlotSlot.dataset.structKey) {
+      destroyChart(nodeId + ':' + gradPlotSlot.dataset.structKey + ':grad');
+      gradPlotSlot.innerHTML = '';
+      gradPlotSlot.dataset.structKey = '';
     }
   }
 }
 
-// Contenu de la zone de tracé : la STRUCTURE (quels blocs/canvas existent)
-// n'est reconstruite que si la cellule sélectionnée ou l'affichage du
-// gradient change ; sinon on se contente d'actualiser les données des
-// graphes déjà en place (syncHistoryChart), côte à côte (pas empilés).
-function updatePlotSlot(nodeId, sel, plotSlot) {
-  const structKey = sel.r + ':' + sel.c + ':' + (sel.showGrad ? 1 : 0);
-  if (plotSlot.dataset.structKey !== structKey) {
-    destroyChartsFor(nodeId);
-    plotSlot.dataset.structKey = structKey;
-    plotSlot.innerHTML =
-      '<div class="ntbl-plot-block" data-role="val-plot">' +
-        '<div class="ntbl-plot-title">' + nodeId + '[' + (sel.r+1) + ',' + (sel.c+1) + '] — valeur</div>' +
-        '<canvas></canvas>' +
-      '</div>' +
-      (sel.showGrad ?
-        '<div class="ntbl-plot-block ntbl-plot-grad" data-role="grad-plot-wrap">' +
-          '<div class="ntbl-plot-header">' +
-            '<span class="ntbl-plot-title">Gradient</span>' +
-            '<button class="ntbl-close" onclick="toggleGradPlot(\\'' + nodeId + '\\', false)" title="Retirer la courbe de gradient">✕</button>' +
-          '</div>' +
-          '<div data-role="grad-plot-body"></div>' +
-        '</div>' : '');
+// Contenu de la courbe de valeur (à droite du tableau de poids) : la
+// STRUCTURE (canvas) n'est reconstruite que si la cellule sélectionnée
+// change ; sinon on se contente d'actualiser les données du graphe déjà en
+// place (syncHistoryChart).
+function updateValPlotSlot(nodeId, sel, slotEl) {
+  const structKey = sel.r + ':' + sel.c;
+  if (slotEl.dataset.structKey !== structKey) {
+    destroyChart(nodeId + ':' + sel.r + ':' + sel.c + ':val');
+    slotEl.dataset.structKey = structKey;
+    slotEl.innerHTML =
+      '<div class="ntbl-plot-title">' + nodeId + '[' + (sel.r+1) + ',' + (sel.c+1) + '] — value</div>' +
+      '<canvas></canvas>';
   }
-
   const valHist = buildWeightHistory(nodeId, sel.r, sel.c);
-  syncHistoryChart(plotSlot.querySelector('[data-role="val-plot"] canvas'),
+  syncHistoryChart(slotEl.querySelector('canvas'),
                     nodeId + ':' + sel.r + ':' + sel.c + ':val',
                     valHist, '#d4a373', 'rgba(212,163,115,.14)');
+}
 
-  if (sel.showGrad) {
-    const gradHist = buildWeightGradHistory(nodeId, sel.r, sel.c);
-    const gradBody = plotSlot.querySelector('[data-role="grad-plot-body"]');
-    if (gradBody) {
-      if (gradHist) {
-        let gradCanvas = gradBody.querySelector('canvas');
-        if (!gradCanvas) { gradBody.innerHTML = '<canvas></canvas>'; gradCanvas = gradBody.querySelector('canvas'); }
-        syncHistoryChart(gradCanvas, nodeId + ':' + sel.r + ':' + sel.c + ':grad',
-                          gradHist, '#e06c75', 'rgba(224,108,117,.14)');
-      } else if (!gradBody.querySelector('.ntbl-empty')) {
-        gradBody.innerHTML = '<div class="ntbl-empty">Aucun gradient enregistré pour cette cellule</div>';
-      }
+// Contenu de la courbe de gradient (à droite du tableau de gradient) — même
+// principe que updateValPlotSlot, structure reconstruite seulement au
+// changement de cellule.
+function updateGradPlotSlot(nodeId, sel, slotEl) {
+  const structKey = sel.r + ':' + sel.c;
+  if (slotEl.dataset.structKey !== structKey) {
+    destroyChart(nodeId + ':' + sel.r + ':' + sel.c + ':grad');
+    slotEl.dataset.structKey = structKey;
+    slotEl.innerHTML =
+      '<div class="ntbl-plot-header">' +
+        '<span class="ntbl-plot-title">Gradient[' + (sel.r+1) + ',' + (sel.c+1) + ']</span>' +
+        '<button class="ntbl-close" onclick="toggleGradPlot(\\'' + nodeId + '\\', false)" title="Remove the gradient curve">✕</button>' +
+      '</div>' +
+      '<div data-role="grad-plot-body"></div>';
+  }
+  const gradHist = buildWeightGradHistory(nodeId, sel.r, sel.c);
+  const gradBody = slotEl.querySelector('[data-role="grad-plot-body"]');
+  if (gradBody) {
+    if (gradHist) {
+      let gradCanvas = gradBody.querySelector('canvas');
+      if (!gradCanvas) { gradBody.innerHTML = '<canvas></canvas>'; gradCanvas = gradBody.querySelector('canvas'); }
+      syncHistoryChart(gradCanvas, nodeId + ':' + sel.r + ':' + sel.c + ':grad',
+                        gradHist, '#e06c75', 'rgba(224,108,117,.14)');
+    } else if (!gradBody.querySelector('.ntbl-empty')) {
+      gradBody.innerHTML = '<div class="ntbl-empty">No gradient recorded for this cell</div>';
     }
   }
 }
@@ -1283,9 +1358,8 @@ function renderAllNodeTables() {
   if (!bodyEl) return;
   if (titleEl) {
     titleEl.textContent = openNodeIds.length === 0
-      ? 'Cliquez sur un nœud pour explorer ses valeurs'
-      : openNodeIds.length + ' tableau' + (openNodeIds.length > 1 ? 'x' : '') +
-        ' ouvert' + (openNodeIds.length > 1 ? 's' : '');
+      ? 'Click a node to explore its values'
+      : openNodeIds.length + ' table' + (openNodeIds.length > 1 ? 's' : '') + ' open';
   }
 
   bodyEl.querySelectorAll('.ntbl-card').forEach(card => {
@@ -1305,6 +1379,7 @@ function renderAllNodeTables() {
       card.innerHTML = cardShellHTML(nodeId);
       bodyEl.appendChild(card);
       attachCardResizeObserver(card);
+      attachCardClickDelegation(card, nodeId);
     }
     updateCardContent(nodeId, card);
   });
@@ -1385,7 +1460,7 @@ function save_interactive_graph(graph::NeuroGraph, log::ExecutionLog,
 
     html = """
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>$title</title>
@@ -1433,7 +1508,7 @@ $graph_css
     <button class="btn" onclick="step(1)">Next ▶</button>
     <button class="btn" onclick="reset()">↺ Reset</button>
   </div>
-  <div id="status">Step : 0 / 0</div>
+  <div id="status">Step: 0 / 0</div>
   <div id="log-panel"></div>
 </div>
 
@@ -1475,7 +1550,7 @@ function step(dir) {
   updateUI();
 }
 function updateUI() {
-  document.getElementById('status').textContent = 'Step : ' + (step_i + 1) + ' / ' + LOG.length;
+  document.getElementById('status').textContent = 'Step: ' + (step_i + 1) + ' / ' + LOG.length;
   renderEventsUpTo(LOG, step_i);
 }
 function togglePlay() {
@@ -1522,6 +1597,13 @@ les époques `<= last_valid_epoch` -- l'appelant doit la capturer lui-même (ex.
 `consumers(g, sym; ns)`) juste AVANT l'appel qui la remplace. Les nœuds/arêtes du bloc greffé
 lui-même n'ont besoin d'aucune métadonnée : leur existence par époque se déduit directement
 des événements déjà présents dans chaque snapshot (voir le JS `computeExistingSet`).
+
+`alt_losses` est la perte du scénario CONTREFACTUEL "sans greffe" (même poids et même état
+d'optimiseur juste avant la greffe, mêmes batches rejoués via une copie du RNG, mais sans
+`insert_block!`) -- doit contenir exactement `length(losses) - graft_edges[1][1]` valeurs
+(une par étape APRÈS `graft_edges[1][1]`, la dernière étape où l'ancienne topologie était
+valide). Ignoré si `graft_edges` est vide (rien à comparer). Alimente les trois onglets de la
+courbe de perte ("With graft" / "Without graft" / "Both").
 """
 function save_interactive_graph_animated(
         graph::NeuroGraph,
@@ -1529,7 +1611,8 @@ function save_interactive_graph_animated(
         filepath::String;
         title="NeuroDSL Training Trace",
         losses::Vector{Float32}=Float32[],
-        graft_edges::Vector{<:Tuple{Int,Symbol,Symbol}}=Tuple{Int,Symbol,Symbol}[])
+        graft_edges::Vector{<:Tuple{Int,Symbol,Symbol}}=Tuple{Int,Symbol,Symbol}[],
+        alt_losses::Vector{Float32}=Float32[])
 
     ns = graph.active_ns
     d  = _graph_viz_json(graph, ns)
@@ -1552,6 +1635,7 @@ function save_interactive_graph_animated(
 
     losses_json = JSON.json([Float64(l) for l in losses])
     graft_edges_json = JSON.json([[epoch, string(s), string(t)] for (epoch, s, t) in graft_edges])
+    alt_losses_json = JSON.json([Float64(l) for l in alt_losses])
 
     epoch_to_snapshots = Dict{Int,Vector{TrainingSnapshot}}()
     for s in snapshots
@@ -1565,7 +1649,7 @@ function save_interactive_graph_animated(
 
     html = """
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>$title</title>
@@ -1606,6 +1690,10 @@ body {
 .btn.primary { background:#d4a373; border-color:#d4a373; color:#1e2030; }
 .btn.primary:hover { background:#b5835a; }
 #stepStatus  { font-size:0.75rem; color:#6b7280; white-space:nowrap; }
+.speed-control { display:flex; align-items:center; gap:6px; margin-left:10px; }
+.speed-control span { font-size:0.75rem; color:#9ca3af; white-space:nowrap; }
+.speed-control input[type=range] { width:100px; accent-color:#d4a373; }
+#speedLabel { min-width:52px; }
 #main { display:flex; flex:1; overflow:hidden; }
 #sidebar {
   width:300px; min-width:200px; max-width:600px;
@@ -1620,6 +1708,14 @@ body {
 #sidebar .resize-handle:hover { background:#d4a37355; }
 #sidebar h3 { font-size:0.75rem; color:#9ca3af; text-transform:uppercase;
               letter-spacing:.5px; font-weight:600; }
+.loss-view-tabs { display:flex; gap:4px; margin:4px 0 2px; }
+.loss-view-tabs .tab-btn {
+  flex:1; padding:4px 6px; font-size:0.68rem; font-weight:600;
+  background:#1e2030; border:1px solid #3b3f53; border-bottom:none;
+  border-radius:6px 6px 0 0; color:#9ca3af; cursor:pointer;
+}
+.loss-view-tabs .tab-btn:hover { color:#e5e7eb; background:#2d3143; }
+.loss-view-tabs .tab-btn.active { background:#d4a373; border-color:#d4a373; color:#1e2030; }
 #loss-panel {
   border-bottom:1px solid #2d3143;
   position:relative;
@@ -1661,23 +1757,33 @@ $graph_css
     <button onclick="changeEpoch(1)">▶</button>
   </div>
   <div class="step-controls">
-    <button class="btn" onclick="stepSnap(-1)">◀ Étape</button>
+    <button class="btn" onclick="stepSnap(-1)">◀ Step</button>
     <button class="btn primary" id="playBtn" onclick="togglePlay()">▶ Play</button>
-    <button class="btn" onclick="stepSnap(1)">Étape ▶</button>
+    <button class="btn" onclick="stepSnap(1)">Step ▶</button>
     <button class="btn" onclick="reset()">↺ Reset</button>
     <span id="stepStatus">–</span>
+    <div class="speed-control">
+      <span>Speed</span>
+      <input type="range" id="speedSlider" min="10" max="800" step="10" value="300" oninput="onSpeedChange()">
+      <span id="speedLabel">300 ms</span>
+    </div>
   </div>
 </div>
 
 <div id="main">
   <div id="sidebar">
     <div class="resize-handle" id="resizeHandle"></div>
-    <h3>Courbe de perte</h3>
+    <h3>Loss curve</h3>
+    <div id="lossViewTabs" class="loss-view-tabs" style="display:none;">
+      <button class="tab-btn active" data-mode="with" onclick="setLossView('with')">With graft</button>
+      <button class="tab-btn" data-mode="without" onclick="setLossView('without')">Without graft</button>
+      <button class="tab-btn" data-mode="both" onclick="setLossView('both')">Both</button>
+    </div>
     <div id="loss-panel" style="height:160px;">
       <div class="resize-v-handle" id="resizeVHandle"></div>
       <div id="loss-chart-wrap"><canvas id="lossChart"></canvas></div>
     </div>
-    <h3 style="margin-top:4px">Log d'exécution</h3>
+    <h3 style="margin-top:4px">Execution log</h3>
     <div id="log-panel"></div>
   </div>
   <div id="graph-area">
@@ -1711,11 +1817,69 @@ const FORMULAS     = $(d.formulas_json);
 const SHORT_LABELS = $(d.short_labels_json);
 const EPOCHS       = $epochs_json;
 const GRAFT_EDGES  = $graft_edges_json;
+const ALT_LOSSES   = $alt_losses_json;
 
 $shared_js
 
 buildGraphSVG();
 const nodeVals = Object.fromEntries(NODES.map(n => [n.id, { fwd: '', bwd: '' }]));
+
+// ── Coloration par magnitude de gradient ────────────────────────────────────
+// Un nœud qui a un gradient capté dans le snapshot courant (currentGradGrid,
+// alimenté par renderStep depuis snap.grads_grid) est peint dans une teinte
+// violette distincte des couleurs param/default/fwd/bwd existantes -- plus la
+// magnitude du gradient est grande (par rapport au max observé sur TOUTE la
+// trace, pas seulement l'époque courante), plus la teinte est foncée. Une
+// échelle relative à l'époque courante ferait toujours paraître "un" nœud comme
+// le plus sombre même si tous les gradients se sont éteints -- l'échelle
+// globale permet de vraiment suivre l'évolution (foncé -> clair = le gradient
+// de CE nœud décroît réellement, pas seulement par rapport aux autres).
+function gridMaxAbs(grid) {
+  if (!grid || !grid.rows) return 0;
+  let m = 0;
+  for (const row of grid.rows) for (const v of row) {
+    if (typeof v !== 'number') continue;
+    const a = Math.abs(v);
+    if (a > m) m = a;
+  }
+  return m;
+}
+let GLOBAL_MAX_GRAD = 0;
+SNAPSHOTS.forEach(s => {
+  Object.values(s.grads_grid || {}).forEach(g => {
+    const m = gridMaxAbs(g);
+    if (m > GLOBAL_MAX_GRAD) GLOBAL_MAX_GRAD = m;
+  });
+});
+function gradFillColor(magnitude) {
+  if (GLOBAL_MAX_GRAD <= 0) return '#4a3b6b';
+  // Racine carrée (pas linéaire) : la plupart des gradients sont petits et un
+  // seul pic écraserait toute la gamme de couleur sur une échelle linéaire.
+  const t = Math.min(1, Math.sqrt(magnitude / GLOBAL_MAX_GRAD));
+  const light = 74 - t * 46; // 74% (à peine teinté) -> 28% (violet foncé)
+  return 'hsl(265, 55%, ' + light.toFixed(0) + '%)';
+}
+function applyGradientColoring() {
+  NODES.forEach(n => {
+    const rect = document.getElementById('node-' + n.id);
+    if (!rect) return;
+    const grid = currentGradGrid[n.id];
+    if (grid) {
+      // Le remplissage (magnitude) s'applique toujours, y compris pendant un
+      // pas actif -- c'est un style inline, il gagne face à n'importe quelle
+      // classe CSS. La bordure "gradient suivi", elle, ne s'ajoute qu'en
+      // dehors d'un pas actif (stepIdx < 0) : sinon elle masquerait la
+      // bordure transitoire fwd/bwd/final qui indique l'opération en cours
+      // de relecture, plus prioritaire à cet instant précis.
+      rect.style.fill = gradFillColor(gridMaxAbs(grid));
+      if (stepIdx < 0) rect.classList.add('node-has-grad');
+      else rect.classList.remove('node-has-grad');
+    } else {
+      rect.style.fill = '';
+      rect.classList.remove('node-has-grad');
+    }
+  });
+}
 
 // ── Existence par époque (chirurgie à chaud) ────────────────────────────────
 // Un nœud/arête créé en cours d'entraînement (ex. insert_block!) est présent
@@ -1828,18 +1992,73 @@ function buildLossChart() {
   const lossMax = positiveLosses.length ? Math.max(...positiveLosses) : 0;
   const useLogScale = lossMin > 0 && (lossMax / lossMin) > 20;
 
+  // Séparation visuelle avant/après greffe : GRAFT_EDGES[0][0] est la dernière
+  // étape où l'ancienne topologie était valide (voir graft_epoch dans
+  // graph_surgery_viz.ipynb) -- on scinde la courbe en deux séries de couleurs
+  // différentes plutôt qu'une seule, avec un point de recouvrement exact au
+  // point de bascule pour que les deux segments restent visuellement connectés
+  // (pas de trou). Sans greffe (GRAFT_EDGES vide), repli sur une série unique.
+  //
+  // Si ALT_LOSSES est fourni (contrefactuel "sans greffe", même poids/état
+  // d'optimiseur/batches juste avant la greffe, voir la docstring de
+  // save_interactive_graph_animated), une troisième série superposable est
+  // ajoutée -- masquée par défaut, contrôlée par les onglets #lossViewTabs
+  // (setLossView). lossViewIdx retient l'index réel de chaque série nommée
+  // (pas un index fixe) : le nombre de séries varie selon les données
+  // disponibles (avec/sans greffe, avec/sans contrefactuel).
+  const graftStepEpoch = GRAFT_EDGES.length > 0 ? GRAFT_EDGES[0][0] : null;
+  const boundaryIdx = graftStepEpoch !== null ? (graftStepEpoch - 1) : null;
+  const hasSplit = boundaryIdx !== null && boundaryIdx >= 0 && boundaryIdx < LOSSES.length - 1;
+  const hasCounterfactual = hasSplit && ALT_LOSSES.length === (LOSSES.length - boundaryIdx - 1);
+
+  let lossDatasets = [];
+  lossViewIdx = {};
+
+  if (hasSplit) {
+    const beforeData = LOSSES.map((v, i) => i <= boundaryIdx ? v : null);
+    const withData   = LOSSES.map((v, i) => i >= boundaryIdx ? v : null);
+    lossViewIdx.before = lossDatasets.length;
+    lossDatasets.push(
+      { label:'Loss (before graft)', data:beforeData, borderColor:'#d4a373',
+        backgroundColor:'rgba(212,163,115,0.1)', borderWidth:2, pointRadius:0, tension:0.3, fill:true });
+    lossViewIdx.with = lossDatasets.length;
+    lossDatasets.push(
+      { label:'Loss (with graft)', data:withData, borderColor:'#7aa2f7',
+        backgroundColor:'rgba(122,162,247,0.1)', borderWidth:2, pointRadius:0, tension:0.3, fill:true });
+    if (hasCounterfactual) {
+      // i === boundaryIdx répète le même point de bascule que withData (pas
+      // ALT_LOSSES[-1], qui n'existe pas) -- les deux séries partent donc du
+      // même point exact avant de diverger, comme before/with le font déjà.
+      const withoutData = LOSSES.map((v, i) => {
+        if (i < boundaryIdx) return null;
+        if (i === boundaryIdx) return v;
+        return ALT_LOSSES[i - boundaryIdx - 1];
+      });
+      lossViewIdx.without = lossDatasets.length;
+      lossDatasets.push(
+        { label:'Loss (without graft)', data:withoutData, borderColor:'#9ca3af',
+          backgroundColor:'rgba(156,163,175,0.08)', borderWidth:2, borderDash:[5,3],
+          pointRadius:0, tension:0.3, fill:false, hidden:true });
+    }
+  } else {
+    lossViewIdx.with = lossDatasets.length;
+    lossDatasets.push(
+      { label:'Loss', data:LOSSES, borderColor:'#d4a373', backgroundColor:'rgba(212,163,115,0.1)',
+        borderWidth:2, pointRadius:0, tension:0.3, fill:true });
+  }
+  lossViewIdx.snapshot = lossDatasets.length;
+  lossDatasets.push(
+    { label:'Snapshot', data:EPOCHS.map(e => ({x:e, y:LOSSES[e-1]})),
+      borderColor:'transparent', backgroundColor:'#e06c75',
+      pointRadius:5, pointHoverRadius:7, type:'scatter',
+      showLine:false }
+  );
+
   lossChart = new Chart(ctx2, {
     type:'line',
     data:{
       labels: LOSSES.map((_,i)=>i+1),
-      datasets:[
-        { label:'Loss', data:LOSSES, borderColor:'#d4a373', backgroundColor:'rgba(212,163,115,0.1)',
-          borderWidth:2, pointRadius:0, tension:0.3, fill:true },
-        { label:'Snapshot', data:EPOCHS.map(e => ({x:e, y:LOSSES[e-1]})),
-          borderColor:'transparent', backgroundColor:'#e06c75',
-          pointRadius:5, pointHoverRadius:7, type:'scatter',
-          showLine:false }
-      ]
+      datasets: lossDatasets
     },
     options:{
       responsive:true, maintainAspectRatio:false, animation:false,
@@ -1853,11 +2072,35 @@ function buildLossChart() {
       }
     }
   });
+
+  const tabsEl = document.getElementById('lossViewTabs');
+  if (tabsEl) tabsEl.style.display = hasCounterfactual ? 'flex' : 'none';
+}
+
+// État courant : quelle(s) série(s) "with"/"without greft" sont visibles --
+// "before" et "snapshot" restent toujours affichées (avant la greffe, les
+// deux scénarios sont par définition identiques ; le marqueur d'époque n'a
+// rien à voir avec le choix de vue).
+let lossViewIdx = {};
+function setLossView(mode) {
+  if (!lossChart) return;
+  const showWith    = mode === 'with'    || mode === 'both';
+  const showWithout = mode === 'without' || mode === 'both';
+  if (lossViewIdx.with    !== undefined) lossChart.setDatasetVisibility(lossViewIdx.with, showWith);
+  if (lossViewIdx.without !== undefined) lossChart.setDatasetVisibility(lossViewIdx.without, showWithout);
+  lossChart.update();
+  document.querySelectorAll('.loss-view-tabs .tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
 }
 function updateLossMarker(idx) {
   if (!lossChart) return;
-  lossChart.data.datasets[1].pointBackgroundColor =
-    EPOCHS.map((_,j) => j===idx ? '#e06c75' : '#4b5268');
+  // Le dataset "Snapshot" est toujours le dernier, que la courbe soit scindée
+  // avant/après greffe (2 séries de ligne) ou unique (1 série) -- cibler par
+  // longueur plutôt qu'un index fixe évite de le désynchroniser si le nombre
+  // de séries de ligne change.
+  const snapDs = lossChart.data.datasets[lossChart.data.datasets.length - 1];
+  snapDs.pointBackgroundColor = EPOCHS.map((_,j) => j===idx ? '#e06c75' : '#4b5268');
   lossChart.update();
 }
 
@@ -1870,21 +2113,101 @@ function renderStep() {
   currentParamGrid = snap.params_grid || {};
   currentGradGrid = snap.grads_grid || {};
   document.getElementById('badge-epoch').textContent = 'Epoch ' + snap.epoch + '  |  iter ' + snap.iter;
-  document.getElementById('badge-loss').textContent = 'Loss : ' + snap.loss.toFixed(6);
+  document.getElementById('badge-loss').textContent = 'Loss: ' + snap.loss.toFixed(6);
   const total = snap.events.length;
   document.getElementById('stepStatus').textContent =
     stepIdx < 0 ? '0 / ' + total : (stepIdx+1) + ' / ' + total;
 
   renderEventsUpTo(snap.events, stepIdx);
+  applyGradientColoring();
 }
 
+// Avant ce correctif, stepSnap se contentait de borner stepIdx à
+// [-1, total-1] : une fois arrivé au dernier événement d'une capture,
+// cliquer encore sur "Étape ▶" ne faisait plus RIEN -- le badge Epoch/Loss
+// (qui reflète snap.epoch/snap.loss, constants pour toute capture) restait
+// alors figé indéfiniment, donnant l'impression que le clic n'avait plus
+// d'effet. Traverse maintenant la frontière vers la capture/époque
+// suivante (ou précédente, pour "◀ Étape", symétriquement jusqu'au DERNIER
+// événement de la capture précédente) -- un clic répété parcourt donc toute
+// la trace, epoch après epoch, exactement comme la lecture automatique.
 function stepSnap(dir) {
   const epochVal = EPOCHS[currentEpochIdx];
   const snap = epochSnapshots[epochVal][currentSnapIdxInEpoch];
   if (!snap) return;
   const total = snap.events.length;
-  stepIdx = Math.max(-1, Math.min(total-1, stepIdx+dir));
-  renderStep();
+  const next = stepIdx + dir;
+  if (next >= -1 && next <= total - 1) {
+    stepIdx = next;
+    renderStep();
+    return;
+  }
+  if (dir > 0) {
+    if (currentSnapIdxInEpoch < epochSnapshots[epochVal].length - 1) {
+      currentSnapIdxInEpoch++;
+      stepIdx = -1;
+      renderStep();
+    } else if (currentEpochIdx < EPOCHS.length - 1) {
+      currentEpochIdx++;
+      slider.value = currentEpochIdx;
+      epochInput.value = EPOCHS[currentEpochIdx];
+      currentSnapIdxInEpoch = 0;
+      stepIdx = -1;
+      updateLossMarker(currentEpochIdx);
+      renderStep();
+    }
+  } else {
+    if (currentSnapIdxInEpoch > 0) {
+      currentSnapIdxInEpoch--;
+      stepIdx = epochSnapshots[epochVal][currentSnapIdxInEpoch].events.length - 1;
+      renderStep();
+    } else if (currentEpochIdx > 0) {
+      currentEpochIdx--;
+      slider.value = currentEpochIdx;
+      epochInput.value = EPOCHS[currentEpochIdx];
+      const prevEpochVal = EPOCHS[currentEpochIdx];
+      currentSnapIdxInEpoch = epochSnapshots[prevEpochVal].length - 1;
+      stepIdx = epochSnapshots[prevEpochVal][currentSnapIdxInEpoch].events.length - 1;
+      updateLossMarker(currentEpochIdx);
+      renderStep();
+    }
+  }
+}
+let playSpeed = 300;
+function onSpeedChange() {
+  playSpeed = parseInt(document.getElementById('speedSlider').value);
+  document.getElementById('speedLabel').textContent = playSpeed + ' ms';
+  // Redémarre le minuteur avec le nouveau délai s'il tourne déjà -- sans ça, le
+  // réglage ne prendrait effet qu'au prochain tick (jusqu'à 800ms de retard perçu).
+  if (playing) { clearInterval(timer); timer = setInterval(playTick, playSpeed); }
+}
+function playTick() {
+  const epochVal = EPOCHS[currentEpochIdx];
+  const snap = epochSnapshots[epochVal][currentSnapIdxInEpoch];
+  if (!snap) return;
+  const total = snap.events.length;
+  if (stepIdx < total-1) {
+    stepIdx++;
+    renderStep();
+  } else {
+    if (currentSnapIdxInEpoch < epochSnapshots[epochVal].length-1) {
+      currentSnapIdxInEpoch++;
+      stepIdx = -1;
+      renderStep();
+    } else if (currentEpochIdx < EPOCHS.length-1) {
+      currentEpochIdx++;
+      slider.value = currentEpochIdx;
+      epochInput.value = EPOCHS[currentEpochIdx];
+      currentSnapIdxInEpoch = 0;
+      stepIdx = -1;
+      updateLossMarker(currentEpochIdx);
+      renderStep();
+    } else {
+      playing = false; clearInterval(timer);
+      const btn = document.getElementById('playBtn');
+      btn.textContent = '▶ Play'; btn.classList.add('primary');
+    }
+  }
 }
 function togglePlay() {
   playing = !playing;
@@ -1892,33 +2215,7 @@ function togglePlay() {
   btn.textContent = playing ? '⏸ Pause' : '▶ Play';
   btn.classList.toggle('primary', !playing);
   if (playing) {
-    timer = setInterval(() => {
-      const epochVal = EPOCHS[currentEpochIdx];
-      const snap = epochSnapshots[epochVal][currentSnapIdxInEpoch];
-      if (!snap) return;
-      const total = snap.events.length;
-      if (stepIdx < total-1) {
-        stepIdx++;
-        renderStep();
-      } else {
-        if (currentSnapIdxInEpoch < epochSnapshots[epochVal].length-1) {
-          currentSnapIdxInEpoch++;
-          stepIdx = -1;
-          renderStep();
-        } else if (currentEpochIdx < EPOCHS.length-1) {
-          currentEpochIdx++;
-          slider.value = currentEpochIdx;
-          epochInput.value = EPOCHS[currentEpochIdx];
-          currentSnapIdxInEpoch = 0;
-          stepIdx = -1;
-          updateLossMarker(currentEpochIdx);
-          renderStep();
-        } else {
-          playing = false; clearInterval(timer);
-          btn.textContent = '▶ Play'; btn.classList.add('primary');
-        }
-      }
-    }, 300);
+    timer = setInterval(playTick, playSpeed);
   } else { clearInterval(timer); }
 }
 function reset() {
