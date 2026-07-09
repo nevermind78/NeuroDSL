@@ -24,9 +24,16 @@ function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
                                  prune_frozen::Bool = false)
     ns = namespace
 
-    # 1. Réinitialiser TOUS les gradients
+    # 1. Réinitialiser les gradients -- même logique que backward_graph!, voir
+    # ce fichier pour l'explication complète : un paramètre réutilise son
+    # buffer (fill! à zéro) au lieu d'être nullifié, pour laisser accum_grad!
+    # accumuler in-place plutôt que réallouer.
     for (_, nd) in g.nodes[ns]
-        nd.gradient = nothing
+        if nd.is_param && nd.gradient !== nothing
+            fill!(nd.gradient, 0f0)
+        else
+            nd.gradient = nothing
+        end
         nd.backwarded = false
     end
 
@@ -55,16 +62,20 @@ function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
         # d'être jamais atteint ici pour un sous-arbre entièrement gelé.
         needs_bwd !== nothing && !needs_bwd[out_sym] && continue
         
-        # Récupérer le contexte forward
+        # Récupérer le contexte forward -- voir backward_graph! pour
+        # l'explication complète (priorité au ctx_store fourni, sinon
+        # reconstruction sans ré-exécution via _ctx_for_backward! avec repli
+        # automatique sur l'ancien comportement).
         ctx = get(ctx_store, out_sym, nothing)
         if ctx === nothing
-            ctx_tmp = CtxStore()
-            execute_rule!(g, rule; ctx_store=ctx_tmp, namespace=ns)
-            ctx = get(ctx_tmp, out_sym, Dict{Symbol,Any}())
+            ctx = _ctx_for_backward!(g, rule, ns)
         end
         
         # Calculer les gradients des entrées
         inputs_vals = [g.nodes[ns][s].value for s in rule.inputs]
+        # Voir backward_graph! pour l'explication : permet à :matmul/:linear
+        # d'accumuler directement dans le buffer de gradient d'un paramètre.
+        ctx[:_in_nodes] = [g.nodes[ns][s] for s in rule.inputs]
         grads = GRAD_RULES[rule.op](g.device, nd_out.gradient, ctx, inputs_vals)
         
         # Propager les gradients vers les entrées

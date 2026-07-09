@@ -149,6 +149,19 @@ function execute_rule!(g::NeuroGraph, rule::GraphRule;
     out_type  = _infer_output_type(rule.op, inputs_vals, rule.attrs)
 
     if out_node.value === nothing || size(out_node.value) != out_shape || eltype(out_node.value) != out_type
+        # Libération SYNCHRONE de l'ancien buffer plutôt que d'attendre le
+        # GC Julia (qui peut ne jamais tourner au milieu d'une boucle chaude
+        # -- ex. génération autorégressive à contexte croissant, où chaque
+        # nouvelle longueur réalloue toutes les activations en aval). Sûr
+        # par construction : ce nœud est invalide (sinon on ne serait pas
+        # dans cette branche de recalcul), donc son ancienne valeur n'est
+        # plus le résultat courant de rien -- tout code qui a besoin de
+        # conserver une activation en fait déjà une copie explicite
+        # (capture_activations, capture_snapshot -- vérifié). Jamais pour
+        # un paramètre (stockage stable, jamais réalloué ici de toute façon).
+        if out_node.value !== nothing && !out_node.is_param
+            Backend.free!(dev, out_node.value)
+        end
         out_node.value = Backend.zeros32(dev, out_shape...)
     end
     output_buffer = out_node.value
@@ -550,8 +563,17 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
             output_buffer .= x
         end
         if ctx_store !== nothing
-            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:mask => mask, :rate => rate))
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:mask => mask, :rate => rate, :training => training))
         end
+        # Persisté dans aux_data (survit d'un appel à l'autre, contrairement
+        # à ctx_store) pour que CTX_REBUILD (src/backward.jl) puisse relire
+        # le masque de CE forward précis pendant le backward, sans le
+        # retirer une seconde fois (ce qui donnerait un gradient incohérent
+        # avec la valeur forward réellement produite -- c'était le
+        # comportement de la ré-exécution avant ce fix).
+        out_node.aux_data[:dropout_mask] = mask
+        out_node.aux_data[:dropout_rate] = rate
+        out_node.aux_data[:dropout_training] = training
         return output_buffer
 
     elseif op == :slice_cols

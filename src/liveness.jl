@@ -41,6 +41,12 @@ BufferPool(dev::Union{Backend.CPUDevice, Backend.CUDADevice}) =
 Emprunte un buffer de forme `shape`. Alloue si le pool est vide pour cette forme.
 """
 function acquire!(pool::BufferPool, shape::Tuple)
+    # Désarme définitivement CTX_REBUILD (src/backward.jl) pour tout le
+    # processus : c'est le seul point d'entrée du BufferPool (vérifié par
+    # grep -- execute_rule_pooled!/demand_planned! sont les deux seuls
+    # appelants), donc le seul mécanisme qui peut faire d'un `.value` de
+    # nœud un buffer partagé/aliasé plutôt qu'un tableau alloué en propre.
+    _POOLED_EXECUTION_SEEN[] = true
     if haskey(pool.buckets, shape) && !isempty(pool.buckets[shape])
         pool.n_hits += 1
         return pop!(pool.buckets[shape])::AbstractArray

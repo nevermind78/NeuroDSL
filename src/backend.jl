@@ -29,7 +29,25 @@ module Backend
     device_of(x::Array) = CPUDevice()
     device_of(x)        = (CUDA_AVAILABLE && x isa CUDA.CuArray) ? CUDADevice() : CPUDevice()
 
+    """
+        free!(dev, x)
+
+    Rend la mémoire GPU de `x` au pool CUDA de façon SYNCHRONE, au lieu
+    d'attendre le prochain passage du GC Julia (qui peut ne jamais arriver au
+    milieu d'une boucle chaude). N'a d'effet que sur CUDA -- `x` doit ne plus
+    jamais être touché après cet appel : CUDA.jl lève une erreur claire en cas
+    d'usage après libération (pas de corruption silencieuse), à ne jamais
+    appeler sur un tableau encore référencé ailleurs (un cache/snapshot fait
+    toujours une copie explicite avant de conserver une valeur -- vérifié pour
+    tout le code du dépôt qui capture des activations).
+    """
+    free!(::CPUDevice, x) = nothing
+    function free!(::CUDADevice, x)
+        CUDA_AVAILABLE && x isa CUDA.CuArray && CUDA.unsafe_free!(x)
+        return nothing
+    end
+
     export CPUDevice, CUDADevice, active_device,
            zeros32, ones32, rand32, randn32,
-           to_device, to_cpu, device_of
+           to_device, to_cpu, device_of, free!
 end

@@ -31,12 +31,28 @@ GRAD_RULES[:matmul] = (dev,dy,ctx,inputs) -> begin
     tb = get(ctx,:trans_b,false)
     A  = get(ctx, :A, inputs[1])
     B  = inputs[2]
-    if tb
-        dA = dy * B
-        dB = (A' * dy)'
+    dA = tb ? dy * B : dy * B'
+
+    # Si B est un paramètre déjà pourvu d'un buffer de gradient persistant
+    # (voir la boucle de réinitialisation dans backward_graph!, qui ne nullifie
+    # plus les gradients de paramètres mais les remet à zéro en place),
+    # accumuler dB DIRECTEMENT dans ce buffer via mul! évite d'allouer un `dB`
+    # temporaire à chaque pas -- ce temporaire, jamais libéré avant le
+    # prochain GC, dominait le pic de mémoire mesuré
+    # (notebook/real_llm_vram_probe.jl). `dy'*A` est l'identité algébrique de
+    # `(A'*dy)'`, calculée directement par BLAS sans matérialiser de transposée
+    # intermédiaire.
+    in_nodes = get(ctx, :_in_nodes, nothing)
+    B_node = in_nodes === nothing ? nothing : in_nodes[2]
+    if B_node !== nothing && B_node.is_param && B_node.gradient !== nothing
+        if tb
+            mul!(B_node.gradient, dy', A, 1f0, 1f0)
+        else
+            mul!(B_node.gradient, A', dy, 1f0, 1f0)
+        end
+        dB = nothing
     else
-        dA = dy * B'
-        dB = A' * dy
+        dB = tb ? (A' * dy)' : A' * dy
     end
     (dA, dB)
 end
@@ -46,14 +62,29 @@ GRAD_RULES[:linear] = (dev, dy, ctx, inputs) -> begin
     dX = _buf!(ctx, :_buf_dX, X)
     mul!(dX, dy, W)                   # dX = dy * W
 
-    # Gradient de W : dy' * X
-    dW_calc = dy' * X
-    # Si la forme obtenue ne correspond pas à W, c'est que W avait été transposé
-    if size(dW_calc) != size(W)
-        dW_calc = dW_calc'
+    # Gradient de W : dy' * X -- même optimisation que :matmul (voir
+    # commentaire ci-dessus) : accumulation directe dans le buffer persistant
+    # du paramètre quand disponible, sinon repli sur le calcul classique
+    # (première passe jamais encore backpropée, ou appel hors du moteur
+    # d'entraînement standard).
+    in_nodes = get(ctx, :_in_nodes, nothing)
+    W_node = in_nodes === nothing ? nothing : in_nodes[2]
+    if W_node !== nothing && W_node.is_param && W_node.gradient !== nothing
+        if size(W) == (size(dy,2), size(X,2))
+            mul!(W_node.gradient, dy', X, 1f0, 1f0)
+        else
+            mul!(W_node.gradient, X', dy, 1f0, 1f0)   # (dy'*X)' == X'*dy
+        end
+        dW = nothing
+    else
+        dW_calc = dy' * X
+        # Si la forme obtenue ne correspond pas à W, c'est que W avait été transposé
+        if size(dW_calc) != size(W)
+            dW_calc = dW_calc'
+        end
+        dW = _buf!(ctx, :_buf_dW, W)
+        dW .= dW_calc
     end
-    dW = _buf!(ctx, :_buf_dW, W)
-    dW .= dW_calc
 
     if length(inputs) == 3
         b = inputs[3]
@@ -67,7 +98,20 @@ GRAD_RULES[:linear] = (dev, dy, ctx, inputs) -> begin
     end
 end
 
-GRAD_RULES[:add] = (dev,dy,ctx,inputs) -> (dy, dy)
+
+# ATTENTION : `dy` DOIT être dupliqué pour le second opérande. Les deux
+# entrées d'un `:add` reçoivent chacune `in_nd.gradient = grads[i]` (alias
+# direct, sans copie, pour les nœuds non-paramètres -- backward.jl, boucle
+# principale) : si les deux entrées partagent le MÊME objet tableau et que
+# l'une des deux reçoit ensuite une seconde contribution ailleurs dans la
+# boucle inverse via `.+=` (mutation en place), l'autre se retrouve
+# silencieusement corrompue. Sur la topologie actuelle d'un bloc Transformer
+# standard, l'ordre topologique inverse fait qu'aucune des deux ne survit
+# assez longtemps pour être mutée après coup -- mais c'est un hasard de
+# structure, pas une garantie, et un futur graphe avec un partage différent
+# briserait ça silencieusement. Un `copy(dy)` corrige la cause à la racine,
+# pour un coût négligeable comparé aux autres allocations de la passe.
+GRAD_RULES[:add] = (dev,dy,ctx,inputs) -> (dy, copy(dy))
 
 GRAD_RULES[:mul] = (dev,dy,ctx,inputs) -> begin
     buf1 = _buf!(ctx, :_buf_m1, dy)
@@ -180,6 +224,13 @@ GRAD_RULES[:sum_matrix] = (dev,dy,ctx,inputs) ->
 
 GRAD_RULES[:relu] = (dev,dy,ctx,inputs) -> (dy .* (inputs[1] .> 0f0),)
 GRAD_RULES[:dropout] = (dev,dy,ctx,inputs) -> begin
+    # En évaluation (training=false), le forward est l'identité -- le
+    # gradient doit donc passer inchangé, pas être filtré par un masque tiré
+    # au dernier forward d'ENTRAÎNEMENT (bug latent corrigé au passage : ce
+    # cas n'était jamais exercé puisqu'on ne backprop pas en évaluation,
+    # mais devient atteignable avec CTX_REBUILD qui persiste le masque
+    # au-delà d'un seul appel).
+    get(ctx, :training, true) || return (dy,)
     mask = ctx[:mask]; rate = ctx[:rate]
     (dy .* mask ./ (1f0 - rate),)
 end
@@ -285,6 +336,163 @@ GRAD_RULES[:cross_entropy] = (dev, dy, ctx, inputs) -> begin
     (dlogits, nothing)
 end
 
+# ══════════════════════════════════════════════════════════════════════════
+# CTX_REBUILD -- reconstruction du contexte de backward SANS ré-exécuter le
+# forward (voir _ctx_for_backward! ci-dessous). Chaque entrée reconstruit
+# exactement les clés que la GRAD_RULES correspondante lit, depuis
+# `rule.attrs` (statique), `aux_data` (persistant par nœud, écrit au
+# forward) ou les valeurs déjà connues des nœuds -- jamais en ré-exécutant
+# `_dispatch_op`. `nothing` en retour signale "je ne peux pas reconstruire
+# sûrement ici" et déclenche le repli (ré-exécution, comportement historique
+# inchangé) dans `_ctx_for_backward!`.
+#
+# Avant le fix, CHAQUE nœud du graphe ré-exécutait son forward pendant le
+# backward (ctx_store vide par défaut -> execute_rule! rappelé pour chaque
+# nœud) : ça doublait le calcul du backward ET allouait à nouveau les
+# copies défensives (`A_ctx = copy(A)`, src/dispatch.jl) à chaque pas,
+# jamais libérées avant le prochain GC -- une bonne part du pic mesuré sur
+# train_step (notebook/real_llm_vram_probe.jl). Un op non couvert ici
+# retombe automatiquement sur l'ancien comportement (aucune régression pour
+# les CUSTOM_OPS/@defop qui n'ont pas d'entrée dans ce registre).
+# ══════════════════════════════════════════════════════════════════════════
+const CTX_REBUILD = Dict{Symbol,Function}()
+
+# Armé (une fois pour tout le processus, jamais désarmé) dès que
+# `acquire!` (src/liveness.jl, seul point d'entrée du BufferPool -- vérifié
+# par grep, aucun autre appelant dans src/) est utilisé -- désactive
+# définitivement le chemin CTX_REBUILD, puisque c'est le seul mécanisme du
+# dépôt qui peut faire d'`out_node.value` un buffer partagé/aliasé plutôt
+# qu'un tableau alloué en propre pour ce nœud.
+const _POOLED_EXECUTION_SEEN = Ref(false)
+
+_ctx_empty(dev, rule, nd_out, inputs_vals) = Dict{Symbol,Any}()
+for op in (:add, :mul, :swiglu, :relu, :identity, :mse_loss, :sum_matrix, :linear)
+    CTX_REBUILD[op] = _ctx_empty
+end
+
+CTX_REBUILD[:matmul] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:trans_b => get(rule.attrs, :trans_b, false))
+
+CTX_REBUILD[:fused_matmul_add] = CTX_REBUILD[:matmul]
+CTX_REBUILD[:fused_qkv_projection] = CTX_REBUILD[:matmul]
+
+CTX_REBUILD[:fused_matmul_relu] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:trans_b => get(rule.attrs, :trans_b, false), :output => nd_out.value)
+CTX_REBUILD[:fused_matmul_add_relu] = CTX_REBUILD[:fused_matmul_relu]
+
+CTX_REBUILD[:rmsnorm] = (dev, rule, nd_out, inputs_vals) -> begin
+    rms_inv = get(nd_out.aux_data, :rms_inv, nothing)
+    (rms_inv === nothing || size(rms_inv, 1) != size(inputs_vals[1], 1)) && return nothing
+    Dict{Symbol,Any}(:rms_inv => rms_inv)
+end
+
+CTX_REBUILD[:softmax] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:output => nd_out.value)
+
+CTX_REBUILD[:scale_mask] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:scale => 1f0 / sqrt(Float32(get(rule.attrs, :d_head, size(inputs_vals[1], 2)))))
+
+CTX_REBUILD[:rope] = (dev, rule, nd_out, inputs_vals) -> begin
+    cos_a = get(nd_out.aux_data, :cos_a, nothing)
+    sin_a = get(nd_out.aux_data, :sin_a, nothing)
+    (cos_a === nothing || sin_a === nothing || size(cos_a, 1) != size(inputs_vals[1], 1)) && return nothing
+    Dict{Symbol,Any}(:cos_a => cos_a, :sin_a => sin_a, :half => size(inputs_vals[1], 2) ÷ 2)
+end
+
+CTX_REBUILD[:slice_cols] = (dev, rule, nd_out, inputs_vals) -> Dict{Symbol,Any}(
+    :start_col => get(rule.attrs, :start_col, 1),
+    :end_col   => get(rule.attrs, :end_col, size(inputs_vals[1], 2)),
+)
+
+CTX_REBUILD[:hcat_heads] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:d_head => size(inputs_vals[1], 2))
+
+CTX_REBUILD[:embedding] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:idx => Int.(vec(Array(inputs_vals[2]))))
+
+CTX_REBUILD[:cross_entropy] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:logits => inputs_vals[1], :labels => Int.(vec(inputs_vals[2])))
+
+# :dropout -- seul op où le contexte forward (le masque tiré aléatoirement)
+# n'est pas reconstructible depuis rule.attrs/les valeurs de nœuds : il DOIT
+# être persisté au forward (src/dispatch.jl, branche :dropout) puis relu
+# ici. Absence de persistance ou de correspondance de forme -> repli
+# ré-exécution (identique au comportement historique, y compris son bug
+# connu de masque non déterministe -- documenté, pas corrigé par ce fix).
+CTX_REBUILD[:dropout] = (dev, rule, nd_out, inputs_vals) -> begin
+    mask = get(nd_out.aux_data, :dropout_mask, nothing)
+    (mask === nothing || size(mask) != size(inputs_vals[1])) && return nothing
+    Dict{Symbol,Any}(:mask => mask, :rate => get(nd_out.aux_data, :dropout_rate, 0f0),
+                      :training => get(nd_out.aux_data, :dropout_training, true))
+end
+
+"""
+    _ctx_for_backward!(g, rule, ns) -> Dict{Symbol,Any}
+
+Contexte de backward pour `rule`, reconstruit SANS ré-exécuter le forward
+quand c'est prouvé sûr, avec repli automatique (ré-exécution, comportement
+historique inchangé) sinon. Trois garde-fous, tous nécessaires et vérifiés
+suffisants sur le chemin `demand!`/`backward_graph!` (qui n'utilise jamais
+`execute_rule_pooled!`/`demand_planned!`) :
+
+1. `_POOLED_EXECUTION_SEEN[]` : armé une fois pour toutes dès qu'un
+   `BufferPool` a été utilisé (`acquire!`, src/liveness.jl) -- le seul
+   chemin où `out_node.value` pourrait être un buffer partagé/aliasé plutôt
+   qu'un tableau alloué en propre pour ce nœud.
+2. Validité : `nd_out` doit être `valid` avec une `.value` non nulle --
+   garantit que c'est bien la valeur du forward qui a produit la perte en
+   cours de backward, pas un résidu d'un appel antérieur. Pour une ENTRÉE,
+   ce contrôle ne s'applique que si elle a elle-même une règle (un nœud
+   dérivé peut être périmé) -- une feuille (`set!`, sans règle) n'a pas
+   cette notion : `_invalidate_downstream!` marque `valid=false` sur TOUTE
+   feuille dès qu'elle est affectée (`src/graph_api.jl:60,82`) et rien ne le
+   remet jamais à `true` (le parcours de `demand!` ignore les nœuds sans
+   règle, `src/dispatch.jl:661`) -- exiger `valid` sur une feuille
+   désactiverait le rebuild pour quasiment tout graphe réel (la toute
+   première couche consomme toujours directement une feuille). Sa valeur
+   reste par construction celle du dernier `set!`, jamais périmée entre un
+   forward et son backward (rien ne rappelle `set!` entre les deux dans un
+   pas d'entraînement normal).
+3. Garde d'alias explicite : `nd_in.value !== nd_out.value` pour chaque
+   entrée -- filet de sécurité direct contre le scénario que la copie
+   défensive `A_ctx = copy(A)` de `_dispatch_op` protège au forward (le
+   rebuild lit `inputs_vals` au lieu de cette copie ; si jamais un alias
+   existait malgré la garde 1, il serait quand même détecté ici).
+"""
+function _ctx_for_backward!(g::NeuroGraph, rule::GraphRule, ns::Symbol)
+    out_sym = rule.output
+    nd_out  = g.nodes[ns][out_sym]
+    rebuild = get(CTX_REBUILD, rule.op, nothing)
+
+    if rebuild !== nothing && !_POOLED_EXECUTION_SEEN[] &&
+       nd_out.valid && nd_out.value !== nothing
+        safe = true
+        for s in rule.inputs
+            nd_in = g.nodes[ns][s]
+            if nd_in.value === nothing || nd_in.value === nd_out.value
+                safe = false
+                break
+            end
+            if haskey(g.rules[ns], s) && !nd_in.valid
+                safe = false   # nœud DÉRIVÉ potentiellement périmé -- une feuille n'a pas cette notion (voir docstring)
+                break
+            end
+        end
+        if safe
+            inputs_vals = AbstractArray{Float32}[g.nodes[ns][s].value for s in rule.inputs]
+            ctx = rebuild(g.device, rule, nd_out, inputs_vals)
+            ctx !== nothing && return ctx
+        end
+    end
+
+    # Repli : comportement historique (ré-exécution complète du forward pour
+    # ce nœud) -- couvre les CUSTOM_OPS/@defop sans entrée CTX_REBUILD, les
+    # gardes échouées, et tout usage du buffer pool.
+    ctx_tmp = CtxStore()
+    execute_rule!(g, rule; ctx_store=ctx_tmp, namespace=ns)
+    return get(ctx_tmp, out_sym, Dict{Symbol,Any}())
+end
+
 """
     _compute_needs_bwd(g, ns) -> Dict{Symbol,Bool}
 
@@ -334,9 +542,20 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
     end
     ns = namespace
 
-    # Réinitialisation des gradients
+    # Réinitialisation des gradients : un nœud paramètre RÉUTILISE son buffer
+    # existant (fill! à zéro) plutôt que d'être nullifié. Nullifier forçait
+    # `accum_grad!` à réallouer (`similar`+copie) à la prochaine accumulation
+    # ET laissait l'ancien buffer résident en VRAM jusqu'au prochain GC (Julia
+    # ne libère jamais la mémoire CUDA de façon synchrone) -- deux allocations
+    # fantômes par paramètre à chaque pas, dominant le pic mesuré (voir
+    # notebook/real_llm_vram_probe.jl). Un nœud non-paramètre reste nullifié :
+    # son gradient est de toute façon jeté par le nettoyage final ci-dessous.
     for (_, nd) in g.nodes[ns]
-        nd.gradient = nothing
+        if nd.is_param && nd.gradient !== nothing
+            fill!(nd.gradient, 0f0)
+        else
+            nd.gradient = nothing
+        end
         nd.backwarded = false
     end
 
@@ -377,15 +596,23 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
         # rien à ajouter côté appelant.
         log !== nothing && log_event!(log, out_sym, "backward", "starting")
 
-        # Récupération du contexte (exécute forward si nécessaire)
+        # Récupération du contexte : priorité absolue à un ctx_store fourni
+        # explicitement par l'appelant (zéro changement pour ce cas -- ex.
+        # grad_check et tout code qui thread un ctx partagé entre forward et
+        # backward) ; sinon reconstruction sans ré-exécution du forward
+        # quand c'est prouvé sûr (_ctx_for_backward!), avec repli automatique
+        # (comportement historique) sinon.
         ctx = get(ctx_store, out_sym, nothing)
         if ctx === nothing
-            ctx_tmp = CtxStore()
-            execute_rule!(g, rule; ctx_store=ctx_tmp, namespace=ns)
-            ctx = get(ctx_tmp, out_sym, Dict{Symbol,Any}())
+            ctx = _ctx_for_backward!(g, rule, ns)
         end
 
         inputs_vals = [g.nodes[ns][s].value for s in rule.inputs]
+        # Exposé aux GRAD_RULES (ex. :matmul, :linear) qui veulent accumuler
+        # directement dans le buffer de gradient d'un paramètre plutôt que de
+        # retourner un tableau temporaire -- ignoré par toute règle qui ne
+        # regarde pas cette clé, donc sans effet sur les règles existantes.
+        ctx[:_in_nodes] = [g.nodes[ns][s] for s in rule.inputs]
         grads = GRAD_RULES[rule.op](g.device, nd_out.gradient, ctx, inputs_vals)
 
         for (i, in_sym) in enumerate(rule.inputs)
