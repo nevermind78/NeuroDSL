@@ -11,6 +11,7 @@ using NeuroDSL
     include(joinpath(test_dir, "test_kernels.jl"))
     include(joinpath(test_dir, "test_backward.jl"))
     include(joinpath(test_dir, "test_ctx_rebuild.jl"))
+    include(joinpath(test_dir, "test_grad_pool.jl"))
     include(joinpath(test_dir, "test_enzyme_oracle.jl"))
     include(joinpath(test_dir, "test_compiler.jl"))
     include(joinpath(test_dir, "test_layers.jl"))

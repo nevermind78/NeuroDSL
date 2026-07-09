@@ -1,10 +1,32 @@
 
+"""
+    GRAD_POOL_ENABLED
+
+Interrupteur global : si `true` (défaut), les tampons de gradient/scratch
+du backward sont emprunté à un `GradPool` par graphe (voir `grad_pool.jl`)
+au lieu d'être alloués frais à chaque appel de `_buf!`/`_buf_zeros!`.
+`false` restaure exactement le comportement historique (allocation GC pure)
+-- utilisé par `test/test_grad_pool.jl` pour comparer les deux chemins
+bit-à-bit, et comme repli immédiat en cas de doute.
+"""
+const GRAD_POOL_ENABLED = Ref(true)
+
 @inline function _buf!(ctx, key, proto)
+    gpool = get(ctx, :_gpool, nothing)
+    if gpool !== nothing
+        return grad_acquire!(gpool, size(proto))
+    end
     haskey(ctx, key) && return ctx[key]
     return (ctx[key] = similar(proto))
 end
 
 @inline function _buf_zeros!(ctx, key, dev, dims)
+    gpool = get(ctx, :_gpool, nothing)
+    if gpool !== nothing
+        buf = grad_acquire!(gpool, dims)
+        fill!(buf, 0f0)
+        return buf
+    end
     haskey(ctx, key) && return ctx[key]
     return (ctx[key] = Backend.zeros32(dev, dims...))
 end
@@ -31,7 +53,17 @@ GRAD_RULES[:matmul] = (dev,dy,ctx,inputs) -> begin
     tb = get(ctx,:trans_b,false)
     A  = get(ctx, :A, inputs[1])
     B  = inputs[2]
-    dA = tb ? dy * B : dy * B'
+    # dA emprunté au pool de gradients quand actif (voir grad_pool.jl) --
+    # sinon la même allocation BLAS fraîche qu'avant (`dy*B`/`dy*B'`), jamais
+    # libérée avant le prochain GC. `mul!` calcule directement dans le
+    # tampon emprunté, sans étape intermédiaire.
+    gpool = get(ctx, :_gpool, nothing)
+    if gpool !== nothing
+        dA = grad_acquire!(gpool, size(A))
+        tb ? mul!(dA, dy, B) : mul!(dA, dy, B')
+    else
+        dA = tb ? dy * B : dy * B'
+    end
 
     # Si B est un paramètre déjà pourvu d'un buffer de gradient persistant
     # (voir la boucle de réinitialisation dans backward_graph!, qui ne nullifie
@@ -99,19 +131,22 @@ GRAD_RULES[:linear] = (dev, dy, ctx, inputs) -> begin
 end
 
 
-# ATTENTION : `dy` DOIT être dupliqué pour le second opérande. Les deux
-# entrées d'un `:add` reçoivent chacune `in_nd.gradient = grads[i]` (alias
-# direct, sans copie, pour les nœuds non-paramètres -- backward.jl, boucle
-# principale) : si les deux entrées partagent le MÊME objet tableau et que
-# l'une des deux reçoit ensuite une seconde contribution ailleurs dans la
-# boucle inverse via `.+=` (mutation en place), l'autre se retrouve
-# silencieusement corrompue. Sur la topologie actuelle d'un bloc Transformer
-# standard, l'ordre topologique inverse fait qu'aucune des deux ne survit
-# assez longtemps pour être mutée après coup -- mais c'est un hasard de
+# ATTENTION : les DEUX opérandes doivent être des copies indépendantes de
+# `dy`, jamais `dy` lui-même. Les deux entrées d'un `:add` reçoivent chacune
+# `in_nd.gradient = grads[i]` (alias direct, sans copie, pour les nœuds
+# non-paramètres -- backward.jl, boucle principale) : si l'une des deux
+# partage le MÊME objet que `dy` (= `nd_out.gradient`), et que `nd_out` lui-
+# même est ensuite recyclé (mutation `.+=` ailleurs dans la boucle inverse,
+# OU rendu à un pool de buffers), l'entrée se retrouve silencieusement
+# corrompue -- elle croit encore posséder ce tableau alors qu'il a changé de
+# mains. Sur la topologie actuelle d'un bloc Transformer standard, l'ordre
+# topologique inverse fait qu'aucune des deux entrées ne survit assez
+# longtemps pour être touchée après coup -- mais c'est un hasard de
 # structure, pas une garantie, et un futur graphe avec un partage différent
-# briserait ça silencieusement. Un `copy(dy)` corrige la cause à la racine,
-# pour un coût négligeable comparé aux autres allocations de la passe.
-GRAD_RULES[:add] = (dev,dy,ctx,inputs) -> (dy, copy(dy))
+# (ou un mécanisme de réutilisation de buffer côté gradient) briserait ça
+# silencieusement. Deux `copy(dy)` corrigent la cause à la racine, pour un
+# coût négligeable comparé aux autres allocations de la passe.
+GRAD_RULES[:add] = (dev,dy,ctx,inputs) -> (copy(dy), copy(dy))
 
 GRAD_RULES[:mul] = (dev,dy,ctx,inputs) -> begin
     buf1 = _buf!(ctx, :_buf_m1, dy)
@@ -560,8 +595,16 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
     end
 
     ln = node(g, loss_sym; namespace=ns)
-    # Initialisation du gradient de la perte à 1 (scalaire)
-    ln.gradient = Backend.ones32(g.device, size(ln.value)...)
+    gpool = GRAD_POOL_ENABLED[] ? _grad_pool_for(g) : nothing
+    # Initialisation du gradient de la perte à 1 (scalaire) -- emprunté au
+    # pool comme tout le reste si actif, pour que sa libération en fin de
+    # boucle (nd_out.is_param est faux pour la perte) le rende bien.
+    if gpool !== nothing
+        ln.gradient = grad_acquire!(gpool, size(ln.value))
+        fill!(ln.gradient, 1f0)
+    else
+        ln.gradient = Backend.ones32(g.device, size(ln.value)...)
+    end
     ln.backwarded = false
 
     needs_bwd = prune_frozen ? _compute_needs_bwd(g, ns) : nothing
@@ -613,7 +656,11 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
         # retourner un tableau temporaire -- ignoré par toute règle qui ne
         # regarde pas cette clé, donc sans effet sur les règles existantes.
         ctx[:_in_nodes] = [g.nodes[ns][s] for s in rule.inputs]
-        grads = GRAD_RULES[rule.op](g.device, nd_out.gradient, ctx, inputs_vals)
+        # Pool de gradients (voir grad_pool.jl) : lu par _buf!/_buf_zeros!
+        # pour emprunter leurs tampons scratch au lieu d'allouer frais.
+        ctx[:_gpool] = gpool
+        dy_val = nd_out.gradient   # conservé : nd_out.gradient peut être réaffecté plus bas
+        grads = GRAD_RULES[rule.op](g.device, dy_val, ctx, inputs_vals)
 
         for (i, in_sym) in enumerate(rule.inputs)
             in_nd = g.nodes[ns][in_sym]
@@ -622,11 +669,26 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
                 # pas assigner de gradient ici. C'est ce skip (pas la garde
                 # défensive plus haut) qui empêche réellement in_sym d'être
                 # revisité plus loin dans la boucle inverse -- in_nd.backwarded
-                # reste false, cohérent avec "jamais touché".
+                # reste false, cohérent avec "jamais touché". `grads[i]` n'est
+                # alors JAMAIS adopté par personne : le rendre au pool ici est
+                # ce qui ferme la fuite `prune_frozen` trouvée à l'audit --
+                # sans ce `continue`, `_buf!` n'aurait même pas dû l'emprunter,
+                # mais le calcul de la règle est déjà fait à ce stade.
+                if gpool !== nothing && grads[i] !== nothing && grad_owns(gpool, grads[i])
+                    grad_release!(gpool, grads[i])
+                end
                 continue
             end
             if in_nd.is_param
+                # accum_grad! ne conserve JAMAIS grads[i] tel quel : soit une
+                # copie fraîche (`similar`+`.=`) à la première écriture, soit
+                # une accumulation en place (`.+=`) ensuite -- dans les deux
+                # cas, grads[i] lui-même devient orphelin juste après, donc
+                # toujours sûr à rendre au pool ici.
                 accum_grad!(in_nd, grads[i])
+                if gpool !== nothing && grads[i] !== nothing && grad_owns(gpool, grads[i])
+                    grad_release!(gpool, grads[i])
+                end
             else
                 # Nœud non entraînable (poids gelé ou activation intermédiaire) :
                 # son gradient ne sert qu'à propager plus loin, jamais à un pas
@@ -641,9 +703,17 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
                 # dernière contribution -- backward_graph_sparse! avait ce
                 # risque avec une simple affectation à chaque fois.
                 if in_nd.gradient === nothing
-                    in_nd.gradient = grads[i]
+                    in_nd.gradient = grads[i]   # ADOPTION -- ne jamais relâcher ici, in_nd en devient propriétaire
                 else
+                    # PAS d'adoption : `.+=` copie le CONTENU dans le buffer déjà
+                    # possédé par in_nd, `grads[i]` lui-même devient orphelin --
+                    # c'est exactement la fuite fan-out trouvée à l'audit sur la
+                    # première ébauche (comptage par objectid) : ici on la
+                    # referme en le rendant explicitement au pool.
                     in_nd.gradient .+= grads[i]
+                    if gpool !== nothing && grad_owns(gpool, grads[i])
+                        grad_release!(gpool, grads[i])
+                    end
                 end
             end
             in_nd.backwarded = true
@@ -657,9 +727,18 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
             end
         end
 
-        # Libération du gradient de sortie s'il n'est pas un paramètre
+        # Libération du gradient de sortie s'il n'est pas un paramètre.
+        # `dy_val` (= l'ancien nd_out.gradient) n'est rendu au pool QUE s'il
+        # n'a été adopté par AUCUNE entrée -- seul :identity retourne `dy`
+        # inchangé comme un de ses grads (:add a été corrigé pour toujours
+        # copier), donc cette adoption reste un cas rare mais réel à
+        # détecter, pas à supposer absent.
         nd_out.backwarded = true
         if !nd_out.is_param
+            if gpool !== nothing && dy_val !== nothing && grad_owns(gpool, dy_val)
+                adopted = any(s -> g.nodes[ns][s].gradient === dy_val, rule.inputs)
+                adopted || grad_release!(gpool, dy_val)
+            end
             nd_out.gradient = nothing
         end
     end
@@ -668,11 +747,18 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
     # labels :y) n'est jamais visitée comme nd_out ci-dessus puisqu'elle n'a
     # pas de règle -- sans ce passage, son gradient temporaire ne serait
     # jamais libéré. Redondant mais inoffensif pour les nœuds déjà nettoyés
-    # plus haut.
+    # plus haut. Si son gradient est issu du pool (adopté depuis un
+    # consommateur mais jamais revisité comme nd_out, puisque les feuilles
+    # n'ont pas de règle), le rendre ici plutôt que de juste larguer la
+    # référence -- c'est le second site de fuite trouvé à l'audit.
     for (_, nd) in g.nodes[ns]
         if !nd.is_param
+            if gpool !== nothing && nd.gradient !== nothing && grad_owns(gpool, nd.gradient)
+                grad_release!(gpool, nd.gradient)
+            end
             nd.gradient = nothing
         end
     end
+    @assert gpool === nothing || isempty(gpool.lent) "GradPool : $(length(gpool.lent)) tampon(s) encore prêté(s) en fin de passe -- fuite de propriété"
     return g
 end
