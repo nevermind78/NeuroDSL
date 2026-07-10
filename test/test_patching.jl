@@ -469,4 +469,80 @@
             @test true
         end
     end
+
+    @testset "greedy_patch_search! : un site retenu reste épinglé quand un candidat amont est testé (régression 2026-07-10)" begin
+        # Bug trouvé et corrigé le 2026-07-10 : la boucle interne de
+        # greedy_patch_search! testait chaque candidat via un seul
+        # `patch_node!(cand,...)`, sans jamais réappliquer les patches des
+        # sites déjà retenus (`selected`). Si `cand` est en AMONT d'un site
+        # déjà retenu, `_invalidate_downstream!` invalide ce site en cascade,
+        # et le `demand!` suivant le RECALCULE depuis sa propre règle --
+        # effaçant silencieusement sa contribution pendant la mesure de la
+        # "recovery jointe". Sur une structure résiduelle (le site retenu
+        # dépend aussi d'une entrée directe non patchée), la recovery
+        # jointe mesurée collapsait vers la recovery du candidat SEUL,
+        # avec un écart de 0.66 par rapport à la vraie recovery jointe.
+        #
+        # Graphe minimal reproduisant exactement le cas : :a (amont) ->
+        # :b = :a + :skip(:input) (résiduel, :skip jamais patché) -> :out.
+        # Patcher :b seul donne déjà recovery=1.0 (il précède directement
+        # :out) -- donc :b est sélectionné en round 1 (comme un site aval
+        # proche de la sortie l'est généralement dans un vrai circuit).
+        # Round 2 teste :a, en amont de :b -- exactement le cas piège.
+        ns = :greedy_pin_regression
+        Random.seed!(2)
+        g = NeuroDSL.NeuroGraph(namespace=ns, device=dev)
+        NeuroDSL.set!(g, :Wa, randn(Float32,8,8); is_param=true, namespace=ns)
+        NeuroDSL.set!(g, :Wskip, randn(Float32,8,8); is_param=true, namespace=ns)
+        NeuroDSL.set!(g, :Wout, randn(Float32,8,8); is_param=true, namespace=ns)
+
+        X_clean = randn(Float32, 8, 8)
+        NeuroDSL.set!(g, :input, X_clean; namespace=ns)
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:a, [:input, :Wa], :matmul; namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:skip, [:input, :Wskip], :matmul; namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:b, [:a, :skip], :add; namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:out, [:b, :Wout], :matmul; namespace=ns))
+
+        clean_output = copy(NeuroDSL.demand!(g, :out; namespace=ns))
+        clean_cache  = NeuroDSL.capture_activations(g, ns)
+        X_corrupt = copy(X_clean); X_corrupt[1, :] .= randn(Float32, 8)
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns)
+        corrupted_output = copy(NeuroDSL.demand!(g, :out; namespace=ns))
+        corrupted_cache  = NeuroDSL.capture_activations(g, ns)
+
+        # Reproduction directe de la séquence interne de greedy_patch_search!
+        # après sélection de :b (round 1) puis test de :a (round 2) :
+        # patch_nodes! doit garder :b épinglé pendant toute la mesure.
+        NeuroDSL.patch_node!(g, :b, clean_cache; namespace=ns)
+        NeuroDSL.demand!(g, :out; namespace=ns)
+        b_pinned = copy(NeuroDSL.node(g, :b; namespace=ns).value)
+
+        NeuroDSL.patch_nodes!(g, [:b, :a], clean_cache; namespace=ns)
+        out_joint = NeuroDSL.demand!(g, :out; namespace=ns)
+        b_after = copy(NeuroDSL.node(g, :b; namespace=ns).value)
+
+        @test b_after == b_pinned   # :b n'a jamais été effacé par le patch de :a
+
+        r_joint_measured = NeuroDSL.recovery_metric(out_joint, clean_output, corrupted_output)
+
+        # Vérité terrain : recovery réelle de {:a,:b} patchés ensemble depuis
+        # un état frais (aucun recalcul intermédiaire ne peut s'y glisser).
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns)
+        NeuroDSL.invalidate_all!(g; namespace=ns)
+        NeuroDSL.demand!(g, :out; namespace=ns)
+        NeuroDSL.patch_nodes!(g, [:a, :b], clean_cache; namespace=ns)
+        out_true = NeuroDSL.demand!(g, :out; namespace=ns)
+        r_true = NeuroDSL.recovery_metric(out_true, clean_output, corrupted_output)
+
+        @test isapprox(r_joint_measured, r_true; atol=Float32(1e-5))
+        @test isapprox(r_true, 1.0; atol=Float32(1e-5))  # les deux patchés = corruption entièrement couverte
+
+        # Le vrai appel de greedy_patch_search! ne doit ni planter ni sous-évaluer.
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns)
+        NeuroDSL.invalidate_all!(g; namespace=ns)
+        NeuroDSL.demand!(g, :out; namespace=ns)
+        selected, trajectory = NeuroDSL.greedy_patch_search!(g, :out, [:a, :b], clean_cache, corrupted_cache,
+                                                               clean_output, corrupted_output; namespace=ns)
+        @test isapprox(trajectory[end].cumulative_recovery, 1.0; atol=Float32(1e-5))
+    end
 end

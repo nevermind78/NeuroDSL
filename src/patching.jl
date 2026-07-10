@@ -305,15 +305,47 @@ end
 # ══════════════════════════════════════════════════════════════════════════════
 
 """
+    _topo_sort_syms(g, ns, syms) -> Vector{Symbol}
+
+Trie `syms` selon leur position dans `topo_order!(g; namespace=ns)`
+(ancêtres avant descendants). Bug corrigé le 2026-07-10 (voir note ci-dessous
+sur `patch_nodes!`) : appliquer des patches ancêtre-descendant dans un ordre
+arbitraire laisse le dernier patch appliqué sujet à être invalidé et
+RECALCULÉ (pas juste marqué invalide) par un patch ultérieur situé en amont
+de lui -- ce tri garantit que le patch appliqué EN DERNIER pour un nœud donné
+est toujours celui d'un site qui n'a plus aucun ancêtre restant à patcher
+après lui dans la boucle.
+"""
+function _topo_sort_syms(g::NeuroGraph, ns::Symbol, syms)
+    order = topo_order!(g; namespace=ns)
+    pos = Dict{Symbol,Int}(s => i for (i, s) in enumerate(order))
+    return sort(collect(syms); by = s -> get(pos, s, typemax(Int)))
+end
+
+"""
     patch_nodes!(g, syms, cache; namespace=g.active_ns)
 
-Applique `patch_node!` à chaque symbole de `syms`, sans appeler `demand!`
+Applique `patch_node!` à chaque symbole de `syms`, dans l'ORDRE TOPOLOGIQUE
+(ancêtres avant descendants -- voir `_topo_sort_syms`), sans appeler `demand!`
 entre les deux -- l'appelant choisit quand demander la sortie, une seule
 fois pour l'ensemble des patches. L'union de leurs cônes en aval est gérée
 par le mécanisme d'invalidation existant, pas par cette fonction.
+
+Bug corrigé le 2026-07-10 (trouvé et vérifié par test avant correction,
+voir `test/test_patching.jl`) : si `syms` contenait un site aval PUIS un
+site amont (ordre non-topologique), patcher le site amont invalidait le
+site aval déjà patché, et le `demand!` de l'appelant le recalculait depuis
+sa propre règle -- effaçant silencieusement son patch, sans erreur. Ce
+n'était pas qu'un risque théorique : `greedy_patch_search!` sélectionne
+souvent un site aval AVANT de tester un site amont candidat (un site plus
+proche de la sortie a généralement une meilleure recovery individuelle,
+donc est choisi en premier) -- exactement le cas qui déclenche le bug. Sur
+un graphe à structure résiduelle (un site en aval avec une entrée directe
+non patchée en plus de l'entrée patchée en amont), l'écart mesuré était de
+0.66 sur l'échelle de recovery -- pas du bruit.
 """
 function patch_nodes!(g::NeuroGraph, syms, cache; namespace::Symbol=g.active_ns)
-    for sym in syms
+    for sym in _topo_sort_syms(g, namespace, syms)
         patch_node!(g, sym, cache; namespace=namespace)
     end
     return g
@@ -382,6 +414,22 @@ retenus (patch + mesure + `_adaptive_restore!`), retient celui qui maximise
 la récupération jointe si elle améliore le meilleur score courant, sinon
 s'arrête. Retourne `(selected, trajectory)` : la liste des sites retenus
 dans l'ordre choisi, et la trajectoire de récupération cumulée.
+
+Bug corrigé le 2026-07-10 (trouvé par analyse du code, confirmé par test
+avant correction) : la mesure "par-dessus les sites déjà retenus" ne
+réappliquait jamais leurs patches après le patch du candidat -- si le
+candidat testé était en amont d'un site déjà retenu, `patch_node!(cand,...)`
+invalidait ce site en aval, et le `demand!` suivant le RECALCULAIT depuis sa
+propre règle au lieu de garder sa valeur clean imposée, effaçant
+silencieusement sa contribution pendant la mesure de la "recovery jointe".
+Comme un site aval a généralement une meilleure recovery individuelle qu'un
+site amont (moins de recalcul corrompu entre lui et la sortie), il est
+souvent sélectionné en PREMIER par ce même algorithme -- le bug se déclenche
+donc précisément dans le cas d'usage nominal (composition ancêtre-descendant
+d'un circuit réel), pas dans un cas limite. Correctif : `patch_nodes!`
+(maintenant trié topologiquement, voir sa docstring) réapplique explicitement
+`selected` à chaque point de mutation, garantissant que tout site déjà
+retenu reste effectivement patché pendant toute mesure ultérieure.
 """
 function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
                                clean_cache, corrupted_cache, clean_output, corrupted_output;
@@ -397,12 +445,19 @@ function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
         best_recovery = best_so_far
         for cand in remaining
             cand_cone = _downstream_nodes(g, cand, namespace)
-            patch_node!(g, cand, clean_cache; namespace=namespace)
+            # Épingle le candidat ET tous les sites déjà retenus, ensemble,
+            # dans l'ordre topologique -- garantit que la mesure qui suit
+            # reflète VRAIMENT "cand + selected" tous patchés à clean, même
+            # si cand est en amont d'un site déjà retenu.
+            patch_nodes!(g, vcat(selected, [cand]), clean_cache; namespace=namespace)
             out = demand!(g, output_sym; namespace=namespace)
             r = recovery_metric(out, clean_output, corrupted_output)
 
             _adaptive_restore!(g, namespace, cand, cand_cone, selected_cone_union,
                                 corrupted_cache, output_sym)
+            # La restauration du candidat peut avoir ré-invalidé un site déjà
+            # retenu (même logique) -- le ré-épingler avant le candidat suivant.
+            isempty(selected) || patch_nodes!(g, selected, clean_cache; namespace=namespace)
 
             if r > best_recovery
                 best_recovery = r
@@ -412,10 +467,13 @@ function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
         best_site === nothing && break
 
         best_cone = _downstream_nodes(g, best_site, namespace)
-        patch_node!(g, best_site, clean_cache; namespace=namespace)
+        push!(selected, best_site)
+        # Réapplique TOUT `selected` (pas seulement `best_site`) dans l'ordre
+        # topologique -- laisse le graphe dans l'état "tous les sites retenus
+        # sont effectivement patchés" en précondition du round suivant.
+        patch_nodes!(g, selected, clean_cache; namespace=namespace)
         demand!(g, output_sym; namespace=namespace)
 
-        push!(selected, best_site)
         filter!(s -> s != best_site, remaining)
         union!(selected_cone_union, best_cone)
         best_so_far = best_recovery
