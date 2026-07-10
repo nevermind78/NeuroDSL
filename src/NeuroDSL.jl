@@ -9,6 +9,7 @@ include("types.jl")
 include("graph_api.jl")
 include("kernels.jl")
 include("dispatch.jl")
+include("demand_release.jl")
 include("grad_pool.jl")
 include("backward.jl")
 include("graph_data.jl")
@@ -38,11 +39,12 @@ export topo_order!, zero_grads!, invalidate_all!
 export backward_graph!, accum_grad!, GRAD_RULES, register_op!
 export rmsnorm_fwd!, rmsnorm_bwd!, swiglu_fwd!, swiglu_bwd!
 export softmax_fwd!, softmax_bwd!, cross_entropy_loss, cross_entropy_grad
-export mse_loss_fwd, mse_loss_bwd, adamw_step!
+export mse_loss_fwd, mse_loss_bwd, adamw_step!, adamw_step_batched!
 export GraphData, CPUTrainData, CUDATrainData, CheckpointData, MixedPrecData
 export auto_graphdata, graphdata_from_backend, get_device, fwd_precision, bwd_precision, supports_checkpointing, supports_mixed_precision, checkpoint_every
 export LivenessInterval, BufferPool, MemoryPlan, plan_memory!, demand_planned!, compute_liveness, pool_stats
 export GradPool, grad_acquire!, grad_release!, grad_owns, empty_grad_pool!
+export demand_release!, release_intermediates!
 export CheckpointSchedule, forward_with_checkpointing!, backward_with_checkpointing!
 export flash_attn_fwd!, flash_attn_bwd!, MultiHeadFlashAttention, flash_attn_fwd_cpu!, flash_attn_fwd_cpu_simple!, flash_attn_bwd_cpu!
 export cast_fp16, cast_fp32, LossScaleTracker, update!, backward_with_loss_scaling!, mixed_precision_step!

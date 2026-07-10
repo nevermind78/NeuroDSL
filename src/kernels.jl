@@ -521,9 +521,93 @@ if Backend.CUDA_AVAILABLE
         m2_vec = vec(m2)
         
         @cuda threads=threads blocks=blocks _adamw_fused_kernel!(
-            W_vec, dW_vec, m1_vec, m2_vec, 
-            Float32(lr), Float32(b1), Float32(b2), Float32(eps_v), 
+            W_vec, dW_vec, m1_vec, m2_vec,
+            Float32(lr), Float32(b1), Float32(b2), Float32(eps_v),
             Int32(t), Float32(clip), Float32(wd), n
+        )
+    end
+end
+
+# ── AdamW groupé (un seul lancement de kernel pour N tenseurs de paramètres,
+# au lieu d'un lancement par tenseur) -- même patron pointeur-brut-par-bloc
+# que `_multi_copy_kernel!` (src/patching.jl), corps de boucle copié verbatim
+# depuis `_adamw_fused_kernel!` ci-dessus pour garantir la bit-exactitude. ──
+adamw_step_batched!(::Backend.CPUDevice, Ws, dWs, m1s, m2s, lr, b1, b2, eps_v, t, clip, wd) =
+    for i in eachindex(Ws)
+        adamw_step!(Backend.CPUDevice(), Ws[i], dWs[i], m1s[i], m2s[i], lr, b1, b2, eps_v, t, clip, wd)
+    end
+
+if Backend.CUDA_AVAILABLE
+    function _multi_adamw_kernel!(ptrs::CUDA.CuDeviceVector{CUDA.CuPtr{Float32}},
+                                   lens::CUDA.CuDeviceVector{Int32}, N::Int32,
+                                   lr::Float32, b1::Float32, b2::Float32,
+                                   eps_v::Float32, t::Int32, clip::Float32, wd::Float32)
+        bid = blockIdx().x
+        n = Int(lens[bid])
+        Nn = Int(N)
+        W  = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[bid]), (n,))
+        dW = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[Nn + bid]), (n,))
+        m1 = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[2Nn + bid]), (n,))
+        m2 = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[3Nn + bid]), (n,))
+
+        t_f32 = Float32(t)
+        bc1 = 1f0 - b1^t_f32
+        bc2 = 1f0 - b2^t_f32
+
+        i = Int(threadIdx().x)
+        while i <= n
+            @inbounds begin
+                g_val = dW[i]
+                g_clip = max(-clip, min(clip, g_val))
+
+                m1_curr = m1[i]
+                m2_curr = m2[i]
+
+                m1_new = b1 * m1_curr + (1f0 - b1) * g_clip
+                m2_new = b2 * m2_curr + (1f0 - b2) * g_clip^2
+
+                m1[i] = m1_new
+                m2[i] = m2_new
+
+                mh = m1_new / bc1
+                vh = m2_new / bc2
+
+                w_curr = W[i]
+                w_new = w_curr * (1f0 - lr * wd) - lr * mh / (sqrt(vh) + eps_v)
+
+                W[i] = w_new
+                dW[i] = 0f0
+            end
+            i += Int(blockDim().x)
+        end
+        return
+    end
+
+    function adamw_step_batched!(::Backend.CUDADevice, Ws, dWs, m1s, m2s, lr, b1, b2, eps_v, t, clip, wd)
+        N = length(Ws)
+        @assert length(dWs) == N && length(m1s) == N && length(m2s) == N "adamw_step_batched! : Ws/dWs/m1s/m2s doivent avoir la même longueur"
+        N == 0 && return
+
+        lens = Int32.(length.(Ws))
+        ptrs = Vector{CUDA.CuPtr{Float32}}(undef, 4N)
+        for i in 1:N
+            ptrs[i]        = pointer(Ws[i])
+            ptrs[N + i]    = pointer(dWs[i])
+            ptrs[2N + i]   = pointer(m1s[i])
+            ptrs[3N + i]   = pointer(m2s[i])
+        end
+        ptrs_gpu = CUDA.CuArray(ptrs)
+        lens_gpu = CUDA.CuArray(lens)
+        threads = min(256, Int(maximum(lens)))
+
+        @cuda threads=threads blocks=N _multi_adamw_kernel!(
+            ptrs_gpu, lens_gpu, Int32(N),
+            Float32(lr), Float32(b1), Float32(b2), Float32(eps_v),
+            Int32(t), Float32(clip), Float32(wd)
         )
     end
 end
@@ -639,5 +723,112 @@ if Backend.CUDA_AVAILABLE
             out[row, col] = max(acc + bias[col], 0.0f0)
         end
         return nothing   # ← AJOUT INDISPENSABLE
+    end
+end
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Attention multi-têtes batchée (gemm_strided_batched) -- conçu avec Fable,
+# 2026-07-10. Remplace 4 lancements de kernel par tête par 1 seul, SANS copie
+# supplémentaire quand les entrées sont encore des vues zero-copy sur le même
+# tampon parent (`:view_cols`/`:head_view`, src/dispatch.jl) -- sinon repli sûr
+# par rassemblement (gather) dans un tampon frais, toujours correct.
+#
+# `_sibling_view_parent` détecte, par ARITHMÉTIQUE DE POINTEUR (pas en
+# inspectant les champs internes de SubArray, plus robuste aux versions
+# Julia/CUDA.jl), si `views[i]` est exactement la tranche contiguë attendue
+# (i-1)*item_shape[1]*item_shape[2] .. du même tableau parent. Si oui, un
+# simple `reshape` (zero-copy) du parent remplace le rassemblement.
+# ══════════════════════════════════════════════════════════════════════════════
+function _sibling_view_parent(views::AbstractVector, item_shape::Tuple{Int,Int})
+    n = length(views)
+    n == 0 && return nothing
+    v1 = views[1]
+    (v1 isa SubArray) || return nothing
+    p = parent(v1)
+    eltype(p) === Float32 || return nothing
+    esz = sizeof(Float32)
+    stride_elems = item_shape[1] * item_shape[2]
+    base = pointer(p)
+    for (i, v) in enumerate(views)
+        (v isa SubArray && parent(v) === p) || return nothing
+        size(v) == item_shape || return nothing
+        pointer(v) == base + (i - 1) * stride_elems * esz || return nothing
+    end
+    return p
+end
+
+function _gather3(heads::AbstractVector, a::Int, b::Int, H::Int, dev)
+    out = Backend.zeros32(dev, a, b, H)
+    for h in 1:H
+        out[:, :, h] .= heads[h]
+    end
+    return out
+end
+
+# ── Forward : batched_qk (Q·Kᵀ groupé sur les têtes) ──────────────────────
+function batched_qk_fwd!(::Backend.CPUDevice, output_buffer, q_heads::AbstractVector, k_heads::AbstractVector, d_head::Int)
+    for h in eachindex(q_heads)
+        LinearAlgebra.mul!(view(output_buffer, :, :, h), q_heads[h], k_heads[h]')
+    end
+end
+
+if Backend.CUDA_AVAILABLE
+    function batched_qk_fwd!(dev::Backend.CUDADevice, output_buffer, q_heads::AbstractVector, k_heads::AbstractVector, d_head::Int)
+        H = length(q_heads)
+        seq = size(q_heads[1], 1)
+        Qp = _sibling_view_parent(q_heads, (seq, d_head))
+        Kp = _sibling_view_parent(k_heads, (seq, d_head))
+        Q3 = Qp !== nothing ? reshape(Qp, seq, d_head, H) : _gather3(q_heads, seq, d_head, H, dev)
+        K3 = Kp !== nothing ? reshape(Kp, seq, d_head, H) : _gather3(k_heads, seq, d_head, H, dev)
+        CUDA.CUBLAS.gemm_strided_batched!('N', 'T', 1f0, Q3, K3, 0f0, output_buffer)
+    end
+end
+
+# ── Backward : batched_qk ──────────────────────────────────────────────────
+function _batched_qk_bwd!(::Backend.CPUDevice, dQ3, dK3, dC3, Q3, K3)
+    for h in axes(dC3, 3)
+        LinearAlgebra.mul!(view(dQ3, :, :, h), view(dC3, :, :, h), view(K3, :, :, h))
+        LinearAlgebra.mul!(view(dK3, :, :, h), view(dC3, :, :, h)', view(Q3, :, :, h))
+    end
+end
+
+if Backend.CUDA_AVAILABLE
+    function _batched_qk_bwd!(::Backend.CUDADevice, dQ3, dK3, dC3, Q3, K3)
+        CUDA.CUBLAS.gemm_strided_batched!('N', 'N', 1f0, dC3, K3, 0f0, dQ3)
+        CUDA.CUBLAS.gemm_strided_batched!('T', 'N', 1f0, dC3, Q3, 0f0, dK3)
+    end
+end
+
+# ── Forward : batched_pv (P·V groupé sur les têtes) ────────────────────────
+function batched_pv_fwd!(::Backend.CPUDevice, output_buffer, pr_heads::AbstractVector, v_heads::AbstractVector, d_head::Int)
+    for h in eachindex(pr_heads)
+        LinearAlgebra.mul!(view(output_buffer, :, :, h), pr_heads[h], v_heads[h])
+    end
+end
+
+if Backend.CUDA_AVAILABLE
+    function batched_pv_fwd!(dev::Backend.CUDADevice, output_buffer, pr_heads::AbstractVector, v_heads::AbstractVector, d_head::Int)
+        H = length(pr_heads)
+        seq = size(pr_heads[1], 1)
+        Pp = _sibling_view_parent(pr_heads, (seq, seq))
+        Vp = _sibling_view_parent(v_heads, (seq, d_head))
+        P3 = Pp !== nothing ? reshape(Pp, seq, seq, H) : _gather3(pr_heads, seq, seq, H, dev)
+        V3 = Vp !== nothing ? reshape(Vp, seq, d_head, H) : _gather3(v_heads, seq, d_head, H, dev)
+        CUDA.CUBLAS.gemm_strided_batched!('N', 'N', 1f0, P3, V3, 0f0, output_buffer)
+    end
+end
+
+# ── Backward : batched_pv ──────────────────────────────────────────────────
+function _batched_pv_bwd!(::Backend.CPUDevice, dP3, dV3, dO3, P3, V3)
+    for h in axes(dO3, 3)
+        LinearAlgebra.mul!(view(dP3, :, :, h), view(dO3, :, :, h), view(V3, :, :, h)')
+        LinearAlgebra.mul!(view(dV3, :, :, h), view(P3, :, :, h)', view(dO3, :, :, h))
+    end
+end
+
+if Backend.CUDA_AVAILABLE
+    function _batched_pv_bwd!(::Backend.CUDADevice, dP3, dV3, dO3, P3, V3)
+        CUDA.CUBLAS.gemm_strided_batched!('N', 'T', 1f0, dO3, V3, 0f0, dP3)
+        CUDA.CUBLAS.gemm_strided_batched!('T', 'N', 1f0, P3, dO3, 0f0, dV3)
     end
 end

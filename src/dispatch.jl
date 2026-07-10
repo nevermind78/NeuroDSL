@@ -32,6 +32,30 @@ function _store_ctx!(ctx::CtxStore, sym::Symbol, d::Dict)
     return nothing
 end
 
+# ── Ops de vue (zero-copy) : attention multi-têtes batchée ────────────────
+# `:view_cols` (tranche de colonnes 2D→2D) et `:head_view` (tranche 3D→2D le
+# long de la 3ème dimension) ne produisent JAMAIS de tampon possédé -- leur
+# `.value` alias directement le tampon du nœud parent. Interceptées AVANT le
+# bloc standard d'allocation dans `execute_rule!`/`execute_rule_pooled!` (voir
+# plus bas) -- jamais de `Backend.free!` sur leur valeur, jamais d'inférence
+# de forme standard nécessaire pour elles.
+const _VIEW_OPS = (:view_cols, :head_view)
+
+function _dispatch_view!(out_node::GraphNode, rule::GraphRule, inputs_vals, out_sym::Symbol, ctx_store)
+    if rule.op == :view_cols
+        x = inputs_vals[1]
+        s = rule.attrs[:start_col]; e = rule.attrs[:end_col]
+        out_node.value = view(x, :, s:e)
+        _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:start_col => s, :end_col => e))
+    elseif rule.op == :head_view
+        x = inputs_vals[1]
+        h = rule.attrs[:head]
+        out_node.value = view(x, :, :, h)
+        _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:head => h))
+    end
+    return nothing
+end
+
 # ── Shape inference ────────────────────────────────────────────────────
 function _infer_output_shape(op::Symbol, inputs, attrs)
     if op == :matmul
@@ -63,6 +87,15 @@ function _infer_output_shape(op::Symbol, inputs, attrs)
         return (1,)
     elseif op == :slice_cols
         return (size(inputs[1], 1), attrs[:end_col] - attrs[:start_col] + 1)
+    elseif op == :batched_qk
+        H = length(inputs) ÷ 2
+        seq = size(inputs[1], 1)
+        return (seq, seq, H)
+    elseif op == :batched_pv
+        H = length(inputs) ÷ 2
+        pr_heads = inputs[1:H]
+        v_heads = inputs[H+1:2H]
+        return (size(pr_heads[1], 1), size(v_heads[1], 2), H)
     elseif op == :cross_entropy
         return (1,)
     elseif op == :flash_attn
@@ -145,6 +178,20 @@ function execute_rule!(g::NeuroGraph, rule::GraphRule;
         inputs_vals[i] = g.nodes[ns][s].value::AbstractArray{Float32}
     end
 
+    if rule.op in _VIEW_OPS
+        _dispatch_view!(out_node, rule, inputs_vals, out_sym, ctx_store)
+        out_node.valid = true
+        if log !== nothing
+            val_grid = try
+                format_tensor_grid(out_node.value)
+            catch
+                Dict("shape" => "?", "rows" => Any[], "trunc_rows" => false, "trunc_cols" => false)
+            end
+            log_event!(log, out_sym, "forward", "finished", val_grid)
+        end
+        return out_node.value
+    end
+
     out_shape = _infer_output_shape(rule.op, inputs_vals, rule.attrs)
     out_type  = _infer_output_type(rule.op, inputs_vals, rule.attrs)
 
@@ -211,6 +258,12 @@ function execute_rule_pooled!(g::NeuroGraph, rule::GraphRule, pool;
     inputs_vals = out_node.aux_data[:_inputs_buf]::Vector{AbstractArray{Float32}}
     for (i, s) in enumerate(rule.inputs)
         inputs_vals[i] = g.nodes[ns][s].value::AbstractArray{Float32}
+    end
+
+    if rule.op in _VIEW_OPS
+        error("execute_rule_pooled! : les ops de vue (:$(rule.op)) ne sont pas compatibles avec BufferPool " *
+              "(aliasing non maîtrisé entre le tampon parent et le pool) -- utiliser demand!/backward_graph! " *
+              "(execute_rule!), pas compile()/CompiledPlan, sur un graphe avec attention batchée.")
     end
 
     out_shape = _infer_output_shape(rule.op, inputs_vals, rule.attrs)
@@ -585,6 +638,22 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
             _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
                 :start_col => s, :end_col => e))
         end
+        return output_buffer
+
+    elseif op == :batched_qk
+        H = length(inputs) ÷ 2
+        d_head = size(inputs[1], 2)
+        q_heads = @view inputs[1:H]
+        k_heads = @view inputs[H+1:2H]
+        batched_qk_fwd!(dev, output_buffer, q_heads, k_heads, d_head)
+        return output_buffer
+
+    elseif op == :batched_pv
+        H = length(inputs) ÷ 2
+        pr_heads = @view inputs[1:H]
+        v_heads = @view inputs[H+1:2H]
+        d_head = size(v_heads[1], 2)
+        batched_pv_fwd!(dev, output_buffer, pr_heads, v_heads, d_head)
         return output_buffer
     elseif op == :cross_entropy
         logits, labels_raw = inputs[1], inputs[2]

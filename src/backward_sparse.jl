@@ -21,7 +21,8 @@ Cette fonction est utile pour :
 function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
                                  ctx_store::CtxStore = CtxStore(),
                                  namespace::Symbol = g.active_ns,
-                                 prune_frozen::Bool = false)
+                                 prune_frozen::Bool = false,
+                                 release_values::Bool = BACKWARD_RELEASE_VALUES[])
     ns = namespace
 
     # 1. Réinitialiser les gradients -- même logique que backward_graph!, voir
@@ -39,6 +40,7 @@ function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
 
     # 2. Initialiser le gradient de la loss
     ln = g.nodes[ns][loss_sym]
+    ln.value === nothing && _freed_backward_error(loss_sym)
     @assert length(ln.value) == 1 "Loss must be scalar"
     ln.gradient = Backend.ones32(g.device, size(ln.value)...)
     ln.backwarded = false
@@ -61,7 +63,13 @@ function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
         # la garde symétrique côté entrées, plus bas, empêche déjà nd_out
         # d'être jamais atteint ici pour un sous-arbre entièrement gelé.
         needs_bwd !== nothing && !needs_bwd[out_sym] && continue
-        
+
+        # Garde-fou explicite -- voir backward_graph!/_freed_backward_error.
+        nd_out.value === nothing && _freed_backward_error(out_sym)
+        for s in rule.inputs
+            g.nodes[ns][s].value === nothing && _freed_backward_error(s)
+        end
+
         # Récupérer le contexte forward -- voir backward_graph! pour
         # l'explication complète (priorité au ctx_store fourni, sinon
         # reconstruction sans ré-exécution via _ctx_for_backward! avec repli
@@ -111,19 +119,31 @@ function backward_graph_sparse!(g::NeuroGraph, loss_sym::Symbol;
         # Nettoyer le contexte
         delete!(ctx_store, out_sym)
         nd_out.backwarded = true
-        
+
         # Libérer le gradient des nœuds intermédiaires
         if !nd_out.is_param
             nd_out.gradient = nothing
         end
+
+        # Libération de la valeur forward -- voir backward_graph! pour la
+        # preuve de sûreté (même point exact : fin de la propre visite).
+        release_values && _release_forward_value!(g, nd_out, ns, loss_sym)
     end
-    
+
     # 4. NETTOYAGE FINAL : effacer les gradients des paramètres gelés
     for (_, nd) in g.nodes[ns]
         if !nd.is_param
             nd.gradient = nothing
         end
     end
-    
+
+    if release_values
+        # Balayage final -- rattrape les nœuds sautés par les `continue` de
+        # la boucle (ligne 56/59/64 : pas de gradient entrant, pas de règle
+        # backward, ou prune_frozen) et donc jamais visités comme out_sym.
+        # Pas de GradPool dans ce chemin (non utilisé par backward_sparse!).
+        release_intermediates!(g; keep=Symbol[loss_sym], namespace=ns)
+    end
+
     return g
 end

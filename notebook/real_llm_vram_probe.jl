@@ -83,14 +83,14 @@ m1s = [NeuroDSL.Backend.zeros32(dev, size(p.value)...) for p in ps]
 m2s = [NeuroDSL.Backend.zeros32(dev, size(p.value)...) for p in ps]
 rng = MersenneTwister(1)
 
-function train_step!(t)
+function train_step!(t; release_values::Bool=false)
     tokens, labels = sample_window(rng, train_ids, block_size)
     NeuroDSL.set!(g, :token_ids, tokens; atom_type=NeuroDSL.Datom, namespace=ns)
     NeuroDSL.set!(g, :pos_ids, collect(1:block_size); atom_type=NeuroDSL.Datom, namespace=ns)
     NeuroDSL.set!(g, :labels, labels; atom_type=NeuroDSL.Datom, namespace=ns)
     NeuroDSL.invalidate_all!(g; namespace=ns)
     NeuroDSL.demand!(g, :loss; namespace=ns)
-    NeuroDSL.backward_graph!(g, :loss; namespace=ns)
+    NeuroDSL.backward_graph!(g, :loss; namespace=ns, release_values=release_values)
     for (i, p) in enumerate(ps)
         NeuroDSL.adamw_step!(dev, p.value, p.gradient, m1s[i], m2s[i], 1f-3, 0.9f0, 0.999f0, 1f-8, t, 1f0, 0f0)
     end
@@ -115,8 +115,31 @@ for trial in 1:5
             trial, baseline, peak, peak - baseline)
 end
 
+println("\n=== Épisode 'train_step' AVEC release_values=true (opt-in, BACKWARD_RELEASE_VALUES) ===")
+println("    -- libère les activations forward à la fin de la propre visite de chaque nœud")
+println("    -- pendant le backward, + vide les listes libres du GradPool en fin de passe")
+for t in 1:10; train_step!(200+t; release_values=true); end   # warm-up dédié à ce chemin
+quiesce()
+peaks_train_rv = Float64[]
+for trial in 1:5
+    quiesce()
+    baseline = pool_current_mb()
+    reset_high!()
+    train_step!(300 + trial; release_values=true)
+    CUDA.synchronize()
+    peak = pool_high_mb()
+    push!(peaks_train_rv, peak)
+    @printf("  essai %d : baseline=%.2f MB  pic=%.2f MB\n", trial, baseline, peak)
+end
+# Revenir au régime par défaut (release_values=false) pour les épisodes suivants.
+for t in 1:10; train_step!(400+t; release_values=false); end
+quiesce()
+
 println("\n=== Épisode 'val_window' : une fenêtre de validation (forward seul, t=256) ===")
+println("    -- demand_release! (src/demand_release.jl) : jamais suivi d'un backward")
+println("    -- ici, donc les activations intermédiaires sont libérées au fil du calcul")
 val_ids_probe = rand(1:vocab_size, 50_000)
+NeuroDSL.release_intermediates!(g; namespace=ns)   # solde les ~34 Mo laissés par le dernier train_step!
 quiesce()
 baseline_val = pool_current_mb()
 reset_high!()
@@ -126,18 +149,19 @@ NeuroDSL.set!(g, :token_ids, tokens; atom_type=NeuroDSL.Datom, namespace=ns)
 NeuroDSL.set!(g, :pos_ids, collect(1:block_size); atom_type=NeuroDSL.Datom, namespace=ns)
 NeuroDSL.set!(g, :labels, labels; atom_type=NeuroDSL.Datom, namespace=ns)
 NeuroDSL.invalidate_all!(g; namespace=ns)
-NeuroDSL.demand!(g, :loss; namespace=ns)
+NeuroDSL.demand_release!(g, :loss; namespace=ns)
 CUDA.synchronize()
 peak_val = pool_high_mb()
 @printf("  baseline=%.2f MB  pic=%.2f MB  (delta épisode=%.2f MB)\n", baseline_val, peak_val, peak_val - baseline_val)
 
 println("\n=== Épisode 'gen_token' pire cas : transition de forme t=255 -> t=256 ===")
+println("    -- demand_release! dans la boucle de génération")
 for t in 1:255
     ctx = ones(Int, t)
     NeuroDSL.set!(g, :token_ids, ctx; atom_type=NeuroDSL.Datom, namespace=ns)
     NeuroDSL.set!(g, :pos_ids, collect(1:t); atom_type=NeuroDSL.Datom, namespace=ns)
     NeuroDSL.invalidate_all!(g; namespace=ns)
-    NeuroDSL.demand!(g, logits_sym; namespace=ns)
+    NeuroDSL.demand_release!(g, logits_sym; namespace=ns)
 end
 quiesce()
 baseline_gen = pool_current_mb()
@@ -146,10 +170,18 @@ ctx256 = ones(Int, 256)
 NeuroDSL.set!(g, :token_ids, ctx256; atom_type=NeuroDSL.Datom, namespace=ns)
 NeuroDSL.set!(g, :pos_ids, collect(1:256); atom_type=NeuroDSL.Datom, namespace=ns)
 NeuroDSL.invalidate_all!(g; namespace=ns)
-NeuroDSL.demand!(g, logits_sym; namespace=ns)
+NeuroDSL.demand_release!(g, logits_sym; namespace=ns)
 CUDA.synchronize()
 peak_gen = pool_high_mb()
 @printf("  baseline=%.2f MB  pic=%.2f MB  (delta épisode=%.2f MB)\n", baseline_gen, peak_gen, peak_gen - baseline_gen)
+
+# Après demand_release!, le graphe `g` a des activations intermédiaires
+# manquantes -- OBLIGATOIRE de repasser par un demand!/backward_graph!
+# complet avant tout nouveau train_step! (sinon _freed_backward_error,
+# garde-fou explicite de src/backward.jl). Un simple demand! sur :loss
+# recalcule tout ce qui manque (valid=false partout après release), donc
+# le prochain train_step! (qui fait son propre set!+invalidate_all!+demand!)
+# repart de zéro correctement -- rien à faire de spécial ici.
 
 println("\n=== Vérification : la baseline reste-t-elle stable (pas de fuite) sur 100 pas de plus ? ===")
 for chunk in 1:4
@@ -161,8 +193,9 @@ end
 peak_vram_mb = maximum(vcat(peaks_train, [peak_val, peak_gen]))
 println()
 println("="^62)
-@printf("PIC VRAM RETENU (max des 3 épisodes) : %.2f MB\n", peak_vram_mb)
+@printf("PIC VRAM RETENU (défaut, release_values=false) : %.2f MB\n", peak_vram_mb)
 @printf("  train_step = %.2f MB | val_window = %.2f MB | gen_token = %.2f MB\n",
         peaks_train[end], peak_val, peak_gen)
+@printf("  train_step (opt-in release_values=true)        = %.2f MB\n", peaks_train_rv[end])
 @printf("Comparaison : PyTorch (torch.cuda.max_memory_allocated(), toute la boucle) = 73.6 MB\n")
 println("="^62)

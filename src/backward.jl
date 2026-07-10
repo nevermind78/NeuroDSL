@@ -11,6 +11,56 @@ bit-à-bit, et comme repli immédiat en cas de doute.
 """
 const GRAD_POOL_ENABLED = Ref(true)
 
+"""
+    BACKWARD_RELEASE_VALUES
+
+Interrupteur global (défaut `false` -- zéro changement pour tout appelant
+existant) : si `true`, `backward_graph!`/`backward_graph_sparse!` libèrent
+(`Backend.free!`) la valeur forward de chaque nœud non-paramètre juste après
+sa PROPRE visite dans la boucle inverse (pas après la visite de son
+consommateur -- voir la docstring de `backward_graph!` pour la preuve que
+c'est le point sûr : à ce moment, `nd_out.value` et les valeurs des entrées
+qu'on vient de lire ne seront JAMAIS relues par une itération ultérieure de
+CETTE passe, par construction du DAG). Cible le pic de `train_step` (les
+activations forward restent résidentes de la transition forward→backward
+jusqu'à la fin du backward sinon) -- n'a aucun effet sur un `demand!` seul
+(validation/génération, déjà couvert par `demand_release!`).
+
+Contrepartie mesurée : le PAS SUIVANT doit réallouer ces buffers au forward
+(`out_node.value === nothing` déclenche un `Backend.zeros32` frais,
+`src/dispatch.jl:151`) au lieu de réutiliser le buffer en place -- gain de
+pic contre un peu de churn d'allocation, à mesurer, pas à supposer. Sur CPU,
+`Backend.free!` est un no-op : ce mode n'a d'effet réel que sur CUDA.
+"""
+const BACKWARD_RELEASE_VALUES = Ref(false)
+
+@inline function _release_forward_value!(g::NeuroGraph, nd::GraphNode, ns::Symbol, loss_sym::Symbol)
+    (nd.is_param || nd.name === loss_sym || nd.value === nothing) && return
+    Backend.free!(g.device, nd.value)
+    nd.value = nothing
+    nd.valid = false
+end
+
+"""
+    _freed_backward_error(sym)
+
+Lève une erreur claire quand un backward rencontre une valeur forward
+manquante (`.value === nothing`) sur le chemin du gradient -- au lieu du
+crash cryptique qu'aurait produit `execute_rule!`/`size(nothing)` un peu
+plus loin. Le cas normal : `demand_release!`/`release_intermediates!`
+(`src/demand_release.jl`) ont libéré cette valeur en supposant qu'aucun
+backward ne suivrait sur ce namespace. Zéro faux positif attendu : après un
+`demand!` classique (jamais après `demand_release!`), tout nœud sur le
+chemin du gradient a une valeur résidente par construction.
+"""
+_freed_backward_error(sym::Symbol) = error(
+    "❌ Valeur forward de :$sym absente pour le backward -- libérée par " *
+    "demand_release!/release_intermediates! (ou jamais calculée). Refaire " *
+    "un demand!(g, loss_sym) complet avant backward_graph! sur ce " *
+    "namespace ; demand_release! est réservé aux passes qui ne seront " *
+    "JAMAIS suivies d'un backward_graph! (validation, génération)."
+)
+
 @inline function _buf!(ctx, key, proto)
     gpool = get(ctx, :_gpool, nothing)
     if gpool !== nothing
@@ -204,6 +254,62 @@ end
 GRAD_RULES[:hcat_heads] = (dev,dy,ctx,inputs) -> begin
     d = ctx[:d_head]
     tuple([dy[:, (i-1)*d+1 : i*d] for i in 1:length(inputs)]...)
+end
+
+# ── Attention multi-têtes batchée : GRAD_RULES pour les ops de vue et
+# les 2 matmuls groupés (conçu avec Fable, 2026-07-10, src/kernels.jl). ──
+GRAD_RULES[:view_cols] = (dev,dy,ctx,inputs) -> begin
+    dx = _buf_zeros!(ctx, :_buf_dx_view_cols, dev, size(inputs[1]))
+    dx .= 0f0
+    s, e = ctx[:start_col], ctx[:end_col]
+    dx[:, s:e] .= dy
+    (dx,)
+end
+
+GRAD_RULES[:head_view] = (dev,dy,ctx,inputs) -> begin
+    dx = _buf_zeros!(ctx, :_buf_dx_head_view, dev, size(inputs[1]))
+    dx .= 0f0
+    h = ctx[:head]
+    dx[:, :, h] .= dy
+    (dx,)
+end
+
+GRAD_RULES[:batched_qk] = (dev,dy,ctx,inputs) -> begin
+    H = length(inputs) ÷ 2
+    q_heads = inputs[1:H]
+    k_heads = inputs[H+1:2H]
+    seq = size(q_heads[1], 1); d_head = size(q_heads[1], 2)
+    Qp = _sibling_view_parent(q_heads, (seq, d_head))
+    Kp = _sibling_view_parent(k_heads, (seq, d_head))
+    Q3 = Qp !== nothing ? reshape(Qp, seq, d_head, H) : _gather3(q_heads, seq, d_head, H, dev)
+    K3 = Kp !== nothing ? reshape(Kp, seq, d_head, H) : _gather3(k_heads, seq, d_head, H, dev)
+    dQ3 = similar(Q3); dK3 = similar(K3)
+    _batched_qk_bwd!(dev, dQ3, dK3, dy, Q3, K3)
+    grads = Vector{Any}(undef, 2H)
+    for h in 1:H
+        grads[h]   = copy(view(dQ3, :, :, h))
+        grads[H+h] = copy(view(dK3, :, :, h))
+    end
+    tuple(grads...)
+end
+
+GRAD_RULES[:batched_pv] = (dev,dy,ctx,inputs) -> begin
+    H = length(inputs) ÷ 2
+    pr_heads = inputs[1:H]
+    v_heads = inputs[H+1:2H]
+    seq = size(pr_heads[1], 1); d_head = size(v_heads[1], 2)
+    Pp = _sibling_view_parent(pr_heads, (seq, seq))
+    Vp = _sibling_view_parent(v_heads, (seq, d_head))
+    P3 = Pp !== nothing ? reshape(Pp, seq, seq, H) : _gather3(pr_heads, seq, seq, H, dev)
+    V3 = Vp !== nothing ? reshape(Vp, seq, d_head, H) : _gather3(v_heads, seq, d_head, H, dev)
+    dP3 = similar(P3); dV3 = similar(V3)
+    _batched_pv_bwd!(dev, dP3, dV3, dy, P3, V3)
+    grads = Vector{Any}(undef, 2H)
+    for h in 1:H
+        grads[h]   = copy(view(dP3, :, :, h))
+        grads[H+h] = copy(view(dV3, :, :, h))
+    end
+    tuple(grads...)
 end
 
 if Backend.CUDA_AVAILABLE
@@ -442,6 +548,15 @@ CTX_REBUILD[:slice_cols] = (dev, rule, nd_out, inputs_vals) -> Dict{Symbol,Any}(
 CTX_REBUILD[:hcat_heads] = (dev, rule, nd_out, inputs_vals) ->
     Dict{Symbol,Any}(:d_head => size(inputs_vals[1], 2))
 
+CTX_REBUILD[:view_cols] = (dev, rule, nd_out, inputs_vals) -> Dict{Symbol,Any}(
+    :start_col => get(rule.attrs, :start_col, 1),
+    :end_col   => get(rule.attrs, :end_col, size(inputs_vals[1], 2)),
+)
+CTX_REBUILD[:head_view] = (dev, rule, nd_out, inputs_vals) ->
+    Dict{Symbol,Any}(:head => rule.attrs[:head])
+CTX_REBUILD[:batched_qk] = _ctx_empty
+CTX_REBUILD[:batched_pv] = _ctx_empty
+
 CTX_REBUILD[:embedding] = (dev, rule, nd_out, inputs_vals) ->
     Dict{Symbol,Any}(:idx => Int.(vec(Array(inputs_vals[2]))))
 
@@ -569,11 +684,12 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
                          full::Bool=true,
                          sparse::Bool = false,
                          prune_frozen::Bool = false,
+                         release_values::Bool = BACKWARD_RELEASE_VALUES[],
                          log::Union{Nothing, ExecutionLog}=nothing)
 
     if sparse
         return backward_graph_sparse!(g, loss_sym; ctx_store=ctx_store, namespace=namespace,
-                                       prune_frozen=prune_frozen)
+                                       prune_frozen=prune_frozen, release_values=release_values)
     end
     ns = namespace
 
@@ -595,6 +711,7 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
     end
 
     ln = node(g, loss_sym; namespace=ns)
+    ln.value === nothing && _freed_backward_error(loss_sym)
     gpool = GRAD_POOL_ENABLED[] ? _grad_pool_for(g) : nothing
     # Initialisation du gradient de la perte à 1 (scalaire) -- emprunté au
     # pool comme tout le reste si actif, pour que sa libération en fin de
@@ -626,6 +743,16 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
         # normalement jamais être prise — gardée pour robustesse.
         if needs_bwd !== nothing && !needs_bwd[out_sym]
             continue
+        end
+
+        # Garde-fou explicite (voir _freed_backward_error) : ce nœud est sur
+        # le chemin du gradient (il a un gradient non nul ci-dessus), donc sa
+        # valeur forward ET celles de ses entrées DOIVENT être résidentes --
+        # sauf si demand_release!/release_intermediates! les a libérées en
+        # supposant (à tort, ici) qu'aucun backward ne suivrait.
+        nd_out.value === nothing && _freed_backward_error(out_sym)
+        for s in rule.inputs
+            g.nodes[ns][s].value === nothing && _freed_backward_error(s)
         end
 
         if !haskey(GRAD_RULES, rule.op)
@@ -741,6 +868,19 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
             end
             nd_out.gradient = nothing
         end
+
+        # Libération de la VALEUR forward de Y=out_sym (BACKWARD_RELEASE_VALUES,
+        # voir sa docstring pour la preuve de sûreté) : au moment où cette
+        # itération se termine, ni `nd_out.value` ni les valeurs des entrées
+        # qu'on vient de lire ne seront jamais relus par une itération
+        # ultérieure de CETTE passe -- Y et ses entrées sont topologiquement
+        # antérieurs à tout ce qui reste à visiter dans la boucle inverse, et
+        # le repli de `_ctx_for_backward!` pour CETTE itération est déjà passé.
+        # Les entrées elles-mêmes ne sont PAS libérées ici : elles seront
+        # libérées à LEUR PROPRE visite (si elles ont une règle) ou par le
+        # balayage final ci-dessous (si elles sont sautées -- prune_frozen,
+        # op sans GRAD_RULES en mode sparse, etc.).
+        release_values && _release_forward_value!(g, nd_out, ns, loss_sym)
     end
 
     # Nettoyage final : une feuille non entraînable (ex. l'entrée :x ou les
@@ -760,5 +900,22 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
         end
     end
     @assert gpool === nothing || isempty(gpool.lent) "GradPool : $(length(gpool.lent)) tampon(s) encore prêté(s) en fin de passe -- fuite de propriété"
+
+    if release_values
+        # Balayage final (réutilise demand_release.jl) : rattrape tout nœud
+        # à règle jamais visité comme out_sym ci-dessus (nd_out.gradient
+        # resté nothing -- hors du chemin du gradient -- ou sauté par
+        # prune_frozen) et donc jamais libéré par _release_forward_value!.
+        release_intermediates!(g; keep=Symbol[loss_sym], namespace=ns)
+        # Vide les listes libres persistantes du GradPool : sans ça, les
+        # tampons de gradient/scratch restent résidents d'un pas à l'autre
+        # (c'est tout l'intérêt du pool pour LE CALCUL des gradients pendant
+        # UNE passe) et annulent une bonne part du gain de résidence qu'on
+        # vient de gagner sur les activations -- les deux volets ne sont
+        # rentables qu'ENSEMBLE (voir docstring de BACKWARD_RELEASE_VALUES).
+        # Le prochain pas les réacquiert depuis le cache du pool CUDA, pas
+        # depuis zéro (mêmes formes exactement).
+        gpool !== nothing && empty_grad_pool!(gpool)
+    end
     return g
 end
