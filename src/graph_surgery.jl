@@ -14,7 +14,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 """
-    insert_block!(g, ns, after_sym, dim, n_heads, hidden_dim; prefix) -> Symbol
+    insert_block!(g, ns, after_sym, dim, n_heads, hidden_dim; prefix, batched_attn) -> Symbol
 
 Insère un nouveau `LlamaBlock` juste après `after_sym` dans le flux résiduel,
 initialisé pour calculer l'IDENTITÉ EXACTE (voir ci-dessous), et rebranche tous
@@ -43,14 +43,20 @@ directement cette garantie.
 """
 function insert_block!(g::NeuroGraph, ns::Symbol, after_sym::Symbol,
                         dim::Int, n_heads::Int, hidden_dim::Int;
-                        prefix::Symbol=Symbol(:surgery_, after_sym))
+                        prefix::Symbol=Symbol(:surgery_, after_sym),
+                        batched_attn::Bool=false)
     # 1. Capturer les consommateurs AVANT de construire le nouveau bloc -- sinon
     #    on capture aussi la propre consommation de after_sym par le nouveau
     #    bloc lui-même (son _norm1).
     old_consumers = collect(get(_consumers_index!(g, ns), after_sym, Symbol[]))
 
-    # 2. Construire le nouveau bloc à partir de after_sym.
-    new_out = LlamaBlock(dim, n_heads, hidden_dim)(g, after_sym, prefix; namespace=ns)
+    # 2. Construire le nouveau bloc à partir de after_sym. `batched_attn` (défaut
+    #    false, comme partout ailleurs -- voir MultiHeadAttention/LlamaBlock,
+    #    src/layers.jl) : mettre à true rend le bloc greffé homogène avec un
+    #    modèle dont les autres couches utilisent déjà l'attention batchée --
+    #    les noms de nœuds par tête (`_sc_h{h}`/`_ao_h{h}`) restent identiques
+    #    dans les deux modes, seule leur règle de calcul diffère.
+    new_out = LlamaBlock(dim, n_heads, hidden_dim; batched_attn=batched_attn)(g, after_sym, prefix; namespace=ns)
 
     # 3. Initialisation à zéro EXACTE (pas approximative) des deux poids qui
     #    annulent les deux branches résiduelles du bloc.

@@ -198,4 +198,40 @@
         acc_final = NeuroDSL.evaluate_induction(g, logits, ns; vocab_size=vs, prefix_len=pl)
         @test acc_final.second_half_acc > 0.9   # continue d'apprendre l'induction après la greffe
     end
+
+    @testset "F1 (extension) : insert_block!(...; batched_attn=true) -- identité exacte, marqueur, patchable" begin
+        # `batched_attn` a été ajouté à `insert_block!` (2026-07-10) pour que le
+        # bloc greffé reste homogène avec un modèle dont les autres couches
+        # utilisent déjà l'attention batchée (gemm_strided_batched!, voir
+        # src/layers.jl). L'identité exacte ne dépend que des poids de sortie
+        # mis à zéro (mécanisme indépendant du mode d'attention) -- doit donc
+        # tenir à l'identique.
+        ns = :surgery_f1_batched
+        Random.seed!(7)
+        g, logits = NeuroDSL.build_induction_graph(dev, ns; vocab_size=vocab_size, dim=dim, n_heads=n_heads,
+                                                    hidden_dim=hidden_dim, n_layers=n_layers, prefix_len=prefix_len)
+        tokens, labels = NeuroDSL.sample_induction_sequence(MersenneTwister(1), vocab_size, prefix_len)
+        NeuroDSL.set!(g, :token_ids, tokens; atom_type=NeuroDSL.Datom, namespace=ns)
+        NeuroDSL.invalidate_all!(g; namespace=ns)
+        ref_output = copy(Array(NeuroDSL.demand!(g, logits; namespace=ns)))
+
+        new_out = NeuroDSL.insert_block!(g, ns, :layer_2_out, dim, n_heads, hidden_dim; batched_attn=true)
+        post_output = Array(NeuroDSL.demand!(g, logits; namespace=ns))
+        @test ref_output == post_output   # identité exacte, indépendante du mode d'attention
+
+        # Marqueur du mode batché : le nœud du tenseur groupé Q·Kᵀ existe.
+        marker_sym = :surgery_layer_2_out_mha_sc3
+        @test haskey(g.nodes[ns], marker_sym)
+
+        # Une tête du bloc greffé reste individuellement patchable comme une
+        # tête ordinaire (vue zero-copy sur le tenseur groupé, mais un nœud du
+        # graphe comme un autre du point de vue de patch_node!).
+        head_sym = :surgery_layer_2_out_mha_ao_h1
+        @test haskey(g.nodes[ns], head_sym)
+        cache = NeuroDSL.capture_activations(g, ns)
+        patched_val = Array(cache[head_sym]) .+ 1f0
+        NeuroDSL.patch_node!(g, head_sym, Dict(head_sym => patched_val); namespace=ns)
+        NeuroDSL.demand!(g, logits; namespace=ns)
+        @test Array(NeuroDSL.node(g, head_sym; namespace=ns).value) == patched_val
+    end
 end

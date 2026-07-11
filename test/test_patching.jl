@@ -545,4 +545,59 @@
                                                                clean_output, corrupted_output; namespace=ns)
         @test isapprox(trajectory[end].cumulative_recovery, 1.0; atol=Float32(1e-5))
     end
+
+    @testset "greedy_patch_search!/backward_prune! : kwarg metric (2026-07-10)" begin
+        # `metric` remplace l'appel à recovery_metric(out, clean_output, corrupted_output)
+        # par metric(out) quand fourni -- sert par ex. à restreindre la mesure à une
+        # seule ligne (voir position_patch_cache) plutôt que la sortie entière.
+        ns = :metric_kwarg
+        Random.seed!(2)
+        g = NeuroDSL.NeuroGraph(namespace=ns, device=dev)
+        NeuroDSL.set!(g, :Wa, randn(Float32,8,8); is_param=true, namespace=ns)
+        NeuroDSL.set!(g, :Wskip, randn(Float32,8,8); is_param=true, namespace=ns)
+        NeuroDSL.set!(g, :Wout, randn(Float32,8,8); is_param=true, namespace=ns)
+        X_clean = randn(Float32, 8, 8)
+        NeuroDSL.set!(g, :input, X_clean; namespace=ns)
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:a, [:input, :Wa], :matmul; namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:skip, [:input, :Wskip], :matmul; namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:b, [:a, :skip], :add; namespace=ns))
+        NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:out, [:b, :Wout], :matmul; namespace=ns))
+        clean_output = copy(NeuroDSL.demand!(g, :out; namespace=ns))
+        clean_cache  = NeuroDSL.capture_activations(g, ns)
+        X_corrupt = copy(X_clean); X_corrupt[1, :] .= randn(Float32, 8)
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns)
+        corrupted_output = copy(NeuroDSL.demand!(g, :out; namespace=ns))
+        corrupted_cache  = NeuroDSL.capture_activations(g, ns)
+
+        # A. metric=nothing (défaut explicite) == comportement sans le kwarg, bit-à-bit.
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns); NeuroDSL.invalidate_all!(g; namespace=ns); NeuroDSL.demand!(g, :out; namespace=ns)
+        sel_default, traj_default = NeuroDSL.greedy_patch_search!(g, :out, [:a, :b], clean_cache, corrupted_cache,
+                                                                     clean_output, corrupted_output; namespace=ns)
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns); NeuroDSL.invalidate_all!(g; namespace=ns); NeuroDSL.demand!(g, :out; namespace=ns)
+        sel_explicit, traj_explicit = NeuroDSL.greedy_patch_search!(g, :out, [:a, :b], clean_cache, corrupted_cache,
+                                                                       clean_output, corrupted_output; namespace=ns, metric=nothing)
+        @test sel_default == sel_explicit
+        @test all(a.cumulative_recovery == b.cumulative_recovery for (a,b) in zip(traj_default, traj_explicit))
+
+        # B. Une métrique custom remplace vraiment la décision -- une métrique qui
+        # retourne toujours -1.0 (< best_so_far=0.0 initial) ne doit jamais rien
+        # sélectionner, alors que recovery_metric (défaut) sélectionnerait :b.
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns); NeuroDSL.invalidate_all!(g; namespace=ns); NeuroDSL.demand!(g, :out; namespace=ns)
+        sel_dummy, traj_dummy = NeuroDSL.greedy_patch_search!(g, :out, [:a, :b], clean_cache, corrupted_cache,
+                                                                clean_output, corrupted_output; namespace=ns,
+                                                                metric = _ -> -1.0)
+        @test isempty(sel_dummy)
+        @test isempty(traj_dummy)
+        @test !isempty(sel_default)   # confirme que le défaut, lui, sélectionne bien quelque chose
+
+        # C. backward_prune! honore aussi metric -- reproduit A pour cette fonction.
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns); NeuroDSL.invalidate_all!(g; namespace=ns); NeuroDSL.demand!(g, :out; namespace=ns)
+        rem_default, pruned_default = NeuroDSL.backward_prune!(g, :out, [:a, :b], clean_cache, corrupted_cache,
+                                                                 clean_output, corrupted_output; namespace=ns)
+        NeuroDSL.set!(g, :input, X_corrupt; namespace=ns); NeuroDSL.invalidate_all!(g; namespace=ns); NeuroDSL.demand!(g, :out; namespace=ns)
+        rem_explicit, pruned_explicit = NeuroDSL.backward_prune!(g, :out, [:a, :b], clean_cache, corrupted_cache,
+                                                                   clean_output, corrupted_output; namespace=ns, metric=nothing)
+        @test rem_default == rem_explicit
+        @test pruned_default == pruned_explicit
+    end
 end

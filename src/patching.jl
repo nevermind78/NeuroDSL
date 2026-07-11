@@ -407,13 +407,20 @@ end
 """
     greedy_patch_search!(g, output_sym, candidates, clean_cache, corrupted_cache,
                           clean_output, corrupted_output; max_sites=length(candidates),
-                          namespace=g.active_ns)
+                          namespace=g.active_ns, metric=nothing)
 
 À chaque étape, teste chaque candidat restant par-dessus les sites déjà
 retenus (patch + mesure + `_adaptive_restore!`), retient celui qui maximise
 la récupération jointe si elle améliore le meilleur score courant, sinon
 s'arrête. Retourne `(selected, trajectory)` : la liste des sites retenus
 dans l'ordre choisi, et la trajectoire de récupération cumulée.
+
+`metric` (défaut `nothing`, comportement inchangé -- `recovery_metric(out,
+clean_output, corrupted_output)` sur la sortie entière) : si fourni,
+`metric(out)` remplace cet appel. Sert par exemple à restreindre la mesure à
+une seule ligne/position (`out[j:j,:]` -- voir `position_patch_cache`) quand
+la sortie entière noierait le signal d'un effet localisé à une seule position
+dans une longue séquence.
 
 Bug corrigé le 2026-07-10 (trouvé par analyse du code, confirmé par test
 avant correction) : la mesure "par-dessus les sites déjà retenus" ne
@@ -433,7 +440,8 @@ retenu reste effectivement patché pendant toute mesure ultérieure.
 """
 function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
                                clean_cache, corrupted_cache, clean_output, corrupted_output;
-                               max_sites::Int=length(candidates), namespace::Symbol=g.active_ns)
+                               max_sites::Int=length(candidates), namespace::Symbol=g.active_ns,
+                               metric::Union{Nothing,Function}=nothing)
     selected = Symbol[]
     remaining = collect(candidates)
     trajectory = NamedTuple[]
@@ -451,7 +459,7 @@ function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
             # si cand est en amont d'un site déjà retenu.
             patch_nodes!(g, vcat(selected, [cand]), clean_cache; namespace=namespace)
             out = demand!(g, output_sym; namespace=namespace)
-            r = recovery_metric(out, clean_output, corrupted_output)
+            r = metric === nothing ? recovery_metric(out, clean_output, corrupted_output) : metric(out)
 
             _adaptive_restore!(g, namespace, cand, cand_cone, selected_cone_union,
                                 corrupted_cache, output_sym)
@@ -508,19 +516,26 @@ end
 
 """
     backward_prune!(g, output_sym, selected, clean_cache, corrupted_cache,
-                     clean_output, corrupted_output; namespace=g.active_ns, tol=1f-6)
+                     clean_output, corrupted_output; namespace=g.active_ns, tol=1f-6,
+                     metric=nothing)
 
 Teste, sur la trajectoire `selected` d'une recherche gloutonne déjà terminée,
 si un site peut être retiré sans faire chuter la récupération cumulée de plus
 de `tol`. Ne défait jamais un patch isolément (voir note ci-dessus) : chaque
 sous-ensemble testé est obtenu en restaurant l'union complète des cônes des
 sites de `selected` à l'état corrompu, puis en ré-appliquant seulement les
-sites du sous-ensemble, dans leur ordre d'origine. Retourne `(remaining,
-pruned)`.
+sites du sous-ensemble (`patch_nodes!`, maintenant trié topologiquement --
+voir sa docstring -- donc sûr même si `selected` n'est pas dans un ordre
+ancêtre-descendant). Retourne `(remaining, pruned)`.
+
+`metric` (défaut `nothing`) : même sens que sur `greedy_patch_search!` --
+si fourni, `metric(out)` remplace `recovery_metric(out, clean_output,
+corrupted_output)`.
 """
 function backward_prune!(g::NeuroGraph, output_sym::Symbol, selected,
                           clean_cache, corrupted_cache, clean_output, corrupted_output;
-                          namespace::Symbol=g.active_ns, tol::Float32=1f-6)
+                          namespace::Symbol=g.active_ns, tol::Float32=1f-6,
+                          metric::Union{Nothing,Function}=nothing)
     selected = collect(selected)
     full_cone = Set{Symbol}()
     for sym in selected
@@ -531,7 +546,7 @@ function backward_prune!(g::NeuroGraph, output_sym::Symbol, selected,
         restore_from_cache!(g, namespace, corrupted_cache, full_cone)
         patch_nodes!(g, subset, clean_cache; namespace=namespace)
         out = demand!(g, output_sym; namespace=namespace)
-        return recovery_metric(out, clean_output, corrupted_output)
+        return metric === nothing ? recovery_metric(out, clean_output, corrupted_output) : metric(out)
     end
 
     full_recovery = recovery_of(selected)
