@@ -1,4 +1,10 @@
-if Backend.CUDA_AVAILABLE; using CUDA; end
+# Import CUDA UNCONDITIONALLY: `@cuda` (and the other CUDA macros) are resolved at
+# PRECOMPILE time — when the GPU kernels/launches below are lowered — not at runtime, so a
+# conditional `using` (gated on CUDA_AVAILABLE) leaves them undefined and precompilation fails
+# on a machine without a functional GPU. CUDA.jl loads harmlessly there (non-functional); every
+# actual GPU *call* stays guarded at runtime (`dev isa Backend.CUDADevice`, `CUDA_AVAILABLE`),
+# so nothing GPU runs on CPU — this only makes the macros resolvable so the package compiles.
+using CUDA
 
 # ── Cache pour le masque causal (LRU avec taille max) ─────────────────
 const _MASK_CACHE = Dict{Tuple{Symbol,Int},Any}()
