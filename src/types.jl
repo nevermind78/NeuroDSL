@@ -78,16 +78,26 @@ end
 # Structure pour enregistrer la trace d'exécution
 mutable struct ExecutionLog
     events::Vector{Dict{Symbol, Any}}
+    on_event::Union{Nothing, Function}   # hook optionnel appelé après CHAQUE événement loggé
 end
-ExecutionLog() = ExecutionLog([])
+# Ctors rétro-compatibles : `ExecutionLog()` et `ExecutionLog(events)` marchent comme avant
+# (pas de hook) ; `ExecutionLog(; on_event=fn)` branche un observateur qui reçoit chaque
+# événement EN DIRECT au fil du passage forward/backward -- ce qui permet à un consommateur
+# (ex. un notebook réactif) de streamer la trace au lieu de lire `log.events` une fois le
+# passage terminé. Générique : rien de spécifique à un hôte.
+ExecutionLog(; on_event=nothing) = ExecutionLog(Dict{Symbol,Any}[], on_event)
+ExecutionLog(events::Vector) = ExecutionLog(events, nothing)
 
 # Fonction utilitaire pour enregistrer un événement
 function log_event!(log::ExecutionLog, node, phase, status, value=nothing)
-    push!(log.events, Dict(
+    ev = Dict(
         :node => node,
         :phase => phase,      # "forward" ou "backward"
         :status => status,    # "starting" ou "finished"
         :value => value,      # Résumé de la valeur
         :time => now()
-    ))
+    )
+    push!(log.events, ev)
+    log.on_event === nothing || log.on_event(ev)
+    return log
 end

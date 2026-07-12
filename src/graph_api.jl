@@ -290,6 +290,44 @@ function graph_summary(g::NeuroGraph)
     end
 end
 
+# Concise REPL / notebook display — a one-line summary instead of dumping the full node/rule Dicts.
+function Base.show(io::IO, ::MIME"text/plain", g::NeuroGraph)
+    dev = g.device isa Backend.CUDADevice ? "CUDA" : "CPU"
+    nss = namespaces(g)
+    tn = sum(ns -> length(g.nodes[ns]), nss; init = 0)
+    tr = sum(ns -> length(g.rules[ns]), nss; init = 0)
+    tp = sum(ns -> count(nd -> nd.is_param, values(g.nodes[ns])), nss; init = 0)
+    print(io, "NeuroGraph(", dev, " · ", tn, " nodes, ", tr, " rules, ", tp, " params · active :", g.active_ns, ")")
+    if length(nss) > 1
+        for ns in sort(nss)
+            print(io, "\n  [:", ns, "]  ", length(g.nodes[ns]), " nodes · ", length(g.rules[ns]), " rules · ",
+                  count(nd -> nd.is_param, values(g.nodes[ns])), " params")
+        end
+    end
+end
+Base.show(io::IO, g::NeuroGraph) =
+    print(io, "NeuroGraph(", sum(ns -> length(g.nodes[ns]), namespaces(g); init = 0), " nodes)")
+
+# Concise display for the other graph types too — a one-line summary rather than the full struct dump.
+function Base.show(io::IO, nd::GraphNode)
+    print(io, "GraphNode(:", nd.name, " ")
+    nd.value === nothing ? print(io, "pending") : print(io, "[", join(size(nd.value), "×"), "]")
+    nd.is_param && print(io, " param")
+    nd.gradient === nothing || print(io, " ∇")
+    print(io, ")")
+end
+
+function Base.show(io::IO, r::GraphRule)
+    ins = r.inputs
+    k = min(length(ins), 4)
+    shown = join((string(':', s) for s in @view ins[1:k]), ", ")
+    more = length(ins) > k ? ", … +$(length(ins) - k)" : ""
+    print(io, "GraphRule(:", r.output, " ← ", r.op, "(", shown, more, "))")
+end
+
+Base.show(io::IO, log::ExecutionLog) =
+    print(io, "ExecutionLog(", length(log.events), " events", log.on_event === nothing ? "" : " · live", ")")
+
 """
     _invalidate_upstream!(g::NeuroGraph, target::Symbol, ns::Symbol;
                                visited::Set{Symbol}=Set{Symbol}())
