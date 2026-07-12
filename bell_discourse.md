@@ -9,17 +9,26 @@ Suggested category: Package Announcements
 Suggested tags (all existing, verified on discourse.julialang.org/tags):
   metaprogramming, memoize, combinatorics, visualization
 
-Suggested title:
-  Computing Bell numbers with an auto-memoized recursive computation graph (NeuroDSL) — interactive trace included
+Suggested title (matches the "Mutable Computational Graphs in Pure Julia: ..." naming of the
+earlier LLaMA hot-surgery post, for series recognizability):
+  Mutable Computational Graphs in Pure Julia: Computing Bell Numbers with Automatic Memoization
 -->
 
-# Computing Bell numbers with an auto-memoized recursive computation graph
+# Mutable Computational Graphs in Pure Julia: Computing Bell Numbers with Automatic Memoization
 
 I've been building **NeuroDSL**, a Julia package for declarative, persistent computation
 graphs — you write a recurrence as if it were an ordinary recursive function, and the package
 turns it into a graph of named nodes, memoizing every distinct sub-call automatically. No
 `@memoize`d function, no manual dictionary cache: the recursion structure itself *is* the graph,
 and you get to inspect and visualize it afterward.
+
+If you saw my earlier post on [performing "hot surgery" on a running LLaMA transformer](https://discourse.julialang.org/t/mutable-computational-graphs-in-pure-julia-performing-hot-surgery-on-a-llama-transformer/138018)
+— inserting a residual block into a live, mid-training model without recompiling the graph or
+losing optimizer state — this is the exact same underlying graph engine (persistent nodes,
+targeted invalidation, no rebuild-from-scratch), just pointed at a much smaller, pure-math problem
+instead of a neural network. If the LLaMA post showed *what the engine is for*, this one is a
+better place to actually see *how the DSL itself is written*, one line at a time, without a
+transformer's worth of incidental complexity in the way.
 
 To show what that looks like end to end, here's a small, self-contained example: computing the
 6th [Bell number](https://en.wikipedia.org/wiki/Bell_number) via the recurrence for
@@ -269,6 +278,7 @@ question addressed below.
 ## Links
 
 - NeuroDSL on GitHub: <https://github.com/nevermind78/NeuroDSL>
+- Previous post: [Mutable Computational Graphs in Pure Julia: Performing "Hot Surgery" on a LLaMA Transformer](https://discourse.julialang.org/t/mutable-computational-graphs-in-pure-julia-performing-hot-surgery-on-a-llama-transformer/138018) — the same engine, inserting a residual block into a live, mid-training transformer instead of computing Stirling/Bell numbers.
 - [Stirling numbers of the second kind](https://en.wikipedia.org/wiki/Stirling_numbers_of_the_second_kind), [Bell numbers](https://en.wikipedia.org/wiki/Bell_number)
 
 Happy to answer questions about the `@neuro`/`@rule`/`@node` macro internals, how the memoization
