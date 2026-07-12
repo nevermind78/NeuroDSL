@@ -1,0 +1,278 @@
+<!--
+Suggested category: Package Announcements
+  (discourse.julialang.org/c/package-announcements — "a place to announce new
+  Julia packages and versions"; this post doubles as a worked example of
+  NeuroDSL, so it fits either as a fresh announcement or as a showcase reply
+  under an existing NeuroDSL announcement thread if one already exists).
+  Alternative if you'd rather file it as a general show-and-tell: General Usage.
+
+Suggested tags (all existing, verified on discourse.julialang.org/tags):
+  metaprogramming, memoize, combinatorics, visualization
+
+Suggested title:
+  Computing Bell numbers with an auto-memoized recursive computation graph (NeuroDSL) — interactive trace included
+-->
+
+# Computing Bell numbers with an auto-memoized recursive computation graph
+
+I've been building **NeuroDSL**, a Julia package for declarative, persistent computation
+graphs — you write a recurrence as if it were an ordinary recursive function, and the package
+turns it into a graph of named nodes, memoizing every distinct sub-call automatically. No
+`@memoize`d function, no manual dictionary cache: the recursion structure itself *is* the graph,
+and you get to inspect and visualize it afterward.
+
+To show what that looks like end to end, here's a small, self-contained example: computing the
+6th [Bell number](https://en.wikipedia.org/wiki/Bell_number) via the recurrence for
+[Stirling numbers of the second kind](https://en.wikipedia.org/wiki/Stirling_numbers_of_the_second_kind),
+then exporting the *entire computation* as an interactive HTML graph you can click through node
+by node.
+
+## The math
+
+Stirling numbers of the second kind $S(n,k)$ count the number of ways to partition an
+$n$-element set into exactly $k$ non-empty subsets. They satisfy:
+
+$$
+S(n,k) =
+\begin{cases}
+1 & \text{if } n = 0,\ k = 0,\\
+0 & \text{if } k = 0 \text{ or } k > n,\\
+k \cdot S(n-1,k) + S(n-1,k-1) & \text{otherwise}.
+\end{cases}
+$$
+
+The Bell number $B_n = \sum_{k=1}^{n} S(n,k)$ then counts *all* partitions of an $n$-element set,
+regardless of how many parts they have. For $n=6$, $B_6 = 203$.
+
+This recurrence is a good demo case precisely because it's *not* tail-recursive and has
+overlapping sub-calls all over the place — `stirling(6,3)` and `stirling(6,2)` both eventually
+call `stirling(4,2)`, `stirling(3,2)`, and so on. Naively recursive code re-derives those shared
+sub-results every time it hits them; a memoized version (whether via `@memoize`, a graph, or a
+hand-rolled `Dict`) computes each one once.
+
+## Step 1 — install and import
+
+```julia
+using NeuroDSL, Printf
+```
+
+## Step 2 — define the custom operators with `@defop`
+
+NeuroDSL ships a small set of built-in ops, but the interesting part of any DSL is defining your
+own. Every op ultimately becomes a plain Julia function with a fixed 7-argument signature
+`(dev, out, inputs, attrs, out_sym, nd, ctx)`:
+
+- `dev` — the device the op runs on (`Backend.CPUDevice()`/`CUDADevice()`), for dispatch.
+- `out` — a pre-allocated output buffer; the op writes its result *into* it rather than returning
+  a value (this is what lets NeuroDSL reuse buffers across recomputation).
+- `inputs` — a `Vector` of the op's input arrays, in the order the `GraphRule` records them.
+- `attrs` — a `Dict{Symbol,Any}` of extra per-call keyword arguments that aren't graph nodes
+  themselves (e.g. the scalar factor `k` below).
+- `out_sym`, `nd`, `ctx` — the output node's symbol, its full `GraphNode`, and a shared
+  `CtxStore` for ops that need cross-call state (RNG for dropout, etc.) — unused by the three ops
+  here.
+
+`@defop` gives you three ways to write that function, from terse to explicit:
+
+```julia
+@defop scale_add out = attrs[:factor] * inputs[1] + inputs[2]
+@defop identity  out = inputs[1]
+@defop nsum (dev, out, inputs, attrs, out_sym, nd, ctx) -> begin
+    copyto!(out, inputs[1])
+    for i in 2:length(inputs)
+        out .+= inputs[i]
+    end
+end
+```
+
+- `scale_add`: the one-liner form. `@defop op_sym out = <rhs>` expands to a full 7-argument
+  lambda whose body is `@. out = <rhs>` (broadcasted in place) — so this line alone becomes
+  `(dev,out,inputs,attrs,out_sym,nd,ctx) -> @. out = attrs[:factor] * inputs[1] + inputs[2]`,
+  then registers it under the name `:scale_add` via `NeuroDSL.register_op!`. It computes
+  `factor * a + b` — exactly the recurrence's right-hand side, `k * S(n-1,k) + S(n-1,k-1)`, with
+  `k` passed as the per-call attribute `factor` rather than as a third graph input.
+- `identity`: same one-liner form, just copies its single input through — used internally
+  whenever a `@node`/`@rule` result needs an alias under a different name (see Step 3).
+- `nsum`: the explicit-lambda form, needed here because summing a *variable* number of inputs
+  (as many as `n`) isn't a single broadcast expression. `copyto!(out, inputs[1])` seeds the
+  accumulator with the first term, then the loop adds every remaining term in place.
+
+## Step 3 — build the recursive graph with `@neuro`
+
+```julia
+function build_stirling_graph(g, n)
+    builder = @neuro g ns=:stirling operators=[:scale_add] begin
+        @node one  = 1.0
+        @node zero = 0.0
+
+        @rule stirling(n::Int, k::Int) = begin
+            if n == 0 && k == 0
+                :one
+            elseif k == 0 || k > n
+                :zero
+            else
+                scale_add(factor=k, stirling(n-1, k), stirling(n-1, k-1))
+            end
+        end
+
+        # Compute all S(n,k) for k=1..n
+        all_terms = [stirling(n, i) for i in 1:n]
+        @node bell = nsum(all_terms...)
+    end
+    return builder
+end
+
+n = 6
+g = NeuroGraph(namespace=:stirling, device=Backend.CPUDevice())
+builder = build_stirling_graph(g, n)
+```
+
+Line by line:
+
+- `@neuro g ns=:stirling operators=[:scale_add] begin ... end` — `g` is the `NeuroGraph` every
+  node gets added to; `ns=:stirling` is a *namespace*, a label that partitions nodes so unrelated
+  graphs can share one `NeuroGraph` without name clashes; `operators=[:scale_add]` tells the
+  macro which extra op names (beyond the built-in `nsum`/`identity`/`wsum`/`add`) should be
+  recognized as op calls rather than as ordinary Julia function calls when it scans the block.
+  `@neuro` expands, at macro-expansion time, into code that builds a `GraphBuilder` (holding the
+  graph, the namespace, and a `memo::Dict` used for memoization below) and rewrites every
+  `@node`/`@rule` line inside the block into calls against that builder.
+- `@node one = 1.0` and `@node zero = 0.0` — each expands directly to
+  `set!(g, :one, Float32[1.0]; namespace=:stirling)` (and similarly for `:zero`): a *leaf* node
+  with no rule attached, holding a fixed 1-element array.
+- `@rule stirling(n::Int, k::Int) = begin ... end` — this does **not** run the recurrence. It
+  stores the `if/elseif/else` body as an ordinary Julia closure in `builder.rules[:stirling]` and
+  returns immediately. Nothing about $S(n,k)$ has been computed or even referenced yet at this
+  point — this line only teaches the builder *how* to compute `stirling(n,k)` the first time it's
+  asked for.
+- `all_terms = [stirling(n, i) for i in 1:n]` — **this is where the recursion actually fires.**
+  Inside a `@neuro` block, a call to a name declared via `@rule` (like `stirling(...)`) is
+  rewritten to `call_rule(builder, :stirling, n, i)`. `call_rule` computes the key
+  `(:stirling, n, i)`, and:
+  - if that exact key is already in `builder.memo` (because some earlier call already reached the
+    same `(n,k)` pair), it returns the existing node's symbol immediately — **no recomputation,
+    no new node** — this one `Dict` lookup is the entire memoization mechanism;
+  - otherwise it calls the stored closure, which runs the recurrence's `if/elseif/else` *right
+    now*, recursively calling `call_rule` again for `stirling(n-1,k)` and `stirling(n-1,k-1)` --
+    each such nested call is memoized the same way -- until every branch bottoms out at `:one` or
+    `:zero`, wraps the result in a freshly named node (e.g. `stirling_7`), records it in the memo
+    `Dict`, and returns its symbol.
+
+  So by the time this one list comprehension finishes, every distinct `(n,k)` pair the recurrence
+  ever actually visits for $n=6$ has become exactly one graph node — 46 of them in total for this
+  example, not the far larger count a non-memoized recursive `stirling(6,3)` would otherwise
+  retrigger on every shared sub-call.
+- `@node bell = nsum(all_terms...)` — `nsum` is a registered op name (Step 2), so this expands
+  into an `addrule!` call wiring a new `nsum`-rule node to all of `all_terms`, then aliases it to
+  the name `:bell` via a small `:identity` rule if the two symbols differ.
+- `n = 6; g = NeuroGraph(namespace=:stirling, device=Backend.CPUDevice())` — `NeuroGraph(...)`
+  constructs an empty graph (empty `nodes`/`rules` dictionaries) tagged with a default namespace
+  and a *device* — here plain CPU arrays; swapping in `CUDADevice()` is the only change needed to
+  run the same graph on GPU, since every op above is written against `dev`/`out`/`inputs` rather
+  than concrete array types.
+- `builder = build_stirling_graph(g, n)` — calling the function actually **executes** everything
+  described above, synchronously, in ordinary Julia call-stack order. By the time this line
+  returns, `g` already contains all 46 nodes and every `GraphRule` connecting them. What has
+  *not* happened yet is any arithmetic: no op's function body (`scale_add`'s `@.`, `nsum`'s loop)
+  has been invoked. The graph's **shape** is fully built; its **values** are not.
+
+## Step 4 — run it
+
+```julia
+log = ExecutionLog()
+ctx = CtxStore()
+NeuroDSL.demand!(g, :bell; ctx_store=ctx, namespace=:stirling, log=log)
+
+bell_val = Array(NeuroDSL.node(g, :bell; namespace=:stirling).value)[]
+@printf "Bell number B_%d = %d\n" n Int(bell_val)
+```
+
+```
+Bell number B_6 = 203
+```
+
+- `log = ExecutionLog()` — just a growable list of event records (`node`, `phase`, `status`,
+  `value`); passing it to `demand!` makes every rule execution below append one entry, which is
+  the raw material `save_interactive_graph` turns into a step-through timeline.
+- `ctx = CtxStore()` — a shared context object threaded through to every op's `ctx` argument, for
+  ops that need cross-call state. None of `scale_add`/`identity`/`nsum` use it, but `demand!`
+  requires one regardless.
+- `NeuroDSL.demand!(g, :bell; ...)` — the only call that does arithmetic. Internally it computes
+  the graph's topological order once (nodes before whatever depends on them), then walks that
+  order and, for every node that doesn't already have a valid value, calls its op's function
+  (writing into that node's `out` buffer) — skipping nodes already computed, and stopping as soon
+  as `:bell` itself has been produced. Every one of the 46 nodes gets computed exactly once, in
+  dependency order, bottom-up from `:one`/`:zero`.
+- `NeuroDSL.node(g, :bell; namespace=:stirling).value` — every node's `.value` field is always an
+  `AbstractArray` (never a bare scalar, even for a 1-element result), so `Array(...)` copies it
+  off-device into a plain CPU `Array` (a no-op here since we're already on CPU, but the same code
+  works unchanged if `device=CUDADevice()` had been used instead), and the trailing `[]` pulls out
+  the lone element, since every node in this graph holds a 1-element array all the way through.
+
+## Step 5 — export the interactive trace
+
+```julia
+save_interactive_graph(g, log, "stirling_bell_6.html"; title = "Stirling & Bell numbers (n=$n)")
+```
+
+This writes a single self-contained HTML file: an interactive, pannable/zoomable view of the
+whole graph, with the recursion's actual unfolding order recorded from the `ExecutionLog`, so you
+can step through *which* node got computed *when*, hover any node to see its formula
+(e.g. `scale_add_16 = 2·stirling(2, 2) + stirling(2, 1)`), and see at a glance how the recursion's
+shared sub-calls converge onto shared nodes instead of fanning out into separate branches.
+
+## Publishing the interactive HTML on GitHub Pages, then linking it from the post
+
+**Discourse strips `<script>`/`<style>` tags out of post bodies for security**, so pasting the
+exported HTML directly into a post won't render it — it goes through the same sanitizer as any
+other user content, and this is a full HTML+CSS+JS page, not a snippet. GitHub Pages solves the
+*hosting* half of that; getting it to render *inline inside the post* is a separate, admin-gated
+question addressed below.
+
+### Publishing the file
+
+1. Put `stirling_bell_6.html` somewhere in your NeuroDSL repo that GitHub Pages will serve from —
+   the common choice is a `docs/` folder at the repo root, e.g. `docs/stirling_bell_6.html`.
+2. On GitHub: **Settings → Pages**. Under "Build and deployment", set **Source** to
+   "Deploy from a branch", pick the branch (`main`), and the folder (`/docs`, or `/ (root)` if you
+   didn't use a subfolder). Save.
+3. GitHub builds and deploys (usually under a minute; the Pages settings page shows a banner with
+   the live URL once it's ready, and re-deploys automatically on every push to that branch/folder
+   afterward). The result is a real URL of the form:
+
+   ```
+   https://<username>.github.io/<repo>/stirling_bell_6.html
+   ```
+
+4. Open that URL directly — it should load the fully interactive graph, because (unlike
+   `raw.githubusercontent.com`, which always serves `.html` as plain text) GitHub Pages serves it
+   with a real `text/html` content type, so the page's own `<script>`/`<style>` actually run.
+
+### Getting it into the Discourse post
+
+- **Guaranteed to work, no permissions needed**: paste that URL on its own line in the post.
+  Discourse "oneboxes" plain links automatically — readers get a clickable card (or plain link)
+  that opens the live, fully interactive page in a new tab. Pair it with a plain screenshot of the
+  graph dropped directly into the post body (regular images *do* render inline) so there's
+  something visible immediately, with the live link right under it for anyone who wants to click
+  around the actual trace themselves.
+- **A true inline `<iframe>` embedded in the post body** is possible in principle, but it's gated
+  by a site-wide admin setting (`allowed_iframes`), not something a regular post can opt into —
+  Discourse does not allow embedding arbitrary external pages as iframes by default, precisely to
+  stop exactly this kind of unreviewed script injection. If you want the live graph to appear
+  inline rather than behind a link, you'd need to ask a Julia Discourse admin/moderator to add
+  your Pages domain (or `*.github.io`) to that allowlist — worth a one-line ask in the post itself
+  or a Meta-style request, but not something to assume will work on a first attempt.
+- If you'd rather not wait on that ask at all, the link-plus-screenshot combination above is the
+  practical default every other Discourse showcase post with a live demo already relies on.
+
+## Links
+
+- NeuroDSL on GitHub: <https://github.com/nevermind78/NeuroDSL>
+- [Stirling numbers of the second kind](https://en.wikipedia.org/wiki/Stirling_numbers_of_the_second_kind), [Bell numbers](https://en.wikipedia.org/wiki/Bell_number)
+
+Happy to answer questions about the `@neuro`/`@rule`/`@node` macro internals, how the memoization
+is keyed (by argument tuple per rule, not globally), or about the graph engine's other use cases
+(the package is primarily aimed at deep learning graphs — activation patching, dynamic
+architecture surgery mid-training — this Bell number example is a deliberately small, math-only
+showcase of the same underlying mechanism).

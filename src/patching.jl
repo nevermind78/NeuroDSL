@@ -34,10 +34,25 @@ Impose la valeur `cache[sym]` sur le nœud `sym` -- le nœud reste `valid=true`
 (un `demand!` ultérieur ne le recalculera pas à partir de sa propre règle),
 et seuls ses vrais consommateurs (successeurs dans le graphe de règles) sont
 invalidés, en aval, via `_invalidate_downstream!` déjà existant.
+
+`copy(cache[sym])` est INDISPENSABLE avant `to_device` -- correctif du
+2026-07-11 (bug trouvé lors de la calibration d'une tâche d'induction à
+plusieurs sauts, attention non batchée) : `Backend.to_device(::CUDADevice, x)`
+retourne `x` TEL QUEL (sans copie) si `x` est déjà un `CuArray` sur le bon
+device (`src/backend.jl:21-26`) -- sans le `copy()`, `nd.value` se retrouvait
+littéralement le MÊME objet mémoire que `cache[sym]`. Un `demand!` ultérieur
+recalculant ce même nœud depuis sa propre règle (ex. un `:matmul` d'attention
+non batchée) écrit alors dans ce buffer -- et corrompt SILENCIEUSEMENT le
+cache externe, sans jamais toucher au nœud patché lui-même entre-temps.
+Symptôme observé : `greedy_patch_search!` trouvait une vraie trajectoire de
+recovery (~0.98) en interne, mais un `patch_nodes!` ultérieur réutilisant le
+même cache pour une vérification indépendante donnait exactement 0.0 -- un
+cache RE-capturé au même point donnait la valeur correcte. Même patron déjà
+utilisé par `restore_from_cache!` ci-dessous (`nd.value = copy(cache[sym])`).
 """
 function patch_node!(g::NeuroGraph, sym::Symbol, cache; namespace::Symbol=g.active_ns)
     nd = node(g, sym; namespace=namespace)
-    nd.value = Backend.to_device(g.device, cache[sym])
+    nd.value = Backend.to_device(g.device, copy(cache[sym]))
     nd.valid = true
     nd.backwarded = false
     for out_sym in get(_consumers_index!(g, namespace), sym, _EMPTY_SYMBOL_VEC)

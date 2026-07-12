@@ -221,3 +221,178 @@ function evaluate_induction(g::NeuroGraph, logits::Symbol, ns::Symbol; vocab_siz
     end
     return (; first_half_acc = fh_ok / fh_tot, second_half_acc = sh_ok / sh_tot)
 end
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Induction à plusieurs sauts -- extension additive, aucune modification des
+# fonctions à 1 saut ci-dessus. Conçue pour donner un levier de difficulté
+# CONTRÔLABLE (par `n_hops`) plutôt que d'espérer trouver un vrai trou causal
+# dans du texte réel (voir le screening du 2026-07-11 sur `real_llm_surgery_v2` :
+# 0/8-0/55 fenêtres d'induction sur en-têtes de locuteur sont sous 0.85 de
+# recovery -- la tâche à 1 saut sature un char-LM à 4 couches partout).
+#
+# Construction (proche des bancs "associative recall multi-hop" de la
+# littérature, ex. Zoology/MQAR) : une chaîne de `n_hops+1` symboles distincts
+# c_1..c_{n_hops+1} est présentée comme `n_hops` paires (clé,valeur) où
+# valeur_i = clé_{i+1} (identité, pas juste égalité de valeur) --
+#   tokens = c_1 c_2  c_2 c_3  c_3 c_4  ...  c_n c_{n+1}  [requête = c_1]
+# et la BONNE réponse à la requête est c_{n_hops+1} -- PAS c_2, que donnerait
+# une tête d'induction à 1 saut classique (elle retrouverait la première
+# occurrence de c_1 et copierait ce qui suivait, c'est-à-dire c_2). Avec
+# `n_hops=1` la tâche dégénère exactement en induction à 1 saut existante.
+# Un seul token requiert `n_hops` sauts de composition séquentielle -- la
+# difficulté est donc pilotée par `n_hops` (et par `n_layers`/pas
+# d'entraînement), pas par la chance d'un tirage de texte réel.
+# ══════════════════════════════════════════════════════════════════════════════
+
+"""
+    sample_multihop_sequence(rng, vocab_size, n_hops) -> (tokens, labels, q_pos)
+
+Chaîne de `n_hops+1` symboles distincts, présentée en `n_hops` paires
+(clé,valeur) où `valeur_i == clé_{i+1}`, suivie d'une requête répétant `clé_1`.
+**Les `n_hops` paires sont présentées dans un ORDRE MÉLANGÉ** (pas dans l'ordre
+de la chaîne) -- indispensable : sans mélange, la valeur finale `c_{n_hops+1}`
+se trouve TOUJOURS au token juste avant la requête, ce qui rend la tâche
+soluble par un simple raccourci positionnel ("copier le token précédent"),
+sans aucune composition multi-sauts (bug trouvé empiriquement lors de la
+calibration du 2026-07-11 : précision ≈1.0 dès 500 pas et recovery causale
+EXACTEMENT nulle -- signe d'un raccourci, pas d'un circuit). Le mélange force
+une recherche par CONTENU (quelle paire contient telle clé), pas par position,
+pour chacun des `n_hops` sauts.
+
+`labels[i] = tokens[i+1]` pour `i < seq_len` (contenu de la chaîne, non
+prédictible en soi -- pur remplissage, comme la première moitié de
+`sample_induction_sequence`) ; `labels[seq_len] = c_{n_hops+1}` est la SEULE
+position dont la réponse exige la traversée complète de la chaîne -- c'est la
+position `q_pos = seq_len` à cibler pour toute analyse causale (patching,
+`greedy_patch_search!`), exactement comme la ligne `j` du protocole texte réel.
+"""
+function sample_multihop_sequence(rng, vocab_size::Int, n_hops::Int)
+    n_hops >= 1 || error("❌ sample_multihop_sequence : n_hops doit être >= 1")
+    n_hops + 1 <= vocab_size || error("❌ sample_multihop_sequence : vocab_size trop petit pour $(n_hops+1) symboles distincts")
+
+    chain = Int[]
+    while length(chain) < n_hops + 1
+        cand = rand(rng, 1:vocab_size)
+        cand in chain || push!(chain, cand)
+    end
+
+    pair_order = shuffle(rng, 1:n_hops)
+    tokens = Int[]
+    for i in pair_order
+        push!(tokens, chain[i])       # clé_i   = c_i
+        push!(tokens, chain[i+1])     # valeur_i = c_{i+1}
+    end
+    push!(tokens, chain[1])           # requête : clé_1 répétée
+    seq_len = length(tokens)          # = 2*n_hops + 1
+    answer = chain[end]               # c_{n_hops+1}, réponse correcte à la requête
+
+    labels = vcat(tokens[2:end], [answer])
+    return tokens, labels, seq_len
+end
+
+"""
+    build_multihop_graph(dev, ns; vocab_size, dim, n_heads, hidden_dim, n_layers, n_hops)
+    -> (g, logits_sym)
+
+Même câblage que `build_induction_graph` (Embedding(token)+Embedding(position)
+-> LlamaModel -> Linear -> `:cross_entropy`), `seq_len = 2*n_hops + 1`.
+
+`batched` (défaut `true`, transmis à `LlamaModel(...; batched_attn=batched)`) --
+défaut délibérément différent de `LlamaModel`/`build_induction_graph`
+(`batched_attn=false`) : diagnostiqué le 2026-07-11 lors de la calibration de
+cette tâche qu'une greffe `ao_h` NON batchée (`:matmul` direct, sortie
+possiblement réécrite en place par le prochain `demand!`) peut faire dériver
+silencieusement un `clean_cache` externe capturé par `capture_activations` une
+fois que `patch_node!` l'a aliasé sur `.value` d'un nœud CUDA (`to_device` ne
+copie jamais un `CuArray` déjà sur le bon device) -- observé concrètement :
+`greedy_patch_search!`/`backward_prune!` trouvent une vraie trajectoire de
+recovery (~0.96), mais un `patch_nodes!` ultérieur réutilisant le MÊME cache
+externe donne 0.0 exactement, alors qu'un cache RE-capturé au même point donne
+~0.97. En mode batché, `ao_h` est une vue (`:head_view` sur `ao3`), jamais
+réécrite en place de la même façon -- le bug ne s'est jamais manifesté dans
+aucune expérience de cette session utilisant `batched_attn=true`
+(`real_llm_surgery_v2`, P1-bis, P4). Correctif de fond dans
+`src/patching.jl`/`dispatch.jl` non fait ici (hors scope de cette tâche de
+calibration) -- `batched=true` par défaut est le contournement adopté,
+cohérent avec le reste de la session.
+"""
+function build_multihop_graph(dev, ns::Symbol; vocab_size::Int, dim::Int, n_heads::Int,
+                               hidden_dim::Int, n_layers::Int, n_hops::Int, batched::Bool=true)
+    seq_len = 2 * n_hops + 1
+    g = NeuroGraph(namespace=ns, device=dev)
+    set!(g, :token_ids, ones(Int, seq_len); atom_type=Datom, namespace=ns)
+    set!(g, :pos_ids, collect(1:seq_len); atom_type=Datom, namespace=ns)
+    tok_emb = Embedding(vocab_size, dim)(g, :token_ids, :tok; namespace=ns)
+    pos_emb = Embedding(seq_len, dim)(g, :pos_ids, :pos; namespace=ns)
+    x = :embed_sum
+    addrule!(g, GraphRule(x, [tok_emb, pos_emb], :add; namespace=ns))
+    out = LlamaModel(n_layers, dim, n_heads, hidden_dim; batched_attn=batched)(g, x; namespace=ns)
+    logits = Linear(dim, vocab_size)(g, out, :lm_head; namespace=ns)
+    set!(g, :labels, ones(Int, seq_len); atom_type=Datom, namespace=ns)
+    addrule!(g, GraphRule(:loss, [logits, :labels], :cross_entropy; namespace=ns))
+    return g, logits
+end
+
+"""
+    train_multihop!(g, ns; vocab_size, n_hops, n_steps, seed=123, lr=3f-3, ...) -> losses
+
+Même boucle AdamW pas-à-pas que `train_induction!`, un nouveau tirage de
+chaîne à chaque pas (`sample_multihop_sequence`).
+"""
+function train_multihop!(g::NeuroGraph, ns::Symbol; vocab_size::Int, n_hops::Int, n_steps::Int,
+                          seed::Int=123, lr::Float32=3f-3, b1::Float32=0.9f0, b2::Float32=0.999f0,
+                          eps_v::Float32=1f-8, clip::Float32=1f0, wd::Float32=0f0)
+    dev = g.device
+    ps = params(g; namespace=ns)
+    m1s = [Backend.zeros32(dev, size(p.value)...) for p in ps]
+    m2s = [Backend.zeros32(dev, size(p.value)...) for p in ps]
+    rng = MersenneTwister(seed)
+    losses = Float64[]
+    for t in 1:n_steps
+        tokens, labels, _ = sample_multihop_sequence(rng, vocab_size, n_hops)
+        set!(g, :token_ids, tokens; atom_type=Datom, namespace=ns)
+        set!(g, :pos_ids, collect(1:length(tokens)); atom_type=Datom, namespace=ns)
+        set!(g, :labels, labels; atom_type=Datom, namespace=ns)
+        invalidate_all!(g; namespace=ns)
+        loss_val = demand!(g, :loss; namespace=ns)
+        push!(losses, Float64(sum(Array(loss_val))))
+        backward_graph!(g, :loss; namespace=ns)
+        for (i, p) in enumerate(ps)
+            adamw_step!(dev, p.value, p.gradient, m1s[i], m2s[i], lr, b1, b2, eps_v, t, clip, wd)
+        end
+        invalidate_all!(g; namespace=ns)
+    end
+    return losses
+end
+
+"""
+    evaluate_multihop(g, logits, ns; vocab_size, n_hops, n_eval=100, seed=999)
+    -> (; query_acc, body_acc)
+
+`query_acc` : précision à la SEULE position qui exige la traversée complète de
+la chaîne (`q_pos = seq_len`) -- la métrique qui compte. `body_acc` : précision
+sur le reste de la séquence (remplissage non prédictible par construction,
+sert de témoin de non-mémorisation, comme `first_half_acc` pour l'induction).
+"""
+function evaluate_multihop(g::NeuroGraph, logits::Symbol, ns::Symbol; vocab_size::Int, n_hops::Int,
+                            n_eval::Int=100, seed::Int=999)
+    eval_rng = MersenneTwister(seed)
+    q_ok = q_tot = b_ok = b_tot = 0
+    for _ in 1:n_eval
+        tokens, labels, q_pos = sample_multihop_sequence(eval_rng, vocab_size, n_hops)
+        set!(g, :token_ids, tokens; atom_type=Datom, namespace=ns)
+        set!(g, :pos_ids, collect(1:length(tokens)); atom_type=Datom, namespace=ns)
+        invalidate_all!(g; namespace=ns)
+        lg = Array(demand!(g, logits; namespace=ns))
+        for i in 1:q_pos
+            pred = argmax(lg[i, :])
+            correct = pred == labels[i]
+            if i == q_pos
+                q_tot += 1; q_ok += correct ? 1 : 0
+            else
+                b_tot += 1; b_ok += correct ? 1 : 0
+            end
+        end
+    end
+    return (; query_acc = q_ok / q_tot, body_acc = b_ok / b_tot)
+end

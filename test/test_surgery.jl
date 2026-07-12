@@ -235,3 +235,46 @@
         @test Array(NeuroDSL.node(g, head_sym; namespace=ns).value) == patched_val
     end
 end
+
+# Induction à plusieurs sauts (src/synthetic_circuits.jl) : générateur de données
+# pur (pas de nouvelle op de graphe) -- test de correction du générateur lui-même,
+# pas de vérification de gradient (aucune n'est nécessaire ici).
+@testset "Induction à plusieurs sauts (sample_multihop_sequence)" begin
+    # n_hops=1 dégénère en induction à 1 saut : tokens = [c1,c2,c1], réponse = c2.
+    tokens1, labels1, q1 = NeuroDSL.sample_multihop_sequence(MersenneTwister(1), 50, 1)
+    @test length(tokens1) == 3 == q1
+    @test tokens1[1] == tokens1[3]              # requête = première clé répétée
+    @test labels1[q1] == tokens1[2]              # réponse à 1 saut = valeur associée à la clé
+
+    for n_hops in 2:4
+        rng = MersenneTwister(n_hops)
+        tokens, labels, q_pos = NeuroDSL.sample_multihop_sequence(rng, 50, n_hops)
+        @test q_pos == length(tokens) == 2 * n_hops + 1
+        chain = unique(vcat(tokens, [labels[end]]))
+        @test length(chain) == n_hops + 1          # n_hops+1 symboles distincts, exactement
+
+        # labels[i] = tokens[i+1] pour tout i < seq_len (remplissage, non prédictible en soi).
+        @test labels[1:end-1] == tokens[2:end]
+
+        # La réponse correcte exige n_hops sauts : reconstruire la chaîne clé->valeur
+        # à la main (l'ordre de présentation des paires est mélangé -- ne PAS supposer
+        # que la requête `tokens[q_pos]` est `tokens[1]`) et vérifier qu'elle mène bien
+        # à labels[q_pos] après n_hops étapes, PAS après 1 seul saut (ce que donnerait
+        # une tête d'induction classique).
+        kv = Dict{Int,Int}()
+        for i in 1:n_hops
+            kv[tokens[2i-1]] = tokens[2i]
+        end
+        query = tokens[q_pos]
+        @test haskey(kv, query)                   # la requête est bien une clé de l'une des paires
+        cur = query
+        for _ in 1:n_hops
+            cur = kv[cur]
+        end
+        @test cur == labels[q_pos]                       # n_hops sauts -> bonne réponse
+        n_hops > 1 && @test kv[query] != labels[q_pos]     # 1 seul saut -> mauvaise réponse (sauf n_hops=1)
+    end
+
+    # vocab_size trop petit pour n_hops+1 symboles distincts -- doit échouer proprement.
+    @test_throws ErrorException NeuroDSL.sample_multihop_sequence(MersenneTwister(1), 2, 5)
+end

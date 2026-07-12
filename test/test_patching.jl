@@ -470,6 +470,59 @@
         end
     end
 
+    @testset "patch_node! : ne corrompt plus le cache externe en attention non batchée (régression 2026-07-11)" begin
+        # Bug trouvé le 2026-07-11 (calibration d'une tâche d'induction à
+        # plusieurs sauts) : `patch_node!` faisait `nd.value =
+        # Backend.to_device(g.device, cache[sym])` -- SANS copie.
+        # `to_device(::CUDADevice, x)` retourne `x` TEL QUEL si `x` est déjà
+        # un `CuArray` sur le bon device (`src/backend.jl:21-26`), donc
+        # `nd.value` devenait littéralement le MÊME objet mémoire que
+        # `cache[sym]`. Si `sym` est ensuite invalidé (ex. un candidat AMONT
+        # patché avec une autre valeur, cas réel de `greedy_patch_search!`)
+        # et recalculé depuis sa propre règle par un `demand!` ultérieur, le
+        # noyau (ex. `:matmul` d'attention NON batchée) écrit dans ce même
+        # buffer -- corrompant silencieusement le cache externe, qui n'est
+        # pourtant jamais repatché lui-même entre-temps.
+        if NeuroDSL.Backend.CUDA_AVAILABLE
+            cuda_dev = NeuroDSL.Backend.CUDADevice()
+            ns = :patch_node_cache_aliasing
+            Random.seed!(41)
+            g = NeuroDSL.NeuroGraph(namespace=ns, device=cuda_dev)
+            NeuroDSL.set!(g, :input, randn(Float32, seq_len, dim); namespace=ns)
+            # batched_attn=false (défaut) -- mode où le bug a été trouvé : ao_h
+            # y est un :matmul direct (pas une vue), recalculable en place.
+            output_sym = NeuroDSL.LlamaModel(n_layers, dim, n_heads, hidden_dim; batched_attn=false)(g, :input; namespace=ns)
+
+            X_clean = randn(Float32, seq_len, dim)
+            NeuroDSL.set!(g, :input, X_clean; namespace=ns)
+            NeuroDSL.demand!(g, output_sym; namespace=ns)
+            clean_cache = NeuroDSL.capture_activations(g, ns)
+            site = Symbol(:layer_, n_layers, :_mha_ao_h1)
+            clean_snapshot = copy(Array(clean_cache[site]))   # référence indépendante, jamais retouchée
+
+            X_corrupted = copy(X_clean)
+            X_corrupted[1, :] .= randn(Float32, dim)
+            NeuroDSL.set!(g, :input, X_corrupted; namespace=ns)
+            NeuroDSL.demand!(g, output_sym; namespace=ns)
+            corrupted_cache = NeuroDSL.capture_activations(g, ns)
+
+            # Patcher `site` vers sa valeur propre, puis patcher un candidat
+            # EN AMONT de `site` (même couche, même tête, q_h -> ... -> ao_h) :
+            # `_invalidate_downstream!` invalide `site` en cascade, et le
+            # `demand!` qui suit le recalcule depuis sa propre règle --
+            # exactement le scénario réel de `greedy_patch_search!`.
+            NeuroDSL.patch_node!(g, site, clean_cache; namespace=ns)
+            upstream_sym = Symbol(:layer_, n_layers, :_mha_q_h1)
+            NeuroDSL.patch_node!(g, upstream_sym, corrupted_cache; namespace=ns)
+            NeuroDSL.demand!(g, output_sym; namespace=ns)
+
+            @test Array(clean_cache[site]) == clean_snapshot
+        else
+            println("⚠️  GPU non disponible — test patch_node! cache-aliasing ignoré.")
+            @test true
+        end
+    end
+
     @testset "greedy_patch_search! : un site retenu reste épinglé quand un candidat amont est testé (régression 2026-07-10)" begin
         # Bug trouvé et corrigé le 2026-07-10 : la boucle interne de
         # greedy_patch_search! testait chaque candidat via un seul

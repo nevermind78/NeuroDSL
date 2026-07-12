@@ -78,7 +78,7 @@ println("Parité batché vs non-batché (max abs diff des logits) : ", parity_ma
 # 2, entre layer_1 et layer_2), et layer_3 (originale, tardive) -- échantillon
 # qui couvre précoce/greffé/tardif sans supposer un mapping d'indices.
 layer_prefixes = ["layer_1", "surgery_layer_1_out", "layer_3"]
-sites_kind = ["pr_h", "sc_h", "ao_h"]
+sites_kind = ["pr_h", "sc_h", "ao_h", "q_h", "k_h"]
 
 function sync()
     NeuroDSL.Backend.CUDA_AVAILABLE && NeuroDSL.CUDA.synchronize()
@@ -131,15 +131,22 @@ for h in [2]   # une seule tête suffit pour la mesure de cône/coût (le mécan
 end
 
 println("\n" * "="^70)
-println("Vérification de la prédiction : delta de cône par classe de site")
+println("Vérification du théorème corrigé (notebook/conjecture_surcout_batched.md) : Δ = c(s) + 2D")
 println("="^70)
+# D = nombre de couches d'attention en aval, fixé par la structure du modèle
+# (4 couches originales + 1 greffe entre layer_1 et layer_2) -- déjà établi
+# lors de la vérification initiale de P1-bis.
+D_of_layer = Dict("layer_1" => 4, "surgery_layer_1_out" => 3, "layer_3" => 1)
+c_of_kind(kind) = kind == "ao_h" ? 0 : (kind in ("q_h", "k_h") ? 4n_heads - 2 : n_heads)
 for kind in sites_kind
     r_b  = filter(r -> r.site_class == kind && r.mode == "batched", rows)
     r_nb = filter(r -> r.site_class == kind && r.mode == "non_batched", rows)
     for (rb, rnb) in zip(r_b, r_nb)
         delta = rb.cone_size - rnb.cone_size
-        @printf("  %-8s %-22s : cône batché=%d non-batché=%d  delta=%+d  (prédit : %s)\n",
-                kind, rb.layer, rb.cone_size, rnb.cone_size, delta, kind == "ao_h" ? "0" : "+4")
+        predicted = c_of_kind(kind) + 2 * D_of_layer[rb.layer]
+        marker = delta == predicted ? "✅" : "❌ ÉCART"
+        @printf("  %-8s %-22s : cône batché=%d non-batché=%d  delta=%+d  (théorème : %+d)  %s\n",
+                kind, rb.layer, rb.cone_size, rnb.cone_size, delta, predicted, marker)
     end
 end
 

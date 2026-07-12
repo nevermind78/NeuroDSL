@@ -71,4 +71,5 @@ export graft_shadow_block!
 export position_patch_cache, set_params!
 export selection_circuit_weights, build_selection_circuit
 export build_induction_graph, sample_induction_sequence, train_induction!, evaluate_induction
+export build_multihop_graph, sample_multihop_sequence, train_multihop!, evaluate_multihop
 end
