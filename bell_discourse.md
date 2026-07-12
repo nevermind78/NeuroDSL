@@ -241,7 +241,7 @@ question addressed below.
    afterward). The result is a real URL of the form:
 
    ```
-   https://<username>.github.io/<repo>/stirling_bell_6.html
+   https://nevermind78.github.io/NeuroDSL/stirling_bell_6.html
    ```
 
 4. Open that URL directly — it should load the fully interactive graph, because (unlike
