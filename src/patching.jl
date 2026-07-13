@@ -19,13 +19,25 @@
 """
     capture_activations(g, ns=g.active_ns) -> Dict{Symbol,Any}
 
-Copie la valeur de tous les nœuds calculés du namespace `ns`. Utilisé pour
-mettre en cache un run "propre" ou "corrompu" avant de patcher. La copie est
-indispensable : `demand!`/`node(g,...).value` renvoient un alias vers le
-buffer interne, qui peut être écrasé en place lors d'un appel ultérieur.
+Copie la valeur de tous les nœuds **calculés** (pas les paramètres) du
+namespace `ns`. Utilisé pour mettre en cache un run "propre" ou "corrompu"
+avant de patcher. La copie est indispensable : `demand!`/`node(g,...).value`
+renvoient un alias vers le buffer interne, qui peut être écrasé en place lors
+d'un appel ultérieur.
+
+Les nœuds `is_param=true` sont exclus délibérément (correctif du 2026-07-12,
+mesuré via `notebook/etape0_vram_breakdown.jl`) : les poids ne changent jamais
+entre le run propre et le run corrompu (seule l'entrée diffère), et
+`patch_node!`/`restore_from_cache!` ne ciblent jamais un nœud paramètre --
+avant ce correctif, chaque cache dupliquait pourtant tout le modèle en plus
+de ses vraies activations (mesuré : 452 Mo de poids dupliqués sur 454 Mo de
+delta total pour un cache, soit 95,6% de gaspillage pur, sur un modèle à
+l'échelle GPT-2 small). Aucun changement fonctionnel : les poids restent
+accessibles directement via le graphe, jamais lus depuis ce cache.
 """
 capture_activations(g::NeuroGraph, ns::Symbol=g.active_ns) =
-    Dict{Symbol,Any}(sym => copy(nd.value) for (sym, nd) in g.nodes[ns] if nd.value !== nothing)
+    Dict{Symbol,Any}(sym => copy(nd.value) for (sym, nd) in g.nodes[ns]
+                      if nd.value !== nothing && !nd.is_param)
 
 """
     patch_node!(g, sym, cache; namespace=g.active_ns)
@@ -271,7 +283,7 @@ end
 """
     sweep_patch_sites!(g, output_sym, sites, clean_cache, corrupted_cache,
                         clean_output, corrupted_output; namespace=g.active_ns,
-                        restore_fn=restore_from_cache!)
+                        restore_fn=restore_from_cache!, gc_every=0)
 
 Balaie `sites` (patch + mesure comme `patch_and_measure!`), mais restaure
 via `restore_fn` (par défaut `restore_from_cache!`) au lieu de
@@ -279,14 +291,29 @@ patch_node!+demand! -- élimine le recalcul côté restauration pour un
 balayage complet. Passer `restore_fn=restore_from_cache_batched!` pour la
 variante groupée (avantageuse sur GPU, identique à `restore_from_cache!` sur
 CPU). Retourne un vecteur de `(; site, recovery, patch_ms, restore_ms)`.
+
+`gc_every` (défaut `0` = désactivé, aucun changement de comportement) : si
+`>0`, force un GC complet (`GC.gc(true)`) toutes les `gc_every` itérations.
+Correctif mesuré le 2026-07-12 (`notebook/etape0b_sweep_residual.jl`) : sur
+CUDA, chaque `demand!`/`restore_from_cache!` alloue de nouveaux buffers par
+nœud recalculé ; les buffers des sites précédents deviennent orphelins mais
+ne sont libérés côté pool CUDA que lorsque le GC Julia tourne réellement --
+sans appel explicite, le pic mémoire pendant un long balayage croît avec le
+nombre de sites (mesuré : résidu de 231 Mo à 10 sites contre 1759 Mo à 156
+sites sur un modèle à l'échelle GPT-2 small), alors que le besoin réel de
+mémoire vive par site ne croît pas. Un GC complet périodique (pas un GC
+mineur, mesuré nettement moins efficace : les buffers morts survivent le
+temps d'être promus vers l'ancienne génération) ramène le pic proche de la
+résidence fixe (poids + caches), quel que soit le nombre de sites balayés.
 """
 function sweep_patch_sites!(g::NeuroGraph, output_sym::Symbol, sites::AbstractVector{Symbol},
                              clean_cache, corrupted_cache,
                              clean_output, corrupted_output;
                              namespace::Symbol=g.active_ns,
-                             restore_fn::Function=restore_from_cache!)
+                             restore_fn::Function=restore_from_cache!,
+                             gc_every::Int=0)
     results = NamedTuple[]
-    for site in sites
+    for (i, site) in enumerate(sites)
         affected = _downstream_nodes(g, site, namespace)
 
         patch_node!(g, site, clean_cache; namespace=namespace)
@@ -300,6 +327,10 @@ function sweep_patch_sites!(g::NeuroGraph, output_sym::Symbol, sites::AbstractVe
         restore_ms = (time_ns() - t1) / 1e6
 
         push!(results, (; site, recovery, patch_ms, restore_ms))
+
+        if gc_every > 0 && i % gc_every == 0
+            GC.gc(true)
+        end
     end
     return results
 end

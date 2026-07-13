@@ -183,6 +183,39 @@
                   for k in keys(corrupted_cache2))
     end
 
+    @testset "sweep_patch_sites! : gc_every ne change pas les résultats" begin
+        # gc_every doit être un pur correctif de gestion mémoire (GC.gc(true)
+        # périodique) : mêmes recovery/mêmes états finaux qu'avec gc_every=0.
+        ns_a = :sweep_gc_a
+        ns_b = :sweep_gc_b
+        sites = [Symbol(:layer_, i, :_out) for i in 1:n_layers]
+
+        Random.seed!(13)
+        ga, output_a = build_model(ns_a)
+        clean_a, corrupted_a, clean_out_a, corrupted_out_a =
+            clean_and_corrupted_runs(ga, output_a, ns_a)
+
+        Random.seed!(13)
+        gb, output_b = build_model(ns_b)
+        clean_b, corrupted_b, clean_out_b, corrupted_out_b =
+            clean_and_corrupted_runs(gb, output_b, ns_b)
+
+        results_a = NeuroDSL.sweep_patch_sites!(ga, output_a, sites, clean_a, corrupted_a,
+                                                  clean_out_a, corrupted_out_a; namespace=ns_a)
+        results_b = NeuroDSL.sweep_patch_sites!(gb, output_b, sites, clean_b, corrupted_b,
+                                                  clean_out_b, corrupted_out_b; namespace=ns_b,
+                                                  gc_every=2)
+
+        recov_a = [r.recovery for r in results_a]
+        recov_b = [r.recovery for r in results_b]
+        @test all(isapprox(x, y; atol=Float32(1e-6)) for (x, y) in zip(recov_a, recov_b))
+
+        state_a = NeuroDSL.capture_activations(ga, ns_a)
+        state_b = NeuroDSL.capture_activations(gb, ns_b)
+        @test Set(keys(state_a)) == Set(keys(state_b))
+        @test all(isapprox(Array(state_a[k]), Array(state_b[k]); atol=Float32(1e-6)) for k in keys(state_a))
+    end
+
     @testset "patch_nodes! : composition commutative de deux patches" begin
         # layer_2_mha_ao_h1 et layer_2_mha_ao_h2 sont deux têtes d'attention
         # SŒURS : ni l'une ni l'autre n'est en amont de l'autre (toutes deux

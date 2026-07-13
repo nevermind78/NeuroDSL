@@ -1,18 +1,5 @@
-<!--
-Suggested category: Package Announcements
-  (discourse.julialang.org/c/package-announcements — "a place to announce new
-  Julia packages and versions"; this post doubles as a worked example of
-  NeuroDSL, so it fits either as a fresh announcement or as a showcase reply
-  under an existing NeuroDSL announcement thread if one already exists).
-  Alternative if you'd rather file it as a general show-and-tell: General Usage.
 
-Suggested tags (all existing, verified on discourse.julialang.org/tags):
-  metaprogramming, memoize, combinatorics, visualization
 
-Suggested title (matches the "Mutable Computational Graphs in Pure Julia: ..." naming of the
-earlier LLaMA hot-surgery post, for series recognizability):
-  Mutable Computational Graphs in Pure Julia: Computing Bell Numbers with Automatic Memoization
--->
 
 # Mutable Computational Graphs in Pure Julia: Computing Bell Numbers with Automatic Memoization
 
@@ -230,59 +217,10 @@ can step through *which* node got computed *when*, hover any node to see its for
 (e.g. `scale_add_16 = 2·stirling(2, 2) + stirling(2, 1)`), and see at a glance how the recursion's
 shared sub-calls converge onto shared nodes instead of fanning out into separate branches.
 
-## Publishing the interactive HTML on GitHub Pages, then linking it from the post
 
-**Discourse strips `<script>`/`<style>` tags out of post bodies for security**, so pasting the
-exported HTML directly into a post won't render it — it goes through the same sanitizer as any
-other user content, and this is a full HTML+CSS+JS page, not a snippet. GitHub Pages solves the
-*hosting* half of that; getting it to render *inline inside the post* is a separate, admin-gated
-question addressed below.
-
-### Publishing the file
-
-1. Put `stirling_bell_6.html` somewhere in your NeuroDSL repo that GitHub Pages will serve from —
-   the common choice is a `docs/` folder at the repo root, e.g. `docs/stirling_bell_6.html`.
-2. On GitHub: **Settings → Pages**. Under "Build and deployment", set **Source** to
-   "Deploy from a branch", pick the branch (`main`), and the folder (`/docs`, or `/ (root)` if you
-   didn't use a subfolder). Save.
-3. GitHub builds and deploys (usually under a minute; the Pages settings page shows a banner with
-   the live URL once it's ready, and re-deploys automatically on every push to that branch/folder
-   afterward). The result is a real URL of the form:
-
-   ```
-   https://nevermind78.github.io/NeuroDSL/stirling_bell_6.html
-   ```
-
-4. Open that URL directly — it should load the fully interactive graph, because (unlike
-   `raw.githubusercontent.com`, which always serves `.html` as plain text) GitHub Pages serves it
-   with a real `text/html` content type, so the page's own `<script>`/`<style>` actually run.
-
-### Getting it into the Discourse post
-
-- **Guaranteed to work, no permissions needed**: paste that URL on its own line in the post.
-  Discourse "oneboxes" plain links automatically — readers get a clickable card (or plain link)
-  that opens the live, fully interactive page in a new tab. Pair it with a plain screenshot of the
-  graph dropped directly into the post body (regular images *do* render inline) so there's
-  something visible immediately, with the live link right under it for anyone who wants to click
-  around the actual trace themselves.
-- **A true inline `<iframe>` embedded in the post body** is possible in principle, but it's gated
-  by a site-wide admin setting (`allowed_iframes`), not something a regular post can opt into —
-  Discourse does not allow embedding arbitrary external pages as iframes by default, precisely to
-  stop exactly this kind of unreviewed script injection. If you want the live graph to appear
-  inline rather than behind a link, you'd need to ask a Julia Discourse admin/moderator to add
-  your Pages domain (or `*.github.io`) to that allowlist — worth a one-line ask in the post itself
-  or a Meta-style request, but not something to assume will work on a first attempt.
-- If you'd rather not wait on that ask at all, the link-plus-screenshot combination above is the
-  practical default every other Discourse showcase post with a live demo already relies on.
 
 ## Links
 
 - NeuroDSL on GitHub: <https://github.com/nevermind78/NeuroDSL>
 - Previous post: [Mutable Computational Graphs in Pure Julia: Performing "Hot Surgery" on a LLaMA Transformer](https://discourse.julialang.org/t/mutable-computational-graphs-in-pure-julia-performing-hot-surgery-on-a-llama-transformer/138018) — the same engine, inserting a residual block into a live, mid-training transformer instead of computing Stirling/Bell numbers.
 - [Stirling numbers of the second kind](https://en.wikipedia.org/wiki/Stirling_numbers_of_the_second_kind), [Bell numbers](https://en.wikipedia.org/wiki/Bell_number)
-
-Happy to answer questions about the `@neuro`/`@rule`/`@node` macro internals, how the memoization
-is keyed (by argument tuple per rule, not globally), or about the graph engine's other use cases
-(the package is primarily aimed at deep learning graphs — activation patching, dynamic
-architecture surgery mid-training — this Bell number example is a deliberately small, math-only
-showcase of the same underlying mechanism).
