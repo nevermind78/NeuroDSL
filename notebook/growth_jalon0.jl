@@ -74,16 +74,16 @@ function val_loss(g, ns, block_size; n_windows=64)
     return total / n_windows
 end
 
-function build_char_lm_graph(dev, ns; n_layers)
+function build_char_lm_graph(dev, ns; n_layers, dim=DIM, n_heads=N_HEADS, hidden_dim=HIDDEN_DIM)
     g = NeuroDSL.NeuroGraph(namespace=ns, device=dev)
     NeuroDSL.set!(g, :token_ids, ones(Int, BLOCK_SIZE); atom_type=NeuroDSL.Datom, namespace=ns)
     NeuroDSL.set!(g, :pos_ids, collect(1:BLOCK_SIZE); atom_type=NeuroDSL.Datom, namespace=ns)
-    tok_emb = NeuroDSL.Embedding(vocab_size, DIM)(g, :token_ids, :tok; namespace=ns)
-    pos_emb = NeuroDSL.Embedding(BLOCK_SIZE, DIM)(g, :pos_ids, :pos; namespace=ns)
+    tok_emb = NeuroDSL.Embedding(vocab_size, dim)(g, :token_ids, :tok; namespace=ns)
+    pos_emb = NeuroDSL.Embedding(BLOCK_SIZE, dim)(g, :pos_ids, :pos; namespace=ns)
     x = :embed_sum
     NeuroDSL.addrule!(g, NeuroDSL.GraphRule(x, [tok_emb, pos_emb], :add; namespace=ns))
-    out = NeuroDSL.LlamaModel(n_layers, DIM, N_HEADS, HIDDEN_DIM; batched_attn=true)(g, x; namespace=ns)
-    logits = NeuroDSL.Linear(DIM, vocab_size)(g, out, :lm_head; namespace=ns)
+    out = NeuroDSL.LlamaModel(n_layers, dim, n_heads, hidden_dim; batched_attn=true)(g, x; namespace=ns)
+    logits = NeuroDSL.Linear(dim, vocab_size)(g, out, :lm_head; namespace=ns)
     NeuroDSL.set!(g, :labels, ones(Int, BLOCK_SIZE); atom_type=NeuroDSL.Datom, namespace=ns)
     NeuroDSL.addrule!(g, NeuroDSL.GraphRule(:loss, [logits, :labels], :cross_entropy; namespace=ns))
     return g, logits, out
@@ -91,15 +91,32 @@ end
 
 # ── Bras de croissance générique ─────────────────────────────────────────────
 """
-    train_growth_arm!(schedule, layer_step_budget; seed, val_every) -> NamedTuple
+    train_growth_arm!(schedule, layer_step_budget; seed, val_every, weight_fn) -> NamedTuple
 
 `schedule` ex. [4] (fixe) ou [2,3,4] -- le budget total (en layer-steps) est
-réparti en parts ÉGALES entre les `length(schedule)` paliers ; le nombre de pas
-d'un palier = (budget du palier) ÷ (n_layers du palier), donc les paliers peu
-profonds obtiennent PLUS de pas pour le même coût.
+réparti entre les `length(schedule)` paliers selon `weight_fn(L)` (défaut :
+`L -> 1.0`, poids égal quel que soit `L` -- comportement de jalon 0, INCHANGÉ).
+
+Correctif 2026-07-13 (jalon 1) : le partage à POIDS ÉGAUX confond "nombre de
+paliers" et "part du budget consacrée aux profondeurs bon marché" -- plus il y
+a de paliers, moins celui à profondeur 1 reçoit de budget (1/n_stages au lieu
+d'une part fixe), donc moins de pas totaux, ce qui pilotait presque tout
+l'écart de perte observé dans jalon 1 (non conçu pour répondre à la question
+de granularité). Passer `weight_fn = L -> 1.0/L` (ou `1/L^2`) donne à chaque
+palier un budget ∝ 1/L : ajouter des paliers intermédiaires ne vole alors
+qu'une petite part au palier le moins cher, au lieu de la diluer
+proportionnellement à `length(schedule)`.
+
+`lr_schedule` (optionnel, `nothing` par défaut -- comportement INCHANGÉ, `lr`
+constant comme avant) : fonction `(t_global, total_steps_planned) -> Float32`
+appelée à chaque pas pour obtenir le taux d'apprentissage courant, ex. pour une
+décroissance cosinus `(t, T) -> lr_min + 0.5*(lr_max-lr_min)*(1+cos(pi*t/T))`.
 """
 function train_growth_arm!(schedule::Vector{Int}, layer_step_budget::Int;
-                            seed::Int=123, val_every::Int=100, lr=1f-3)
+                            seed::Int=123, val_every::Int=100, lr=1f-3,
+                            weight_fn::Function=(L -> 1.0),
+                            lr_schedule::Union{Nothing,Function}=nothing,
+                            dim=DIM, n_heads=N_HEADS, hidden_dim=HIDDEN_DIM)
     ns = Symbol(:growth_, join(schedule, "_"), :_, seed)
     n_layers = schedule[1]
     # Correctif 2026-07-13 : `seed` doit contrôler aussi les poids initiaux
@@ -109,7 +126,8 @@ function train_growth_arm!(schedule::Vector{Int}, layer_step_budget::Int;
     # flux de RNG global, jamais touché par le `rng` local ci-dessous, qui est
     # un objet MersenneTwister séparé dédié aux minibatchs).
     Random.seed!(seed)
-    g, logits_sym, cur_out = build_char_lm_graph(dev, ns; n_layers=n_layers)
+    g, logits_sym, cur_out = build_char_lm_graph(dev, ns; n_layers=n_layers, dim=dim,
+                                                  n_heads=n_heads, hidden_dim=hidden_dim)
 
     m1 = Dict{Symbol,Any}(); m2 = Dict{Symbol,Any}()
     function sync_moments!()
@@ -121,7 +139,10 @@ function train_growth_arm!(schedule::Vector{Int}, layer_step_budget::Int;
     end
     sync_moments!()
 
-    stage_budget = layer_step_budget ÷ length(schedule)
+    raw_weights = [weight_fn(L) for L in schedule]
+    norm_weights = raw_weights ./ sum(raw_weights)
+    stage_budgets = [max(1, round(Int, layer_step_budget * w)) for w in norm_weights]
+    total_steps_planned = sum(max(1, stage_budgets[i] ÷ schedule[i]) for i in eachindex(schedule))
     rng = MersenneTwister(seed)
     train_losses = Float64[]
     val_history = Tuple{Int,Float64,Int}[]   # (global_step, val_loss, n_layers_at_eval)
@@ -132,13 +153,13 @@ function train_growth_arm!(schedule::Vector{Int}, layer_step_budget::Int;
 
     for (stage_idx, L) in enumerate(schedule)
         if stage_idx > 1
-            new_out = NeuroDSL.insert_block!(g, ns, cur_out, DIM, N_HEADS, HIDDEN_DIM;
+            new_out = NeuroDSL.insert_block!(g, ns, cur_out, dim, n_heads, hidden_dim;
                                               prefix=Symbol(:layer_, L), batched_attn=true)
             cur_out = new_out
             sync_moments!()
             push!(growth_events, (t_global, layer_steps_consumed, L))
         end
-        n_steps_stage = max(1, stage_budget ÷ L)
+        n_steps_stage = max(1, stage_budgets[stage_idx] ÷ L)
         ps = NeuroDSL.params(g; namespace=ns)
         for _ in 1:n_steps_stage
             t_global += 1
@@ -152,8 +173,9 @@ function train_growth_arm!(schedule::Vector{Int}, layer_step_budget::Int;
             push!(train_losses, Float64(sum(Array(loss_val))))
             NeuroDSL.backward_graph!(g, :loss; namespace=ns)
             m1_flat = [m1[nd.name] for nd in ps]; m2_flat = [m2[nd.name] for nd in ps]
+            cur_lr = lr_schedule === nothing ? lr : Float32(lr_schedule(t_global, total_steps_planned))
             NeuroDSL.adamw_step_batched!(dev, [p.value for p in ps], [p.gradient for p in ps],
-                                         m1_flat, m2_flat, lr, 0.9f0, 0.999f0, 1f-8, t_global, 1f0, 0f0)
+                                         m1_flat, m2_flat, cur_lr, 0.9f0, 0.999f0, 1f-8, t_global, 1f0, 0f0)
             NeuroDSL.invalidate_all!(g; namespace=ns)
             if t_global % val_every == 0
                 vl = val_loss(g, ns, BLOCK_SIZE)

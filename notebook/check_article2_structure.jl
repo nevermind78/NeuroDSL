@@ -1,4 +1,6 @@
-text = read(joinpath(@__DIR__, "..", "artilce", "article2.tex"), String)
+fname = isempty(ARGS) ? "article2.tex" : ARGS[1]
+text = read(joinpath(@__DIR__, "..", "artilce", fname), String)
+println("Checking ", fname, "...")
 
 function countmap2(v)
     d = Dict{String,Int}()
@@ -27,12 +29,12 @@ dangling = sort(collect(Set([r for r in refs2 if !(r in labelset)])))
 println("Dangling refs: ", isempty(dangling) ? "none" : dangling)
 
 cites = Set{String}()
-for m in eachmatch(r"\\cite\{([^}]+)\}", text)
+for m in eachmatch(r"\\cite[tp]?\{([^}]+)\}", text)
     for c in split(m.captures[1], ",")
         push!(cites, String(strip(c)))
     end
 end
-bibitems = Set([String(m.captures[1]) for m in eachmatch(r"\\bibitem\{([^}]+)\}", text)])
+bibitems = Set([String(m.captures[1]) for m in eachmatch(r"\\bibitem(?:\[[^\]]*\])?\{([^}]+)\}", text)])
 missing_bib = sort(collect(setdiff(cites, bibitems)))
 unused_bib = sort(collect(setdiff(bibitems, cites)))
 println("Citations missing bibitem: ", isempty(missing_bib) ? "none" : missing_bib)
