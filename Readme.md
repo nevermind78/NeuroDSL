@@ -3,13 +3,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Julia](https://img.shields.io/badge/Julia-1.10%2B-purple?style=flat-square&logo=julia)](https://julialang.org)
 [![GPU](https://img.shields.io/badge/GPU-CUDA-green?style=flat-square&logo=nvidia)](https://developer.nvidia.com/cuda-toolkit)
-[![Paper](https://img.shields.io/badge/paper-preprint%20(pending%20arXiv%20ID)-b31b1b?style=flat-square)](NeuroDSL_article.pdf)
+[![Papers](https://img.shields.io/badge/papers-4%20preprints-b31b1b?style=flat-square)](#citation)
 
-**NeuroDSL** is a 100%-Julia framework built around one idea: a computation graph doesn't have to be a static trace you build once and run. In NeuroDSL, the graph is a **live, reactive object** — you can mutate a single node while training and only the part of the graph that actually depends on it gets recomputed, nothing else.
+**NeuroDSL** is a 100%-Julia framework built around one idea: a computation graph doesn't have to be a static trace you build once and run. In NeuroDSL, the graph is a **live, reactive object** — you can mutate a single node while training, insert or remove entire blocks mid-run, or patch an internal activation to test a causal hypothesis, and only the part of the graph that actually depends on that change gets recomputed. Nothing else moves.
 
-That single property turns out to unlock things a static-graph framework (PyTorch, JAX, most of Flux) can't do nearly as naturally: growing a network's architecture mid-training without losing optimizer state, and inspecting any parameter's value *and* gradient interactively, live, without instrumenting your training loop by hand.
+That single property turns out to unlock three things a static-graph framework (PyTorch, JAX, most of Flux) can't do nearly as naturally: (1) growing a network's architecture mid-training, provably without changing the function it computes; (2) mechanistic-interpretability-style activation patching at a fraction of the usual recompute cost; and (3) inspecting any parameter's value *and* gradient interactively, live, without instrumenting your training loop by hand.
 
-This README is deliberately not a hype sheet. Every claim below is backed by an experiment you can re-run yourself — and the "what this isn't" section at the bottom is as important as the rest.
+This README is deliberately not a hype sheet. Every claim below is backed by an experiment you can re-run yourself, a proof you can read in one of the linked preprints, or both — and the "what this isn't" section near the bottom is as important as the rest.
 
 ---
 
@@ -27,37 +27,50 @@ None of this requires a separate logging system layered on top of your script. `
 
 ---
 
-## The result this is really about: architecture that changes mid-training
+## Growing a network mid-training, proven exact
 
-Most frameworks make you choose your architecture before training starts. NeuroDSL lets you train with a small, frozen sub-network, hit a plateau, unfreeze more layers, and keep going — **without restarting training or losing the optimizer's state** (Adam's moment estimates carry over untouched).
+Most frameworks make you choose your architecture before training starts. NeuroDSL lets you graft a new block into a live, already-trained graph — and proves, not just observes, that the network's function is unchanged at the instant of insertion.
+
+`insert_block!` and `graft_shadow_block!` (`src/graph_surgery.jl`) insert a fresh residual block after any node. Under an identity-morphism theorem, zero-initializing the block's output projections makes the graft compute the exact identity — checked, not assumed: on a real model, all **1,600 logits before and after grafting are bit-identical (0 mismatches, max difference 0.0)**, at the level of raw binary representation. A second construction, *Gradient Shadowing* (a ReZero-style scalar gate over a randomly initialized branch), keeps that exactness while proving the new parameters receive a non-zero gradient at the very first post-graft optimizer step — and we identify, and show how to avoid, a degenerate configuration (zero gate *and* zero projections together) that is a genuine, inescapable fixed point of gradient descent, verified empirically at exact-zero resolution over 600 training steps.
 
 ![Dynamic architecture evolution on MNIST — accuracy jumps from a 92% plateau to 96% after unfreezing layers mid-training](assets/readme/neurodsl_mnist_phases.png)
 
-This is a real run (60k MNIST training images, RTX A5500): a 5-layer network with only 3 layers trainable plateaus at 92% test accuracy. At epoch 25, two more layers are unfrozen — training continues on the *same* graph, with the *same* optimizer state — and accuracy climbs to 96%. A PyTorch equivalent would mean redefining the model, manually copying weights over, and resetting Adam's statistics.
+The picture above is the informal version of the same idea (freeze/unfreeze mid-training on MNIST, optimizer state carried over untouched) — the formal version is the graft primitive above, with a real proof and a real bit-exactness check, not just an accuracy curve. Full derivation and experiments: **[Exact Network Surgery](artilce/math1.tex)** (preprint, see [Citation](#citation)).
 
 ---
 
 ## Why this is possible: O(|V_θ|), not O(graph size)
 
-The mutation above works because NeuroDSL's invalidation is **local**. When you change a node θ, only the nodes reachable from it — its *impact subgraph* `V_θ` — get marked stale. The cost is proportional to `|V_θ|`, not to the size of the whole graph.
-
-(An earlier version of this README described this as "O(M)" for a fixed cone width `M`. That framing is a special case, not the general rule — it implicitly assumed inter-namespace edges could be ignored, which breaks down for architectures with skip connections. `|V_θ|` — the true size of the impact subgraph — is the correct and general bound.)
-
-This isn't a design aspiration — it's been measured, on graphs shaped so that `|V_θ|` coincides with a controllable cone width `M`:
+Every mutation above — a parameter update, a graft, an activation patch — works because NeuroDSL's invalidation is **local**. When you change a node θ, only the nodes reachable from it — its *impact subgraph* `V_θ` — get marked stale. The cost is proportional to `|V_θ|`, not to the size of the whole graph, and this is a proven theorem (structural locality, proved by double inclusion over the invalidation algorithm), not just a measured trend.
 
 | Experiment | Result |
 |---|---|
 | Invalidation time vs. graph depth `K` (5 → 100, impact subgraph size fixed) | **constant** — correlation with `K` ≈ 0 (ratio 0.86–1.00 across all depths) |
 | Invalidation time vs. impact subgraph size (1 → 200, depth `K` fixed) | **linear** — correlation = 0.93–0.95 |
 | Fine-tuning 10 of 100 layers, forward pass | **98% faster** than a full forward pass (908 ms → 18 ms) |
+| Surgery cost vs. cone size (8-block model, 412 nodes) | recompute tracks cone size at **r = 0.9992**; graft bookkeeping itself is flat (~0.75 ms) regardless of depth |
 
-The practical upshot: workflows that mutate or probe *part* of a graph repeatedly — fine-tuning, weight-tying experiments, and (see below) mechanistic interpretability — get cheaper the smaller the impact subgraph of the change is, by construction, not by a special case.
+The practical upshot: workflows that mutate or probe *part* of a graph repeatedly — fine-tuning, weight-tying experiments, growing a network, and activation patching (next section) — get cheaper the smaller the impact subgraph of the change is, by construction, not by a special case.
 
 ---
 
-## Where this is headed: incremental interpretability
+## Incremental activation patching, at GPU scale
 
-Activation patching — the core technique behind most mechanistic-interpretability work — mutates one internal activation and asks what changes downstream. In a static-graph framework that means a full forward pass per patch. In NeuroDSL, patching a node is exactly the kind of localized mutation described above: the cost scales with the affected cone, not the whole network. This is the angle we're actively building toward next, rather than trying to out-optimize cuBLAS on raw matmul throughput.
+Activation patching — the core technique behind most mechanistic-interpretability work — mutates one internal activation and asks what changes downstream. In a tape-based framework that means a full forward pass per patch, always, regardless of where the patch sits. In NeuroDSL, a patch is exactly the local-invalidation mutation above: the cost scales with the affected cone, shrinking to near-zero for a patch near the output.
+
+This is no longer a direction we're building toward — it's measured, at real scale:
+
+- **A proven ceiling, not an empirical accident.** An exhaustive site-by-site sweep (patch every candidate, restore, move to the next) speeds up by at most **2×** over independent full recomputations on a depth-uniform network — and this is a theorem, with the exact rate for non-uniform cost profiles given in closed form (Karamata index `q`: `(q+2)/(q+1)` output-heavy, `q+2` input-heavy). See [Cost Accounting for Reactive Computational Graphs](artilce/math2.tex).
+- **It holds up to ~1.82 billion parameters on GPU**, not just on toy models: `restore_from_cache_batched!`'s recomputation-avoidance gain measures **37–45.7%** across three scales (~0.05B, ~0.81B, ~1.82B params) — every one of them *above* the 36.1% figure originally measured on CPU only, once clock-locking and a batched restore kernel are accounted for. All correctness invariants (patched value survives, restoration equals recomputation, commutativity of independent patches) are re-verified at every scale, not assumed to carry over.
+- **`greedy_patch_search!` and `backward_prune!` find real circuits, not just cheap ones.** On an induction task with a documented causal circuit, automated search retrieves it directly, and backward pruning shows a handful of heads carry nearly all of the recovered effect — at GPU scale, on a real 1.82B-parameter model, not only on a CPU-sized toy.
+
+Full derivation, the GPU-scale validation, and the induction-circuit experiments: **[Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs](#citation)** (in preparation for peer review).
+
+---
+
+## Growing a network's depth: when it's worth it
+
+A third line of work asks a training-economics question the graft primitive makes cheap to test empirically: does growing a network's depth mid-training ever beat training at full depth from scratch? Three theorems (a single-crossing lemma plus necessary/sufficient conditions) say it depends on which axis you fix — growing wins at equal **compute (FLOPs)**, loses at equal **step count** — and a closed-form capacity-floor model (derived from a digamma-function expansion) is validated, unrefit, against 18 independently measured growth schedules (`R² = 0.764`). Full derivation: **[Growing a Network During Training: The Economics of Depth](#citation)** (in preparation for peer review).
 
 ---
 
@@ -65,17 +78,18 @@ Activation patching — the core technique behind most mechanistic-interpretabil
 
 In the interest of not overselling this:
 
-- **Not a speed competitor to PyTorch/JAX on raw throughput.** Operator fusion works, but hasn't demonstrated a net win over cuBLAS. If you need maximum GPU throughput today, use a mature framework.
+- **Not a speed competitor to PyTorch/JAX on raw throughput.** Operator fusion works, but hasn't demonstrated a net win over cuBLAS on raw matmul. The claims above are about *avoided* recomputation on mutation-heavy workloads, not about out-running a mature framework on a plain forward pass.
 - **The "sparse backward" (skipping frozen layers) is proven *exact*, not proven *fast*.** Gradients from a partial backward pass are bit-identical to a full backward pass (verified on multiple topologies) — but the measured speed/memory gains have been inconsistent, and we're not claiming them until they hold up.
-- **Validated at small-to-medium scale.** The results above run on MLPs and MNIST-scale training, on a single GPU. Behavior on much larger models is on the roadmap, not yet demonstrated.
+- **The interactive viewer and dynamic-mutation demos are small-scale (MLPs, MNIST).** The rigorous claims that now hold at real scale — exact grafting, activation-patching cost — are stated and measured on models up to ~1.82B parameters (see above); the *demos* in this README are intentionally small so you can re-run them in seconds.
+- **`math1.tex`/`math2.tex`/article2/article3 are, at the time of writing, preprints and in-preparation manuscripts, not peer-reviewed publications.** Read them as rigorous but unreviewed.
 
 ---
 
 ## Installation
 
 ```bash
-git clone https://github.com/nevermind78/NeuroDSL.jl.git
-cd NeuroDSL.jl
+git clone https://github.com/nevermind78/NeuroDSL.git
+cd NeuroDSL
 julia --project -e 'import Pkg; Pkg.instantiate()'
 ```
 
@@ -114,7 +128,8 @@ Open `demo.html` in a browser and step through the computation, forward and back
 ## Design philosophy
 
 - **Reactive** — the graph is a live object, not a compiled artifact; mutate it at any time.
-- **Local invalidation** — only nodes downstream of a change are recomputed, with a measured cost proportional to the impact subgraph size O(|V_θ|).
+- **Local invalidation** — only nodes downstream of a change are recomputed, with a proven and measured cost proportional to the impact subgraph size O(|V_θ|).
+- **Exact when it matters** — architectural mutations (grafting a block, patching an activation) come with correctness proofs and bit-level checks, not just speed numbers.
 - **Observable by default** — every forward and backward step is traceable without hand-written instrumentation.
 - **100% Julia** — no Python interop, no C++ core; the whole engine, from autodiff to the CUDA kernels, is Julia.
 
@@ -122,24 +137,27 @@ Open `demo.html` in a browser and step through the computation, forward and back
 
 ## Repository structure
 
-- `src/` — the NeuroDSL module (graph engine, autodiff, CUDA kernels, compiler, DSL macros, interactive viewer)
-- `test/` — unit and integration tests
-- `notebook/` — worked examples with real, reproducible results (dynamic architecture mutation, impact-subgraph locality validation, the interactive viewer demos above)
-- `benchmarks/` — reproducible experiments
-- `figures/` — plots and diagrams
-- `old/` — superseded modules, kept for reference, not part of the build
+- `src/` — the NeuroDSL module: the graph engine and autodiff core (`graph_api.jl`, `backward.jl`, `dispatch.jl`), CUDA kernels (`kernels.jl`), the compiler/fusion layer (`compiler.jl`, `compiler_rules.jl`), architecture mutation (`graph_surgery.jl`: `insert_block!`, `graft_shadow_block!`), activation patching (`patching.jl`: `patch_node!`, `sweep_patch_sites!`, `greedy_patch_search!`, `backward_prune!`), graph/optimizer-state persistence (`serialization.jl`), synthetic causal-circuit tasks (`synthetic_circuits.jl`), and the interactive viewer (`viz.jl`).
+- `test/` — unit and integration tests.
+- `notebook/` — worked examples and the verification scripts behind every numeric claim in this README and the linked preprints (dynamic architecture mutation, impact-subgraph locality, GPU-scale patching, growth schedules).
+- `benchmarks/` — reproducible experiments.
+- `artilce/` — the LaTeX sources of the preprints referenced below.
+- `figures/` — plots and diagrams, most of them regenerated directly by the scripts in `notebook/`.
+- `old/` — superseded modules, kept for reference, not part of the build.
 
 ---
 
 ## Inspiration
 
-NeuroDSL was inspired by the early work of [Julius Technology](https://juliustechco.github.io/NeuroGraph/dev/) on dynamic graph engines. We extend those ideas with local invalidation with a measured complexity bound, live architecture mutation, and an interactive viewer built directly on the execution trace.
+NeuroDSL was inspired by the early work of [Julius Technology](https://juliustechco.github.io/NeuroGraph/dev/) on dynamic graph engines. We extend those ideas with local invalidation with a proven complexity bound, live and provably-exact architecture mutation, incremental activation patching, and an interactive viewer built directly on the execution trace.
 
 ---
 
 ## Citation
 
-A preprint describing NeuroDSL's design and the invalidation complexity result above has been submitted to arXiv (submission ID `arXiv:submit/7710615`, 25 Jun 2026). This is the submission identifier shown before final processing — it will be replaced with the public arXiv ID once assigned. The PDF as submitted is included in this repo: [`NeuroDSL_article.pdf`](NeuroDSL_article.pdf).
+Four manuscripts describe different parts of this work; three are on arXiv, one is in preparation.
+
+**NeuroDSL: A Dynamic Computational Graph Framework with Optimal Memory Planning** — the core engine and the invalidation complexity result. Submitted to arXiv (submission ID `arXiv:submit/7710615`, 25 Jun 2026; public arXiv ID pending final processing). PDF as submitted: [`NeuroDSL_article.pdf`](NeuroDSL_article.pdf).
 
 ```bibtex
 @misc{khemais2026neurodsl,
@@ -149,6 +167,14 @@ A preprint describing NeuroDSL's design and the invalidation complexity result a
   note   = {arXiv submission id: arXiv:submit/7710615 (public arXiv ID pending)},
 }
 ```
+
+**Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. Submitted to arXiv (public arXiv ID pending). Source: [`artilce/math1.tex`](artilce/math1.tex).
+
+**Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap** — the exact cost theory behind exhaustive sweeps, sequential grafting, and the backward-pass locality gap. Submitted to arXiv (public arXiv ID pending). Source: [`artilce/math2.tex`](artilce/math2.tex).
+
+**Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs** and **Growing a Network During Training: The Economics of Depth** — the interpretability-patching and growth-schedule lines of work described above. In preparation for peer review; sources: [`artilce/article2.tex`](artilce/article2.tex), [`artilce/article3.tex`](artilce/article3.tex).
+
+This section will be updated with public arXiv IDs and, where applicable, venue/DOI information as each manuscript clears review.
 
 ---
 

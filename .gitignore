@@ -68,6 +68,7 @@ old/
 
 # Sources LaTeX des articles (gardées en local, non suivies)
 artilce/*.tex
+artilce/*.zip
 
 # Illustrations utilisées par le README — exemptées des règles *.png/*.html
 # ci-dessus, qui visent les sorties de scratch, pas les assets choisis.
