@@ -35,7 +35,7 @@ Most frameworks make you choose your architecture before training starts. NeuroD
 
 ![Dynamic architecture evolution on MNIST — accuracy jumps from a 92% plateau to 96% after unfreezing layers mid-training](assets/readme/neurodsl_mnist_phases.png)
 
-The picture above is the informal version of the same idea (freeze/unfreeze mid-training on MNIST, optimizer state carried over untouched) — the formal version is the graft primitive above, with a real proof and a real bit-exactness check, not just an accuracy curve. Full derivation and experiments: **[Exact Network Surgery](artilce/math1.tex)** (preprint, see [Citation](#citation)).
+The picture above is the informal version of the same idea (freeze/unfreeze mid-training on MNIST, optimizer state carried over untouched) — the formal version is the graft primitive above, with a real proof and a real bit-exactness check, not just an accuracy curve. Full derivation and experiments: **[Exact Network Surgery](<artilce/Exact Network Surgery Functional Invariance and Gradient.pdf>)** (preprint, see [Citation](#citation)).
 
 ---
 
@@ -60,7 +60,7 @@ Activation patching — the core technique behind most mechanistic-interpretabil
 
 This is no longer a direction we're building toward — it's measured, at real scale:
 
-- **A proven ceiling, not an empirical accident.** An exhaustive site-by-site sweep (patch every candidate, restore, move to the next) speeds up by at most **2×** over independent full recomputations on a depth-uniform network — and this is a theorem, with the exact rate for non-uniform cost profiles given in closed form (Karamata index `q`: `(q+2)/(q+1)` output-heavy, `q+2` input-heavy). See [Cost Accounting for Reactive Computational Graphs](artilce/math2.tex).
+- **A proven ceiling, not an empirical accident.** An exhaustive site-by-site sweep (patch every candidate, restore, move to the next) speeds up by at most **2×** over independent full recomputations on a depth-uniform network — and this is a theorem, with the exact rate for non-uniform cost profiles given in closed form (Karamata index `q`: `(q+2)/(q+1)` output-heavy, `q+2` input-heavy). See *Cost Accounting for Reactive Computational Graphs* (see [Citation](#citation); PDF export not yet in this repo, submitted to arXiv).
 - **It holds up to ~1.82 billion parameters on GPU**, not just on toy models: `restore_from_cache_batched!`'s recomputation-avoidance gain measures **37–45.7%** across three scales (~0.05B, ~0.81B, ~1.82B params) — every one of them *above* the 36.1% figure originally measured on CPU only, once clock-locking and a batched restore kernel are accounted for. All correctness invariants (patched value survives, restoration equals recomputation, commutativity of independent patches) are re-verified at every scale, not assumed to carry over.
 - **`greedy_patch_search!` and `backward_prune!` find real circuits, not just cheap ones.** On an induction task with a documented causal circuit, automated search retrieves it directly, and backward pruning shows a handful of heads carry nearly all of the recovered effect — at GPU scale, on a real 1.82B-parameter model, not only on a CPU-sized toy.
 
@@ -141,7 +141,7 @@ Open `demo.html` in a browser and step through the computation, forward and back
 - `test/` — unit and integration tests.
 - `notebook/` — worked examples and the verification scripts behind every numeric claim in this README and the linked preprints (dynamic architecture mutation, impact-subgraph locality, GPU-scale patching, growth schedules).
 - `benchmarks/` — reproducible experiments.
-- `artilce/` — the LaTeX sources of the preprints referenced below.
+- `artilce/` — PDF exports of the preprints referenced below (the LaTeX sources are kept locally, not tracked in this repository).
 - `figures/` — plots and diagrams, most of them regenerated directly by the scripts in `notebook/`.
 - `old/` — superseded modules, kept for reference, not part of the build.
 
@@ -168,11 +168,13 @@ Four manuscripts describe different parts of this work; three are on arXiv, one 
 }
 ```
 
-**Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. Submitted to arXiv (public arXiv ID pending). Source: [`artilce/math1.tex`](artilce/math1.tex).
+**Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. Submitted to arXiv (public arXiv ID pending). PDF: [`artilce/Exact Network Surgery Functional Invariance and Gradient.pdf`](<artilce/Exact Network Surgery Functional Invariance and Gradient.pdf>).
 
-**Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap** — the exact cost theory behind exhaustive sweeps, sequential grafting, and the backward-pass locality gap. Submitted to arXiv (public arXiv ID pending). Source: [`artilce/math2.tex`](artilce/math2.tex).
+**Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap** — the exact cost theory behind exhaustive sweeps, sequential grafting, and the backward-pass locality gap. Submitted to arXiv (public arXiv ID pending); PDF export not yet added to this repository.
 
-**Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs** and **Growing a Network During Training: The Economics of Depth** — the interpretability-patching and growth-schedule lines of work described above. In preparation for peer review; sources: [`artilce/article2.tex`](artilce/article2.tex), [`artilce/article3.tex`](artilce/article3.tex).
+**Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs** — the interpretability-patching line of work described above. In preparation for peer review. PDF: [`artilce/Amortized Multi-Site Activation Patching.pdf`](<artilce/Amortized Multi-Site Activation Patching.pdf>).
+
+**Growing a Network During Training: The Economics of Depth** — the growth-schedule line of work described above. In preparation for peer review. PDF: [`artilce/Growing a Network During Training.pdf`](<artilce/Growing a Network During Training.pdf>).
 
 This section will be updated with public arXiv IDs and, where applicable, venue/DOI information as each manuscript clears review.
 
