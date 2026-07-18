@@ -687,7 +687,10 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
     end
 end
 
-const CUSTOM_OPS = Dict{Symbol,Function}()
+# Preserve the registry across a module RE-INCLUDE (Revise re-evaluating this file, or a dev-pkg reload on
+# a live worker): a plain `const CUSTOM_OPS = Dict()` would re-run and WIPE every op a host cell registered
+# mid-session (the "Opérateur inconnu :op" churn). Rebinding to the existing dict keeps the registrations.
+const CUSTOM_OPS = @isdefined(CUSTOM_OPS) ? CUSTOM_OPS : Dict{Symbol,Function}()
 function register_op!(name::Symbol, fn::Function)
     CUSTOM_OPS[name] = fn
     _notify_register(name)   # host hook: let a host re-establish this op on its other execution contexts (register_hook.jl)

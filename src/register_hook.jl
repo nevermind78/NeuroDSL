@@ -11,7 +11,10 @@
 # it needs (typically: replay the registering code on its other contexts). Unset — the standalone case —
 # it is a no-op.
 
-const _REGISTER_HOOK = Ref{Any}(nothing)
+# Survive a module re-include (Revise / dev-pkg reload on a live worker): a plain re-run would reset the
+# hook to `nothing`, and since a host installs it from `__init__` (which Revise does NOT re-run), the host's
+# op/grad re-propagation would silently stop mid-session. Rebind to the existing Ref to keep it installed.
+const _REGISTER_HOOK = @isdefined(_REGISTER_HOOK) ? _REGISTER_HOOK : Ref{Any}(nothing)
 
 """
     set_register_hook!(f) -> nothing

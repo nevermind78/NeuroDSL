@@ -97,7 +97,9 @@ function accum_grad!(nd::GraphNode, g_val)
     end
 end
 
-const GRAD_RULES = Dict{Symbol,Function}()
+# Survive a module re-include (Revise / dev-pkg reload on a live worker) — see CUSTOM_OPS in dispatch.jl:
+# a plain re-run would wipe every gradient a host cell registered mid-session. Rebind to the existing dict.
+const GRAD_RULES = @isdefined(GRAD_RULES) ? GRAD_RULES : Dict{Symbol,Function}()
 
 """
     register_grad!(op::Symbol, fn::Function) -> op
