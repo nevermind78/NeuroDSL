@@ -688,7 +688,12 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
 end
 
 const CUSTOM_OPS = Dict{Symbol,Function}()
-register_op!(name::Symbol, fn::Function) = (CUSTOM_OPS[name] = fn; println("✅ Op :$name registered"))
+function register_op!(name::Symbol, fn::Function)
+    CUSTOM_OPS[name] = fn
+    _notify_register(name)   # host hook: let a host re-establish this op on its other execution contexts (register_hook.jl)
+    println("✅ Op :$name registered")
+    return name
+end
 
 # Ops fusionnés dont l'exécution réelle existe dans _dispatch_op ci-dessus (pas seulement
 # une entrée d'inférence de forme). `:identity` est traité séparément (toujours autorisé,

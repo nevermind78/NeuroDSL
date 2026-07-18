@@ -6,6 +6,7 @@ using .Backend
 
 
 include("types.jl")
+include("register_hook.jl")   # zero-dep, host-agnostic registration-notification hook — used by register_op!/register_grad!
 include("graph_api.jl")
 include("kernels.jl")
 include("dispatch.jl")
@@ -36,7 +37,7 @@ export NeurAtom, Datom, Quantom, is_backpropable
 export set!, node, addrule!, demand!, params
 export activate!, namespaces, graph_summary
 export topo_order!, zero_grads!, invalidate_all!
-export backward_graph!, accum_grad!, GRAD_RULES, register_op!
+export backward_graph!, accum_grad!, GRAD_RULES, register_op!, register_grad!, set_register_hook!
 export rmsnorm_fwd!, rmsnorm_bwd!, swiglu_fwd!, swiglu_bwd!
 export softmax_fwd!, softmax_bwd!, cross_entropy_loss, cross_entropy_grad
 export mse_loss_fwd, mse_loss_bwd, adamw_step!, adamw_step_batched!

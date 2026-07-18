@@ -99,6 +99,21 @@ end
 
 const GRAD_RULES = Dict{Symbol,Function}()
 
+"""
+    register_grad!(op::Symbol, fn::Function) -> op
+
+Register the backward rule for `op` (the gradient counterpart of [`register_op!`](@ref)). Prefer this over
+a raw `GRAD_RULES[op] = fn` assignment: like `register_op!`, it fires the host registration hook (see
+[`set_register_hook!`](@ref)) so a custom gradient defined in a host cell is re-established on every
+execution context (a distributed host running backward/training elsewhere) — otherwise cross-context
+backward fails with "pas de règle backward pour :op". Zero-dependency and a no-op standalone.
+"""
+function register_grad!(op::Symbol, fn::Function)
+    GRAD_RULES[op] = fn
+    _notify_register(op)
+    return op
+end
+
 GRAD_RULES[:matmul] = (dev,dy,ctx,inputs) -> begin
     tb = get(ctx,:trans_b,false)
     A  = get(ctx, :A, inputs[1])
