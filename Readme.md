@@ -141,7 +141,7 @@ Open `demo.html` in a browser and step through the computation, forward and back
 - `test/` — unit and integration tests.
 - `notebook/` — worked examples and the verification scripts behind every numeric claim in this README and the linked preprints (dynamic architecture mutation, impact-subgraph locality, GPU-scale patching, growth schedules).
 - `benchmarks/` — reproducible experiments.
-- `artilce/` — PDF exports of the preprints referenced below (the LaTeX sources are kept locally, not tracked in this repository).
+- `artilce/` — PDF exports of the preprints referenced below .
 - `figures/` — plots and diagrams, most of them regenerated directly by the scripts in `notebook/`.
 - `old/` — superseded modules, kept for reference, not part of the build.
 
