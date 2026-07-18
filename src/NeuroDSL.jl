@@ -30,6 +30,7 @@ include("patching.jl")
 include("serialization.jl")
 include("synthetic_circuits.jl")
 include("graph_surgery.jl")
+include("graph_regions.jl")
 
 
 export NeuroGraph, GraphNode, GraphRule, CtxStore
@@ -69,6 +70,7 @@ export backward_prune!
 export AdamWState, save_graph!, load_graph!, save_all_graph!, load_all_graph!, extend_adamw_state!
 export insert_block!
 export graft_shadow_block!
+export RegionPlan, GraphPiece, wholepiece, piece, cut, cut!, assign!, crossings, restrict_to_region!, surface
 export position_patch_cache, set_params!
 export selection_circuit_weights, build_selection_circuit
 export build_induction_graph, sample_induction_sequence, train_induction!, evaluate_induction

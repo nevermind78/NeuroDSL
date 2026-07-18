@@ -27,4 +27,5 @@ using NeuroDSL
     include(joinpath(test_dir, "test_pretrained_scale.jl"))
     include(joinpath(test_dir, "test_surgery.jl"))
     include(joinpath(test_dir, "test_graft_shadow.jl"))
+    include(joinpath(test_dir, "test_regions.jl"))
 end

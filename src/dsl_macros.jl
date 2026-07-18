@@ -394,7 +394,10 @@ function call_rule(builder::GraphBuilder, fname::Symbol, args...)
     addrule!(builder.graph, GraphRule(call_sym, Symbol[result], :identity; namespace=builder.namespace))
     label = string(fname, "(", join(args, ", "), ")")
     builder.graph.nodes[builder.namespace][call_sym].aux_data[:label] = label
-    builder.graph.nodes[builder.namespace][call_sym].aux_data[:is_rule] = true   
+    builder.graph.nodes[builder.namespace][call_sym].aux_data[:is_rule] = true
+    # Structured call identity (rule + concrete args) so a boundary can be resolved
+    # programmatically from the graph — see `surface` in graph_regions.jl.
+    builder.graph.nodes[builder.namespace][call_sym].aux_data[:call] = (fname, args...)
     builder.memo[key] = call_sym
     return call_sym
 end
