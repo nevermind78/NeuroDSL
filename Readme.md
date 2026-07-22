@@ -155,7 +155,7 @@ NeuroDSL was inspired by the early work of [Julius Technology](https://juliustec
 
 ## Citation
 
-Four manuscripts describe different parts of this work; three are on arXiv, one is in preparation.
+Five manuscripts describe different parts of this work; two are on arXiv with public IDs, one more is on arXiv pending its public ID, two are in preparation.
 
 **NeuroDSL: A Dynamic Computational Graph Framework with Optimal Memory Planning** — the core engine and the invalidation complexity result. Submitted to arXiv (submission ID `arXiv:submit/7710615`, 25 Jun 2026; public arXiv ID pending final processing). PDF as submitted: [`NeuroDSL_article.pdf`](NeuroDSL_article.pdf).
 
@@ -168,15 +168,33 @@ Four manuscripts describe different parts of this work; three are on arXiv, one 
 }
 ```
 
-**Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. Submitted to arXiv (public arXiv ID pending). PDF: [`artilce/Exact Network Surgery Functional Invariance and Gradient.pdf`](<artilce/Exact Network Surgery Functional Invariance and Gradient.pdf>).
+**Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. On arXiv: [arXiv:2607.16568](https://arxiv.org/abs/2607.16568). PDF as published: [`artilce/2607.16568v1.pdf`](<artilce/2607.16568v1.pdf>).
 
-**Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap** — the exact cost theory behind exhaustive sweeps, sequential grafting, and the backward-pass locality gap. Submitted to arXiv (public arXiv ID pending); PDF export not yet added to this repository.
+```bibtex
+@article{khemais2026exact,
+  title   = {Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs},
+  author  = {Khemais, Abdallah},
+  journal = {arXiv preprint arXiv:2607.16568},
+  year    = {2026},
+}
+```
+
+**Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap** — the exact cost theory behind exhaustive sweeps, sequential grafting, and the backward-pass locality gap. On arXiv: [arXiv:2607.18323](https://arxiv.org/abs/2607.18323). PDF as published: [`artilce/2607.18323v1.pdf`](<artilce/2607.18323v1.pdf>).
+
+```bibtex
+@article{khemais2026costaccounting,
+  title   = {Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap},
+  author  = {Khemais, Abdallah},
+  journal = {arXiv preprint arXiv:2607.18323},
+  year    = {2026},
+}
+```
 
 **Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs** — the interpretability-patching line of work described above. In preparation for peer review. PDF: [`artilce/Amortized Multi-Site Activation Patching.pdf`](<artilce/Amortized Multi-Site Activation Patching.pdf>).
 
 **Growing a Network During Training: The Economics of Depth** — the growth-schedule line of work described above. In preparation for peer review. PDF: [`artilce/Growing a Network During Training.pdf`](<artilce/Growing a Network During Training.pdf>).
 
-This section will be updated with public arXiv IDs and, where applicable, venue/DOI information as each manuscript clears review.
+This section will be updated with a public arXiv ID for the first manuscript and, where applicable, venue/DOI information as each remaining manuscript clears review.
 
 ---
 
