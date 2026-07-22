@@ -6,7 +6,8 @@ Manifest.toml
 *.mp4
 *.png
 
-*.json   # si ce sont des logs de debug
+# si ce sont des logs de debug
+*.json
 
 # Temporaires
 *.log
@@ -69,6 +70,13 @@ old/
 # Sources LaTeX des articles (gardées en local, non suivies)
 artilce/*.tex
 artilce/*.zip
+
+# Notes/scratch de bibliographie (fichiers de travail, pas des livrables)
+artilce/*.txt
+
+# Checkpoints binaires des expériences (poids de modèle, régénérables,
+# aucune valeur à parcourir sur GitHub, grossissent à chaque graine testée)
+notebook/marker_ckpt/
 
 # Illustrations utilisées par le README — exemptées des règles *.png/*.html
 # ci-dessus, qui visent les sorties de scratch, pas les assets choisis.
