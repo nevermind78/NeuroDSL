@@ -78,6 +78,21 @@ artilce/*.txt
 # aucune valeur à parcourir sur GitHub, grossissent à chaque graine testée)
 notebook/marker_ckpt/
 
+# Tout dossier de checkpoint d'expérience suivant la convention *_ckpt/
+# (bidir_ckpt/, grok_ckpt/, etc. — régénérables, jamais à committer)
+notebook/*_ckpt/
+
+# Poids de modèles pré-entraînés téléchargés (ex. Qwen2.5-1.5B-Instruct) --
+# gros binaires externes, jamais à committer, régénérables par téléchargement
+notebook/qwen2.5-1.5b-instruct/
+*.safetensors
+*.bin
+
+# Graphiques générés par les scripts d'expérience dans notebook/ (pas les
+# figures finales de l'article, qui vivent dans artilce/figures/ et restent
+# suivies)
+notebook/*.pdf
+
 # Illustrations utilisées par le README — exemptées des règles *.png/*.html
 # ci-dessus, qui visent les sorties de scratch, pas les assets choisis.
 !assets/readme/

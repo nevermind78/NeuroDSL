@@ -245,8 +245,16 @@ println("Seuil requis (P1) : les deux >= 0.95")
 # une fois le gate P1 passé -- AUCUN effet sans la variable d'ENV, les défauts
 # figés de ce script restent inchangés. MARKER_SMOKE=1 force la sauvegarde
 # même sans P1 (test du chemin de code sur modèle non entraîné).
+# MARKER_SAVE_ALWAYS=1 (2026-07-22, opt-in, défaut inchangé) : sauvegarde
+# INCONDITIONNELLEMENT même si P1 échoue -- correctif après un run V=16
+# dim=128 qui a atteint 0.9355/0.9346 (sous le seuil 0.95, loss encore en
+# légère baisse) sans aucun checkpoint récupérable : sans ce filet, un budget
+# de pas insuffisant oblige à ré-entraîner intégralement depuis zéro (~3h
+# perdues) au lieu de reprendre depuis l'état final réel. N'affecte aucun
+# script existant qui n'active pas explicitement cette variable.
 if get(ENV, "MARKER_SAVE", "") != ""
-    if (result.acc_A >= 0.95 && result.acc_B >= 0.95) || get(ENV, "MARKER_SMOKE", "0") == "1"
+    if (result.acc_A >= 0.95 && result.acc_B >= 0.95) || get(ENV, "MARKER_SMOKE", "0") == "1" ||
+       get(ENV, "MARKER_SAVE_ALWAYS", "0") == "1"
         let ckpt = ENV["MARKER_SAVE"]
             isempty(dirname(ckpt)) || mkpath(dirname(ckpt))
             NeuroDSL.save_graph!(g, ns, ckpt)

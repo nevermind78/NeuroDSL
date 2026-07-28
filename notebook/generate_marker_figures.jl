@@ -58,17 +58,24 @@ savefig(fig1, joinpath(OUT, "fig_marker_sweep.png"))
 #   seed 33 : max_r=0.981, max(0.8667 [D1 inv], 0.2033)        = 0.867
 #   seed 44 : max_r=0.989, max(0.93 [D1 inv], 0.9767 [DJ lit]) = 0.977
 #   instance 2 (p4bis+adiag) : max_r=0.71, inversé_A=0.86       = 0.86
+# Point V=16 (nouveau, notebook/marker_v16_test8_dim128_10k.log, sec:v16 de
+# math4.tex) -- carriers layer_2_mlp_out(0.508)+layer_1_mha_ao_h4(0.39),
+# max_r=0.508 ; config DJA : inversé_A=0.227, littéral_B=0.37 -> max=0.37.
+# Marqueur/couleur distincts : instance à V=16, pas V=8, comparaison honnête
+# pas un 6e point de la même population.
 xs   = [0.663, 0.841, 0.981, 0.989, 0.71]
 ys   = [0.473, 0.493, 0.867, 0.977, 0.86]
 labs = ["seed 11", "seed 22", "seed 33", "seed 44", "instance 2"]
-fig2 = scatter(xs, ys; ms=8, color=:steelblue, legend=false,
+fig2 = scatter(xs, ys; ms=8, color=:steelblue, label="V=8 instances",
                xlabel="flag concentration: best single-site patch recovery (max r)",
                ylabel="cleanest collapse rate\nmax(inverted_A, literal_B)",
-               xlims=(0.6, 1.02), ylims=(0.3, 1.05), size=(700, 480),
-               left_margin=5Plots.mm, bottom_margin=5Plots.mm)
+               xlims=(0.45, 1.02), ylims=(0.2, 1.05), size=(700, 480),
+               legend=:bottomright, left_margin=5Plots.mm, bottom_margin=5Plots.mm)
 for (x, y, t) in zip(xs, ys, labs)
     annotate!(fig2, x, y + 0.045, text(t, 8, :center))
 end
+scatter!(fig2, [0.508], [0.37]; ms=9, color=:firebrick, marker=:diamond, label="V=16 (n=1)")
+annotate!(fig2, 0.508, 0.37 - 0.05, text("V=16", 8, :center, :firebrick))
 savefig(fig2, joinpath(OUT, "fig_marker_concentration.pdf"))
 savefig(fig2, joinpath(OUT, "fig_marker_concentration.png"))
 
@@ -183,3 +190,28 @@ if isfile(verify_json)
 else
     @warn "notebook/interaction_verify_results.json introuvable -- lancer verify_marker_interaction_theorem.jl d'abord"
 end
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Fig. 7 : trajectoire du pilotage conçu (C1c "at-will", §6.4 de math4.tex).
+# Chiffres recopiés EXACTEMENT depuis notebook/marker_conj1_verify.log (lignes
+# 79-87, cible=inverted_collapse, seed 44 DJ) -- aucune valeur inventée.
+# Médianes s̃ des familles A et B après ajout de 0..4 directions ; la cible
+# (basculer les DEUX médianes sous 0) n'est jamais atteinte -- illustre "moved
+# substantially, did not achieve full control" par une vraie trajectoire plutôt
+# que par les seuls points de départ/arrivée déjà cités en prose.
+# ══════════════════════════════════════════════════════════════════════════════
+n_dirs   = [0, 1, 2, 3, 4]
+median_A = [2.53, 2.18, 1.95, 1.91, 1.71]
+median_B = [2.04, 1.91, 1.76, 1.68, 1.35]
+fig7 = plot(n_dirs, median_A; marker=:circle, ms=7, lw=2, color=:steelblue,
+            label="median s̃ (format A, target: cross 0)",
+            xlabel="directions added (greedy design, seed 44 DJ)",
+            ylabel="median selector value s̃", legend=:topright,
+            xticks=n_dirs, size=(650, 480), left_margin=5Plots.mm, bottom_margin=5Plots.mm)
+plot!(fig7, n_dirs, median_B; marker=:utriangle, ms=7, lw=2, color=:darkorange,
+      label="median s̃ (format B, target: cross 0)")
+hline!(fig7, [0.0]; color=:gray, ls=:dash, label="target (unreached)")
+annotate!(fig7, 4, 1.55, text("budget exhausted\n(no candidate improves further)", 7, :right, :gray))
+savefig(fig7, joinpath(OUT, "fig_marker_steering.pdf"))
+savefig(fig7, joinpath(OUT, "fig_marker_steering.png"))
+println("Écrit -> artilce/figures/fig_marker_steering.pdf (+.png)")

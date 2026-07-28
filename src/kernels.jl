@@ -659,14 +659,31 @@ function cross_entropy_grad(logits::AbstractMatrix{Float32}, labels::AbstractVec
         g ./= Float32(n)
         return g
     else
-        lh = Backend.to_cpu(logits)
+        # CORRECTIF (enquête grokking, 2026-07-25) : le vrai notebook Nanda
+        # (artilce/Grokking_Demo.ipynb, cellule 29) calcule `loss_fn` en
+        # castant `logits.to(torch.float64)` AVANT log_softmax/gather --
+        # donc tout son calcul de perte (et le gradient qui en remonte)
+        # tourne en Float64, pas Float32. Diagnostiqué par instrumentation
+        # directe (notebook/grokking_diag_instrumented.jl) : en Float32 pur,
+        # le gradient de cross-entropy devient EXACTEMENT 0.0f0 dès que les
+        # probabilités softmax sont assez proches de 0/1 (mémorisation
+        # profonde sur un petit train set) -- vérifié via la décroissance
+        # géométrique EXACTE (ratio beta2^20) du second moment d'Adam sur
+        # ~1300 pas avant qu'un pas plein-échelle ("slingshot") ne
+        # réapparaisse. Le Float64 interne donne une marge de précision qui
+        # retarde/élimine ce sous-dépassement exact -- calcul ici en Float64
+        # puis reconversion en Float32 pour la sortie, comme Nanda. Portée
+        # limitée à la voie CPU (celle exercée par les tests concernés) --
+        # la voie CUDA n'est pas touchée pour l'instant.
+        lh64 = Float64.(Backend.to_cpu(logits))
         lb = collect(Int, labels)
-        e = exp.(lh .- maximum(lh, dims=2))
+        e = exp.(lh64 .- maximum(lh64, dims=2))
         p = e ./ sum(e, dims=2)
         g = copy(p)
-        n = size(lh, 1)
-        for i in 1:n; g[i, lb[i]] -= 1f0; end
+        n = size(lh64, 1)
+        for i in 1:n; g[i, lb[i]] -= 1.0; end
         g ./= n
+        return Float32.(g)
     end
 end
 

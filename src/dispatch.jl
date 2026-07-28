@@ -57,8 +57,20 @@ function _dispatch_view!(out_node::GraphNode, rule::GraphRule, inputs_vals, out_
 end
 
 # ── Shape inference ────────────────────────────────────────────────────
+# Point d'extension pour les ops personnalisés (`register_op!`) -- même
+# patron que `GRAD_RULES` (backward.jl:100) : un Dict{Symbol,Function} que
+# l'appelant peuple lui-même (`CUSTOM_SHAPE_RULES[:mon_op] = (inputs, attrs)
+# -> shape_tuple`). Sans entrée, `_infer_output_shape` retombe (comme avant)
+# sur la forme du premier argument avec un avertissement -- ce repli reste
+# correct pour certains ops (ex. tri : la forme de sortie égale TOUJOURS
+# celle de l'entrée) mais fragile pour d'autres (ex. un op dont la forme de
+# sortie dépend d'un autre argument) ; d'où ce point d'extension explicite.
+const CUSTOM_SHAPE_RULES = Dict{Symbol,Function}()
+
 function _infer_output_shape(op::Symbol, inputs, attrs)
-    if op == :matmul
+    if haskey(CUSTOM_SHAPE_RULES, op)
+        return CUSTOM_SHAPE_RULES[op](inputs, attrs)
+    elseif op == :matmul
         A, B = inputs[1], inputs[2]
         tb = get(attrs, :trans_b, false)
         return (size(A, 1), tb ? size(B, 1) : size(B, 2))
