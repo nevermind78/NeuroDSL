@@ -584,12 +584,25 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
         x = inputs[1]::AbstractArray{Float32}
         seqlen, d = size(x)
         half = d ÷ 2
-        if !haskey(out_node.aux_data, :cos_a) || size(out_node.aux_data[:cos_a], 1) != seqlen
+        # `:theta` (base de fréquence RoPE) est lu depuis `attrs`, avec 10000f0
+        # comme défaut -- reproduit EXACTEMENT l'ancien comportement codé en dur
+        # tant qu'aucun appelant ne fixe `:theta` explicitement (aucun call site
+        # existant ne le fait ; ajouté pour charger des poids réels, ex. Qwen2.5
+        # utilise rope_theta=1e6, pas le défaut 10000 des jouets synthétiques).
+        # La base ENTRE dans la clé de cache aux_data pour éviter de réutiliser
+        # une table cos/sin construite avec une AUTRE base si jamais deux nœuds
+        # :rope de bases différentes partageaient la même longueur de séquence
+        # (n'arrive pas dans ce dépôt aujourd'hui -- un seul modèle chargé à la
+        # fois -- mais coûte une comparaison de plus, pas une hypothèse fragile).
+        theta_base = Float32(get(attrs, :theta, 10000f0))
+        if !haskey(out_node.aux_data, :cos_a) || size(out_node.aux_data[:cos_a], 1) != seqlen ||
+           get(out_node.aux_data, :theta_base, 10000f0) != theta_base
             pos   = Backend.to_device(dev, Float32.(0:seqlen-1))
-            theta = Backend.to_device(dev, Float32.(1f0 ./ (10000f0 .^ ((0:half-1) ./ half))))
+            theta = Backend.to_device(dev, Float32.(1f0 ./ (theta_base .^ ((0:half-1) ./ half))))
             angles = reshape(pos, :, 1) * reshape(theta, 1, :)
             out_node.aux_data[:cos_a] = cos.(angles)
             out_node.aux_data[:sin_a] = sin.(angles)
+            out_node.aux_data[:theta_base] = theta_base
         end
         cos_a = out_node.aux_data[:cos_a]::AbstractArray{Float32}
         sin_a = out_node.aux_data[:sin_a]::AbstractArray{Float32}

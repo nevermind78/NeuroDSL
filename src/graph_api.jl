@@ -276,6 +276,49 @@ end
 invalidate_all!(g::NeuroGraph; namespace=g.active_ns) =
     (for (_, nd) in g.nodes[namespace]; nd.is_param || (nd.valid = false); end)
 
+"""
+    copy_params_to_namespace!(g::NeuroGraph, src_ns::Symbol, dst_ns::Symbol)
+
+Copie (par VALEUR -- `copy(nd.value)`, jamais un alias) chaque nœud
+`is_param=true` de `src_ns` vers `dst_ns`, sous le MÊME symbole. Motivé par
+le décodage incrémental avec cache KV (`build_cached_decode_graph!`,
+`src/layers.jl`, 2026-07-28) : ce chemin doit lire EXACTEMENT les mêmes
+poids qu'un modèle "recalcul complet" déjà construit, pour qu'un test de
+parité entre les deux ait un sens -- mais NE PEUT PAS partager le même
+`namespace` que ce modèle, pour une raison de correction, pas de style :
+
+`demand!` (dispatch.jl:740) parcourt `topo_order!(g; namespace=ns)` DEPUIS
+LE DÉBUT et exécute tout nœud invalide qu'il rencontre AVANT de s'arrêter
+sur la cible demandée (`sym == name && break`) -- ce n'est PAS un parcours
+restreint aux seuls ANCÊTRES de la cible. Combiné à `invalidate_all!`
+(ci-dessus) qui invalide TOUT le namespace sans distinction, tout nœud
+invalide du namespace qui se trouve être ordonné avant la cible dans le tri
+topologique se fait recalculer comme effet de bord -- inoffensif pour des
+ops pures (recalcul redondant, juste du gaspillage), mais RÉELLEMENT
+INCORRECT pour un nœud à état comme `:kv_cache_append` (`src/kv_cache.jl`) :
+un appel à `demand!` sur un tout autre nœud du même namespace peut ré-exécuter
+un nœud de cache KV à l'insu de l'appelant, avec des valeurs de
+`cur_step`/`pos` périmées, corrompant silencieusement `aux_data[:history]`.
+Découvert exactement ainsi le 2026-07-29 (`kv_cache_qwen_gate.jl`, erreur
+`historique absent ou de taille incohérente`) après qu'un premier essai avec
+un namespace UNIQUE partagé entre les deux chemins ait semblé fonctionner
+sur le jouet -- par PUR HASARD d'ordre topologique (le chemin caché, ajouté
+APRÈS le chemin complet, se trouvait ordonné après lui ; l'inverse aurait pu
+se produire tout aussi bien, rien dans l'API ne le garantit). Deux
+namespaces séparés + cette fonction pour partager les poids EST le correctif
+robuste, indépendant de tout ordre d'insertion non documenté.
+"""
+function copy_params_to_namespace!(g::NeuroGraph, src_ns::Symbol, dst_ns::Symbol)
+    _ensure_namespace!(g, dst_ns)
+    n = 0
+    for (sym, nd) in g.nodes[src_ns]
+        nd.is_param || continue
+        set!(g, sym, copy(nd.value); is_param=true, namespace=dst_ns)
+        n += 1
+    end
+    return n
+end
+
 params(g::NeuroGraph; namespace=g.active_ns) =
     [nd for (_, nd) in g.nodes[namespace] if nd.is_param && is_backpropable(nd)]
 

@@ -9,6 +9,7 @@ include("types.jl")
 include("graph_api.jl")
 include("kernels.jl")
 include("dispatch.jl")
+include("kv_cache.jl")
 include("demand_release.jl")
 include("grad_pool.jl")
 include("backward.jl")
@@ -35,7 +36,7 @@ export NeuroGraph, GraphNode, GraphRule, CtxStore
 export NeurAtom, Datom, Quantom, is_backpropable
 export set!, node, addrule!, demand!, params
 export activate!, namespaces, graph_summary
-export topo_order!, zero_grads!, invalidate_all!
+export topo_order!, zero_grads!, invalidate_all!, copy_params_to_namespace!
 export backward_graph!, accum_grad!, GRAD_RULES, register_op!, CUSTOM_SHAPE_RULES
 export rmsnorm_fwd!, rmsnorm_bwd!, swiglu_fwd!, swiglu_bwd!
 export softmax_fwd!, softmax_bwd!, cross_entropy_loss, cross_entropy_grad
@@ -49,6 +50,8 @@ export CheckpointSchedule, forward_with_checkpointing!, backward_with_checkpoint
 export flash_attn_fwd!, flash_attn_bwd!, MultiHeadFlashAttention, flash_attn_fwd_cpu!, flash_attn_fwd_cpu_simple!, flash_attn_bwd_cpu!
 export cast_fp16, cast_fp32, LossScaleTracker, update!, backward_with_loss_scaling!, mixed_precision_step!
 export LayerNorm, Linear, Embedding, MultiHeadAttention, LlamaBlock, LlamaModel
+export CachedMultiHeadAttention, CachedLlamaBlock, CachedLlamaModel, build_cached_decode_graph!
+export prime_kv_cache_from_prefix!
 export @addrules, Backend, debug!
 export _watch!, _fuse!, _invalidate_upstream!, _invalidate_downstream! 
 export ExecutionLog, log_event!

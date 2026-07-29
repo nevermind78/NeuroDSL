@@ -38,6 +38,52 @@
         @test all(isfinite, dx)
     end
 
+    # ══════════════════════════════════════════════════════════════════════
+    # Régression 2026-07-28 : softmax CUDA courtes séquences (< 32 colonnes),
+    # motif de masque causal réaliste.
+    #
+    # POURQUOI CE TEST N'EXISTAIT PAS ET AURAIT DÛ : le seul test CUDA de
+    # softmax avant ce correctif (test_batched_attention.jl, "équivalence
+    # forward, élément par élément") compare la voie BATCHÉE et la voie NON
+    # BATCHÉE, TOUTES DEUX SUR CUDA -- or `:softmax` est un op PAR TÊTE dans
+    # les deux modes (seul `:batched_qk`/`:batched_pv` change) : un bug DANS
+    # le noyau softmax CUDA lui-même affecte les deux côtés IDENTIQUEMENT et
+    # s'annule dans la comparaison, undetected. Ce test-ci compare le noyau
+    # CUDA à une référence INDÉPENDANTE (le noyau CPU, correct par
+    # construction -- boucles Julia explicites, aucun shuffle de warp) sur
+    # EXACTEMENT le motif qui a exposé le bug en pratique : un masque causal
+    # (triangulaire inférieur, -Inf ailleurs) sur une séquence courte, où le
+    # nombre de threads lancés (`nextpow(2, ncols)`) tombe sous 32 -- une
+    # seule warp CUDA partiellement remplie. Avant le correctif de
+    # `_warp_reduce_add`/`_warp_reduce_max` (masque ET largeur de
+    # `shfl_down_sync` fixés à 0xffffffff/32 sans tenir compte du nombre réel
+    # de threads actifs), ce test échoue avec des NaN sur les lignes à
+    # masquage partiel (ni la toute première ligne -- un seul finie -- ni la
+    # dernière -- aucun masquage -- mais les lignes intermédiaires).
+    if NeuroDSL.Backend.CUDA_AVAILABLE
+        @testset "Softmax CUDA == CPU, séquences courtes, masque causal réaliste" begin
+            cdev = NeuroDSL.Backend.CUDADevice()
+            for seqlen in (2, 3, 5, 7, 8, 9, 15, 16, 17, 31, 32, 33)
+                rng = MersenneTwister(1234 + seqlen)
+                raw = randn(rng, Float32, seqlen, seqlen) .* 500f0  # échelle réaliste des scores Q·Kᵀ non normalisés
+                mask = [j <= i ? 0f0 : -Inf32 for i in 1:seqlen, j in 1:seqlen]  # triangulaire inférieur, style scale_mask
+                x = raw .+ mask
+
+                out_cpu = zeros(Float32, seqlen, seqlen)
+                NeuroDSL.softmax_fwd!(NeuroDSL.Backend.CPUDevice(), out_cpu, x)
+
+                x_gpu = NeuroDSL.Backend.to_device(cdev, x)
+                out_gpu = NeuroDSL.Backend.zeros32(cdev, seqlen, seqlen)
+                NeuroDSL.softmax_fwd!(cdev, out_gpu, x_gpu)
+                out_gpu_cpu = Array(out_gpu)
+
+                @test all(isfinite, out_gpu_cpu)   # aucun NaN -- c'est précisément ce que le bug violait
+                @test maximum(abs.(out_cpu .- out_gpu_cpu)) < 1f-4
+                @test all(sum(out_gpu_cpu, dims=2) .≈ 1f0)
+            end
+        end
+    end
+
     @testset "MSE loss" begin
         pred   = randn(Float32,M,N)
         target = randn(Float32,M,N)

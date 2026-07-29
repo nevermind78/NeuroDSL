@@ -71,11 +71,16 @@ conc = Float64[c["conc_rate"] for c in cs2]
 rho_cert, p_cert = perm_pvalue(hyp, conc)
 println("[cert-rate vs collapse-rate] rho = ", round(rho_cert, digits=4), "   perm-p = ", p_cert)
 
-# Contrôle : reproduction du chiffre publié via la règle de rangs non standard
-# (ex æquo départagés par position), pour documenter le mécanisme de l'écart.
+# Contrôle : documente le MÉCANISME de l'écart trouvé le 2026-07-27 (rangs
+# ex æquo départagés par position plutôt que par rang moyen) -- ne reproduit
+# plus exactement un chiffre publié précis, puisque les valeurs elles-mêmes
+# ont depuis bougé une seconde fois (correctif de noyau CUDA du 2026-07-28,
+# `_warp_reduce_add`/`_warp_reduce_max`, sans rapport avec les rangs) ; garde
+# néanmoins un écart net et dans le même sens vis-à-vis de la méthode
+# standard ci-dessus, ce qui suffit à illustrer le mécanisme.
 rank_ordinal(v) = invperm(sortperm(v))
 rho_ordinal(x, y) = corspearman(Float64.(rank_ordinal(x)), Float64.(rank_ordinal(y)))
 println("\n[contrôle -- ex æquo départagés par position, NON standard]")
-println("  all 39      : ", round(rho_ordinal(interaction, c1a), digits=4), "  (reproduit le -0.81 publié)")
-println("  25 held-out : ", round(rho_ordinal(interaction[oos], c1a[oos]), digits=4), "  (reproduit le -0.79 publié)")
-println("  cert vs coll: ", round(rho_ordinal(hyp, conc), digits=4), "  (reproduit le 0.67 publié)")
+println("  all 39      : ", round(rho_ordinal(interaction, c1a), digits=4), "  (vs standard ci-dessus)")
+println("  25 held-out : ", round(rho_ordinal(interaction[oos], c1a[oos]), digits=4), "  (vs standard ci-dessus)")
+println("  cert vs coll: ", round(rho_ordinal(hyp, conc), digits=4), "  (vs standard ci-dessus)")

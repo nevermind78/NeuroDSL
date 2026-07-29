@@ -31,21 +31,72 @@ end
 if Backend.CUDA_AVAILABLE
     const WARPSIZE = 32
 
-    @inline function _warp_reduce_add(v::Float32)::Float32
-        v += CUDA.shfl_down_sync(0xffffffff, v, 16)
-        v += CUDA.shfl_down_sync(0xffffffff, v,  8)
-        v += CUDA.shfl_down_sync(0xffffffff, v,  4)
-        v += CUDA.shfl_down_sync(0xffffffff, v,  2)
-        v += CUDA.shfl_down_sync(0xffffffff, v,  1)
+    # CORRECTIF 2026-07-28 (trouvé en chargeant Qwen2.5 réel, séquences courtes) :
+    # deux bugs liés, tous deux dans l'appel à `shfl_down_sync`, dont un SEUL
+    # (le masque) ne suffit pas à corriger :
+    #   (1) `mask` doit être EXACTEMENT l'ensemble des lanes réellement actives
+    #       -- un bloc lancé avec `threads < 32` (ex. `nextpow(2,nc)` pour
+    #       nc=5 -> threads=8) n'occupe que les lanes 0..nth-1 d'une warp ;
+    #       passer 0xffffffff (comme avant) revendique la participation de 24
+    #       lanes fantômes qui n'exécutent jamais cette instruction.
+    #   (2) `width` (4e argument, PAS juste le masque) doit AUSSI valoir
+    #       `min(nth,32)` -- c'est `width`, pas `mask`, qui détermine
+    #       l'arithmétique de la lane cible : avec `width` par défaut (32,
+    #       comme avant), une lane i<width_réel calculant `i+delta>=width_réel`
+    #       tente de lire une lane qui n'existe PAS DU TOUT dans ce lancement
+    #       (pas seulement "masquée") -- non défini même avec un masque
+    #       correct. Avec `width` correctement fixé, la spec CUDA garantit que
+    #       toute lane cible hors de la sous-section de taille `width` "wrap"
+    #       vers la valeur PROPRE de l'appelant (no-op documenté) -- donc les 5
+    #       déltas (16,8,4,2,1) restent inconditionnellement sûrs : ceux
+    #       >= width deviennent des no-ops automatiques, aucune branche
+    #       supplémentaire nécessaire.
+    # Observé concrètement sans ce correctif : NaN intermittents, dépendant de
+    # la ligne/tête, sur `:softmax` avec des séquences courtes (< 32 tokens)
+    # sur le chemin batché. Ce correctif ne change RIEN pour nth>=32 (chaque
+    # warp d'un bloc >= 32 threads est toujours intégralement peuplée, donc
+    # mask=0xffffffff et width=32 restent ce qu'ils étaient) -- seulement pour
+    # nth<32.
+    @inline function _warp_reduce_params(nth::Int32)
+        width = min(nth, Int32(32))
+        mask = width >= Int32(32) ? 0xffffffff : (UInt32(1) << width) - UInt32(1)
+        return mask, width
+    end
+    _warp_reduce_params(nth::Integer) = _warp_reduce_params(Int32(nth))
+
+    # CORRECTIF AU CORRECTIF (même session, trouvé par la suite de tests --
+    # `check_gradients` sur RMSNorm CUDA, diagnostic non-assertant mais lu) :
+    # passer `width` à `shfl_down_sync` fait bien "clamper" un décalage hors
+    # de la sous-section de taille `width` vers la valeur PROPRE de
+    # l'appelant -- mais "retourner sa propre valeur" n'est un no-op que pour
+    # `max` (`max(v,v)=v`) ; pour une somme, `v += v` la DOUBLE. Chaîner les 5
+    # déltas (16,8,4,2,1) sans condition, comme avant, corrompt donc toute
+    # réduction par SOMME dès que `width<32` (RMSNorm, la somme de ligne du
+    # softmax, dgamma, corr, softmax_bwd) -- démasqué par
+    # `check_gradients`/`grad_check` sur RMSNorm CUDA (M=4,8,1), erreurs de
+    # l'ordre de 1 à 256 au lieu de 1e-4. Le correctif correct : n'appliquer
+    # QUE les déltas STRICTEMENT INFÉRIEURS à `width` (16,8,4 sont hors
+    # sous-section dès que width<=4, ne doivent jamais s'exécuter, pas
+    # seulement "s'exécuter sans effet") -- la réduction converge alors
+    # exactement vers le total à la lane 0 de chaque sous-section (le seul
+    # résultat jamais lu, via les `lane==0`/`wid==1` déjà présents partout
+    # dans ce fichier), quelle que soit la valeur de `width` (toujours une
+    # puissance de 2, par construction de `nextpow(2,...)` en amont).
+    @inline function _warp_reduce_add(v::Float32, mask::UInt32, width::Int32)::Float32
+        width > Int32(16) && (v += CUDA.shfl_down_sync(mask, v, 16, width))
+        width > Int32(8)  && (v += CUDA.shfl_down_sync(mask, v,  8, width))
+        width > Int32(4)  && (v += CUDA.shfl_down_sync(mask, v,  4, width))
+        width > Int32(2)  && (v += CUDA.shfl_down_sync(mask, v,  2, width))
+        width > Int32(1)  && (v += CUDA.shfl_down_sync(mask, v,  1, width))
         return v
     end
 
-    @inline function _warp_reduce_max(v::Float32)::Float32
-        v = max(v, CUDA.shfl_down_sync(0xffffffff, v, 16))
-        v = max(v, CUDA.shfl_down_sync(0xffffffff, v,  8))
-        v = max(v, CUDA.shfl_down_sync(0xffffffff, v,  4))
-        v = max(v, CUDA.shfl_down_sync(0xffffffff, v,  2))
-        v = max(v, CUDA.shfl_down_sync(0xffffffff, v,  1))
+    @inline function _warp_reduce_max(v::Float32, mask::UInt32, width::Int32)::Float32
+        width > Int32(16) && (v = max(v, CUDA.shfl_down_sync(mask, v, 16, width)))
+        width > Int32(8)  && (v = max(v, CUDA.shfl_down_sync(mask, v,  8, width)))
+        width > Int32(4)  && (v = max(v, CUDA.shfl_down_sync(mask, v,  4, width)))
+        width > Int32(2)  && (v = max(v, CUDA.shfl_down_sync(mask, v,  2, width)))
+        width > Int32(1)  && (v = max(v, CUDA.shfl_down_sync(mask, v,  1, width)))
         return v
     end
 end
@@ -113,15 +164,16 @@ if Backend.CUDA_AVAILABLE
         tid = threadIdx().x; nth = blockDim().x
         nw  = cld(nth, WARPSIZE)
         wid = (tid-1) ÷ WARPSIZE + 1; lane = (tid-1) % WARPSIZE
+        wmask, wwidth = _warp_reduce_params(nth)
         smem = CUDA.CuDynamicSharedArray(Float32, nw)
         ss = 0f0; j = tid
         while j <= nc; @inbounds v = x[row,j]; ss = fma(v,v,ss); j += nth; end
-        ss = _warp_reduce_add(ss)
+        ss = _warp_reduce_add(ss, wmask, wwidth)
         lane == 0 && (@inbounds smem[wid] = ss)
         sync_threads()
         if wid == 1
             val = tid <= nw ? @inbounds(smem[tid]) : 0f0
-            val = _warp_reduce_add(val)
+            val = _warp_reduce_add(val, wmask, wwidth)
             tid == 1 && (@inbounds rms_inv[row] = 1f0 / sqrt(val/nc + eps))
         end
         sync_threads()
@@ -155,7 +207,8 @@ if Backend.CUDA_AVAILABLE
                 @inbounds val += dout[row, col] * xn_cu[row, col]
             end
             wid = (tid - 1) ÷ WARPSIZE + 1; lane = (tid - 1) % WARPSIZE
-            warp_sum = _warp_reduce_add(val)
+            wmask, wwidth = _warp_reduce_params(nth)
+            warp_sum = _warp_reduce_add(val, wmask, wwidth)
             smem = CUDA.CuDynamicSharedArray(Float32, cld(nth, WARPSIZE))
             if lane == 0; smem[wid] = warp_sum; end
             sync_threads()
@@ -179,7 +232,8 @@ if Backend.CUDA_AVAILABLE
                 @inbounds val += dout[row, col] * gamma[col] * xn_cu[row, col]
             end
             wid = (tid - 1) ÷ WARPSIZE + 1; lane = (tid - 1) % WARPSIZE
-            warp_sum = _warp_reduce_add(val)
+            wmask, wwidth = _warp_reduce_params(nth)
+            warp_sum = _warp_reduce_add(val, wmask, wwidth)
             smem = CUDA.CuDynamicSharedArray(Float32, cld(nth, WARPSIZE))
             if lane == 0; smem[wid] = warp_sum; end
             sync_threads()
@@ -316,13 +370,14 @@ if Backend.CUDA_AVAILABLE
         if row > nrows; return; end
         tid = threadIdx().x
         nth = blockDim().x
+        wmask, wwidth = _warp_reduce_params(nth)
 
         local_max = -Inf32
         for col = tid:nth:ncols
             @inbounds v = x[row, col]
             if v > local_max; local_max = v; end
         end
-        local_max = _warp_reduce_max(local_max)
+        local_max = _warp_reduce_max(local_max, wmask, wwidth)
         warps_per_block = cld(nth, WARPSIZE)
         smem = CUDA.CuDynamicSharedArray(Float32, warps_per_block + 2)
         wid = (tid-1) ÷ WARPSIZE + 1
@@ -333,7 +388,7 @@ if Backend.CUDA_AVAILABLE
         sync_threads()
         if wid == 1
             block_max = tid <= warps_per_block ? smem[tid] : -Inf32
-            block_max = _warp_reduce_max(block_max)
+            block_max = _warp_reduce_max(block_max, wmask, wwidth)
             if tid == 1
                 smem[warps_per_block+1] = block_max
             end
@@ -347,7 +402,7 @@ if Backend.CUDA_AVAILABLE
             @inbounds out[row, col] = e
             local_sum += e
         end
-        local_sum = _warp_reduce_add(local_sum)
+        local_sum = _warp_reduce_add(local_sum, wmask, wwidth)
         if lane == 0
             smem[wid] = local_sum
         end
@@ -392,12 +447,13 @@ if Backend.CUDA_AVAILABLE
         if row > nrows; return; end
         tid = threadIdx().x
         nth = blockDim().x
+        wmask, wwidth = _warp_reduce_params(nth)
 
         local_dot = 0f0
         for col = tid:nth:ncols
             @inbounds local_dot += dout[row, col] * out[row, col]
         end
-        local_dot = _warp_reduce_add(local_dot)
+        local_dot = _warp_reduce_add(local_dot, wmask, wwidth)
         warps_per_block = cld(nth, WARPSIZE)
         smem = CUDA.CuDynamicSharedArray(Float32, warps_per_block + 1)
         wid = (tid-1) ÷ WARPSIZE + 1

@@ -35,9 +35,28 @@ delta total pour un cache, soit 95,6% de gaspillage pur, sur un modèle à
 l'échelle GPT-2 small). Aucun changement fonctionnel : les poids restent
 accessibles directement via le graphe, jamais lus depuis ce cache.
 """
-capture_activations(g::NeuroGraph, ns::Symbol=g.active_ns) =
-    Dict{Symbol,Any}(sym => copy(nd.value) for (sym, nd) in g.nodes[ns]
-                      if nd.value !== nothing && !nd.is_param)
+function capture_activations(g::NeuroGraph, ns::Symbol=g.active_ns)
+    # GARDE 2026-07-28 (KV-cache, notebook/qwen2.ipynb) : un nœud kv-cache
+    # porte un état RÉEL (l'historique K/V) dans `aux_data`, jamais dans
+    # `.value` seul -- `capture_activations` ne copie QUE `.value`, donc un
+    # instantané pris pendant une génération à cache actif serait
+    # SILENCIEUSEMENT incomplet (le patch_node!/restore_from_cache! qui s'en
+    # suivrait ne reproduirait pas le VRAI état). Ce dépôt a déjà été mordu
+    # deux fois ce soir par un état vivant hors de ce que ces fonctions
+    # regardent (voir les correctifs `capture_activations`/`patch_node!` du
+    # 2026-07-12 et 2026-07-11 documentés plus haut) -- échec bruyant ici
+    # plutôt qu'un troisième cas silencieux.
+    for (sym, nd) in g.nodes[ns]
+        get(nd.aux_data, :kv_cache_active, false) &&
+            error("❌ capture_activations : le nœud :$sym porte un cache KV actif " *
+                  "(état dans aux_data, invisible à cette fonction) -- capturer une " *
+                  "activation pendant une génération à cache actif donnerait un " *
+                  "instantané incomplet. Videz/désactivez le cache avant de capturer, " *
+                  "ou utilisez le graphe en mode recalcul complet pour l'interprétabilité.")
+    end
+    return Dict{Symbol,Any}(sym => copy(nd.value) for (sym, nd) in g.nodes[ns]
+                             if nd.value !== nothing && !nd.is_param)
+end
 
 """
     patch_node!(g, sym, cache; namespace=g.active_ns)
@@ -64,6 +83,12 @@ utilisé par `restore_from_cache!` ci-dessous (`nd.value = copy(cache[sym])`).
 """
 function patch_node!(g::NeuroGraph, sym::Symbol, cache; namespace::Symbol=g.active_ns)
     nd = node(g, sym; namespace=namespace)
+    get(nd.aux_data, :kv_cache_active, false) &&
+        error("❌ patch_node! : le nœud :$sym porte un cache KV actif -- écraser " *
+              "`.value` seul laisserait `aux_data[:history]` désynchronisé de la " *
+              "valeur patchée, corrompant silencieusement le pas de génération " *
+              "suivant. Non géré (hors-scope du cache KV, qui vise l'inférence pure, " *
+              "pas le patching).")
     nd.value = Backend.to_device(g.device, copy(cache[sym]))
     nd.valid = true
     nd.backwarded = false
