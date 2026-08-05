@@ -751,11 +751,18 @@ function demand!(g::NeuroGraph, name::Symbol;
     order = topo_order!(g; namespace=ns)
     for sym in order
         nd_i = g.nodes[ns][sym]
-        nd_i.valid && nd_i.value !== nothing && continue
-        haskey(g.rules[ns], sym) || continue
-
-        # On passe le log à execute_rule!
-        execute_rule!(g, g.rules[ns][sym]; ctx_store=ctx_store, namespace=ns, log=log)
+        # Bug corrigé : le `break` était gardé par `haskey(...)`, donc
+        # inatteignable pour une cible SANS règle (un paramètre ou une
+        # source) -- la boucle continuait alors jusqu'à la fin de l'ordre
+        # topologique entier, ré-exécutant toute règle invalide rencontrée
+        # en chemin, bien au-delà de `name`. Vérifié : `demand!(g, :W1)`
+        # sur un paramètre recalculait des nœuds bien après W1 dans le
+        # graphe. Le `break` doit se vérifier indépendamment de la
+        # présence d'une règle pour `sym`.
+        if !(nd_i.valid && nd_i.value !== nothing) && haskey(g.rules[ns], sym)
+            # On passe le log à execute_rule!
+            execute_rule!(g, g.rules[ns][sym]; ctx_store=ctx_store, namespace=ns, log=log)
+        end
         sym == name && break
     end
 
