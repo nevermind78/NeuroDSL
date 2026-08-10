@@ -71,7 +71,6 @@ old/
 artilce/*.tex
 artilce/*.zip
 
-<<<<<<< HEAD
 # Outillage local de soumission (construction des zips arXiv, comptage de
 # flottants, extraction de résumé) : opère sur artilce/*.tex, qui n'est pas
 # suivi, donc inutilisable par un tiers. Reste en local.
@@ -90,8 +89,6 @@ artilce/article3.pdf
 artilce/math1.pdf
 artilce/math2.pdf
 
-=======
->>>>>>> cc0723ea7c324c552526f34eb9e89133c515bb73
 # Artefacts de compilation LaTeX : régénérés par latexmk à chaque build,
 # contiennent des chemins absolus de cette machine, aucune valeur en revue.
 artilce/*.fdb_latexmk
