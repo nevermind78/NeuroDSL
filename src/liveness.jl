@@ -86,7 +86,8 @@ Les nœuds Quantom backpropables ont leur durée de vie étendue jusqu'au backwa
 
 Complexité : O(n²) sur le nombre de nœuds — acceptable pour n < 10 000.
 """
-function compute_liveness(g::NeuroGraph; namespace::Symbol = g.active_ns)
+function compute_liveness(g::NeuroGraph; namespace::Symbol = g.active_ns,
+                          for_backward::Bool = true)
     order  = topo_order!(g; namespace = namespace)
     n      = length(order)
     idx_of = Dict{Symbol, Int}(sym => i for (i, sym) in enumerate(order))
@@ -108,8 +109,20 @@ function compute_liveness(g::NeuroGraph; namespace::Symbol = g.active_ns)
             if nd.is_param
                 # Les paramètres vivent toute l'itération (nécessaires au backward)
                 last_use = n
-            elseif is_backpropable(nd)
-                # Les activations backpropables vivent jusqu'à la fin du backward
+            elseif is_backpropable(nd) && for_backward
+                # Les activations backpropables vivent jusqu'à la fin du backward.
+                #
+                # `for_backward=false` (ajouté le 2026-08-08) coupe cette extension
+                # pour les graphes où AUCUN backward ne suivra -- validation,
+                # génération autorégressive, inférence. Sans ce drapeau, la
+                # branche s'appliquait INCONDITIONNELLEMENT : elle ne demandait
+                # jamais si un backward allait tourner, si bien que TOUT nœud
+                # backpropable voyait `last_use = n` et qu'aucun intervalle ne se
+                # fermait. La coloration ne pouvait donc partager aucun slot, et
+                # `n_slots` restait égal au nombre de nœuds -- planificateur
+                # rigoureusement sans effet, y compris en forward seul.
+                # Diagnostiqué en constatant que `plan_memory!` rendait 63 slots
+                # sur un graphe de 63 nœuds (depth=20), soit zéro réduction.
                 last_use = max(last_use, n)
             end
         end
@@ -201,9 +214,10 @@ Usage :
     println(plan)
     # → affiche les métriques de réduction mémoire
 """
-function plan_memory!(g::NeuroGraph; namespace::Symbol = g.active_ns)
+function plan_memory!(g::NeuroGraph; namespace::Symbol = g.active_ns,
+                      for_backward::Bool = true)
     order    = topo_order!(g; namespace = namespace)
-    liveness = compute_liveness(g; namespace = namespace)
+    liveness = compute_liveness(g; namespace = namespace, for_backward = for_backward)
     slot_of  = greedy_interval_coloring(liveness, order)
     n_slots  = isempty(slot_of) ? 0 : maximum(values(slot_of))
     plan     = MemoryPlan(slot_of, liveness, n_slots, order)
@@ -241,14 +255,29 @@ function demand_planned!(g::NeuroGraph, sym::Symbol,
 
         rule = g.rules[ns][node_sym]
 
-        # Acquérir un buffer depuis le pool si le nœud n'en a pas encore
+        # Acquérir un buffer depuis le pool si le nœud n'en a pas encore.
+        #
+        # CORRECTIF 2026-08-08 -- la version précédente devinait la forme de
+        # sortie comme celle de la PREMIÈRE entrée disponible
+        # (`Tuple(size(inputs_avail[1]))`). C'est faux pour la plupart des ops,
+        # y compris `:matmul` -- le plus courant : A(m,k)·B(k,n) sort en (m,n),
+        # pas en (m,k). Et la conséquence était pire que l'erreur elle-même :
+        # `execute_rule!` teste `size(out_node.value) != out_shape` et, la forme
+        # devinée ne correspondant pas, il LIBÉRAIT le tampon fraîchement
+        # acquis pour en allouer un neuf. Chaque nœud payait donc une
+        # acquisition perdue, le pool n'enregistrait jamais aucune
+        # réutilisation, et `demand_planned!` allouait STRICTEMENT PLUS que
+        # `demand!` -- le plan mémoire n'avait aucun effet sur le pic.
+        #
+        # On interroge désormais l'inférence de forme du moteur lui-même
+        # (`_infer_output_shape`, src/dispatch.jl), celle qu'`execute_rule!`
+        # utilisera juste après : les deux concordent donc par construction, le
+        # test de taille passe, et le tampon du pool est réellement réutilisé.
         if nd_i.value === nothing
-            iv = plan.liveness[node_sym]
-            inputs_avail = [g.nodes[ns][s].value for s in rule.inputs
-                            if g.nodes[ns][s].value !== nothing]
-            if !isempty(inputs_avail)
-                estimated_shape = Tuple(size(inputs_avail[1]))
-                nd_i.value = acquire!(pool, estimated_shape)
+            inputs_vals = [g.nodes[ns][s].value for s in rule.inputs]
+            if all(v -> v !== nothing, inputs_vals)
+                out_shape = _infer_output_shape(rule.op, inputs_vals, rule.attrs)
+                nd_i.value = acquire!(pool, Tuple(out_shape))
             end
         end
 
@@ -261,7 +290,21 @@ function demand_planned!(g::NeuroGraph, sym::Symbol,
             prev_nd = g.nodes[ns][prev_sym]
             prev_nd.value === nothing && continue
             iv = plan.liveness[prev_sym]
-            if iv.last_use <= step && !prev_nd.is_param
+            # Ne libérer QUE ce qu'une règle saura recalculer.
+            #
+            # CORRECTIF 2026-08-08 -- la condition était `!prev_nd.is_param`
+            # seule, ce qui libérait aussi les FEUILLES D'ENTRÉE brutes
+            # (`token_ids`, `pos_ids`, un batch injecté par `set!`...) : des
+            # nœuds sans règle, donc que la boucle d'exécution ci-dessus saute
+            # (`haskey(g.rules[ns], node_sym) || continue`) et que RIEN ne peut
+            # reconstruire. `demand_planned!` détruisait ainsi ses propres
+            # entrées et n'était utilisable qu'UNE SEULE FOIS : au deuxième
+            # appel, `execute_rule!` recevait `nothing` et levait
+            # `TypeError: expected AbstractArray{Float32}, got Nothing`.
+            # Invisible pour tout test qui ne l'appelle qu'une fois -- c'est
+            # pourquoi le défaut a survécu.
+            recomputable = haskey(g.rules[ns], prev_sym)
+            if iv.last_use <= step && !prev_nd.is_param && recomputable
                 release!(pool, prev_nd.value)
                 prev_nd.value = nothing
             end

@@ -1,0 +1,23 @@
+# CONTROLE POSITIF de la localite d'invalidation : rembourrage ATTEIGNABLE.
+# Complement au controle negatif de bench_invalidation_locality_results.txt, qui
+# montrait que la mesure renvoie une grande valeur quand elle le doit, mais jamais
+# qu'elle REAGIT au facteur confondant -- un comptage constant PAR ERREUR aurait
+# passe tous les controles negatifs.
+# Ici le rembourrage consomme depuis :input, donc il EST en aval. Deux predictions
+# exactes et opposees, posees AVANT la mesure :
+#   - :input doit croitre de EXACTEMENT (n_model-1)=600 noeuds par unite ;
+#   - un site profond doit rester RIGOUREUSEMENT inchange.
+# Piege rencontre et diagnostique en route : sans demand! sur le rembourrage, le
+# compte restait a 493 contre 1093 annonces par l'oracle. Ce n'est pas un bug --
+# _invalidate_downstream! ne propage qu'aux consommateurs VALIDES (garde out_nd.valid),
+# invalider un noeud deja invalide etant un no-op et son aval l'etant par induction.
+# Le moteur fait donc MIEUX que la borne |V_theta| quand une partie du cone est deja
+# invalide : la borne est un majorant, pas une egalite operationnelle.
+RESULT pad=2 padmode=reachable site=input n_model=601 n_total=1801 n_param=108 n_invalidable=1693 visited=1093 oracle=1093 agree=true ratio_model=1.8186 ratio_invalidable=0.6456
+RESULT pad=2 padmode=reachable site=layer1 n_model=601 n_total=1801 n_param=108 n_invalidable=1693 visited=452 oracle=452 agree=true ratio_model=0.7521 ratio_invalidable=0.2670
+RESULT pad=2 padmode=reachable site=layer6 n_model=601 n_total=1801 n_param=108 n_invalidable=1693 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.1459
+RESULT pad=2 padmode=reachable site=layer12 n_model=601 n_total=1801 n_param=108 n_invalidable=1693 visited=1 oracle=1 agree=true ratio_model=0.0017 ratio_invalidable=0.0006
+RESULT pad=4 padmode=reachable site=input n_model=601 n_total=4201 n_param=108 n_invalidable=4093 visited=2293 oracle=2293 agree=true ratio_model=3.8153 ratio_invalidable=0.5602
+RESULT pad=4 padmode=reachable site=layer1 n_model=601 n_total=4201 n_param=108 n_invalidable=4093 visited=452 oracle=452 agree=true ratio_model=0.7521 ratio_invalidable=0.1104
+RESULT pad=4 padmode=reachable site=layer6 n_model=601 n_total=4201 n_param=108 n_invalidable=4093 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.0603
+RESULT pad=4 padmode=reachable site=layer12 n_model=601 n_total=4201 n_param=108 n_invalidable=4093 visited=1 oracle=1 agree=true ratio_model=0.0017 ratio_invalidable=0.0002

@@ -60,6 +60,16 @@ mutable struct NeuroGraph
     # le scan de toutes les règles du namespace répété à chaque nœud visité par
     # _invalidate_downstream!/_invalidate_upstream!/patch_node!/_downstream_nodes.
     _consumers_cache :: Dict{Symbol, Union{Nothing, Dict{Symbol, Vector{Symbol}}}}
+    # Table (namespace) -> (symbole cible) -> (ancêtres de cette cible, EN ORDRE
+    # TOPOLOGIQUE, cible incluse en dernier) -- voir _ancestors_of! (graph_api.jl).
+    # Invalidée aux MÊMES points que _topo_cache/_consumers_cache (vidée
+    # entièrement, jamais par entrée individuelle -- même granularité grossière
+    # mais sûre que les deux caches existants). Corrige le défaut trouvé dans
+    # demand! : sans ce cache, chaque appel parcourait tout le préfixe
+    # topologique jusqu'à la cible (O(position), pas O(cône ancêtre)),
+    # contrairement au théorème publié qui ne couvre que l'invalidation, pas
+    # la récupération.
+    _ancestors_cache :: Dict{Symbol, Dict{Symbol, Vector{Symbol}}}
     active_ns     :: Symbol
     device        :: Union{Backend.CPUDevice, Backend.CUDADevice}
 end
@@ -71,6 +81,7 @@ function NeuroGraph(; namespace::Symbol = :default, device = Backend.active_devi
         Dict{Symbol, Function}(),
         Dict{Symbol, Union{Nothing, Vector{Symbol}}}(),
         Dict{Symbol, Union{Nothing, Dict{Symbol, Vector{Symbol}}}}(),
+        Dict{Symbol, Dict{Symbol, Vector{Symbol}}}(),
         namespace, device)
     _ensure_namespace!(g, namespace)
     return g

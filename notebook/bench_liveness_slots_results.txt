@@ -1,0 +1,9 @@
+# Planificateur memoire : n_slots contre nombre de noeuds.
+# Structurel, deterministe, sans chronometre. for_backward=false coupe
+# l'extension last_use=n des activations backpropables (src/liveness.jl).
+# Criteres pre-enregistres : ABANDON si slots_fwd >= 0.9n, FEU VERT si <= 0.6n.
+RESULT graph=chain_8 n_nodes=25 slots_backward=25 slots_forward=10 frac_forward=0.4000
+RESULT graph=chain_20 n_nodes=61 slots_backward=61 slots_forward=22 frac_forward=0.3607
+RESULT graph=chain_40 n_nodes=121 slots_backward=121 slots_forward=42 frac_forward=0.3471
+RESULT graph=llama4 n_nodes=201 slots_backward=201 slots_forward=40 frac_forward=0.1990
+RESULT control=skip n_plain=61 slots_plain=22 n_skip=62 slots_skip=23 responds=true

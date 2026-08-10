@@ -199,3 +199,22 @@ println("="^62)
 @printf("  train_step (opt-in release_values=true)        = %.2f MB\n", peaks_train_rv[end])
 @printf("Comparaison : PyTorch (torch.cuda.max_memory_allocated(), toute la boucle) = 73.6 MB\n")
 println("="^62)
+
+# ── Archivage sur disque ─────────────────────────────────────────────────────
+# Ajouté le 2026-08-08 : cette sonde n'écrivait QUE sur la console, si bien que
+# quatre des cinq chiffres qu'elle produit (opt-in, val_window, gen_token,
+# baseline stable) n'avaient aucun artefact dans le dépôt -- exactement le défaut
+# pour lequel d'autres affirmations de l'article ont été retirées. Les figures
+# citées doivent être relisibles sans relancer la sonde.
+const _RESULTS_PATH = joinpath(@__DIR__, "real_llm_vram_probe_results.txt")
+open(_RESULTS_PATH, "w") do io
+    println(io, "# real_llm_vram_probe.jl -- pic VRAM par épisode (watermark du pool CUDA)")
+    println(io, "# char-LM TinyShakespeare, dim=256, 4 couches, 4 têtes, 2 722 369 paramètres")
+    println(io, "# référence PyTorch (torch.cuda.max_memory_allocated, boucle entière) = 73.62 MB")
+    @printf(io, "RESULT episode=train_step release_values=false peak_mb=%.2f\n", peaks_train[end])
+    @printf(io, "RESULT episode=train_step release_values=true  peak_mb=%.2f\n", peaks_train_rv[end])
+    @printf(io, "RESULT episode=val_window release_values=false peak_mb=%.2f\n", peak_val)
+    @printf(io, "RESULT episode=gen_token  release_values=false peak_mb=%.2f\n", peak_gen)
+    @printf(io, "RESULT retained_peak_mb=%.2f pytorch_ref_mb=73.62\n", peak_vram_mb)
+end
+println("Résultats archivés dans : ", _RESULTS_PATH)

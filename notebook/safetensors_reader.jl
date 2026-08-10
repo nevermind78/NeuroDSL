@@ -115,3 +115,68 @@ end
     tensor_names(st::SafetensorsFile) -> Vector{String}
 """
 tensor_names(st::SafetensorsFile) = collect(keys(st.header))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Support des checkpoints "sharded" (plusieurs fichiers .safetensors + un
+# model.safetensors.index.json qui mappe chaque nom de tenseur à son fichier
+# -- HuggingFace découpe automatiquement au-delà d'une certaine taille, ex.
+# Qwen2.5-7B-Instruct en 4 shards). Additif : ne touche à rien de ce qui
+# précède (le lecteur 1-fichier reste utilisé tel quel pour les checkpoints
+# non shardés, ex. Qwen2.5-1.5B-Instruct).
+# ══════════════════════════════════════════════════════════════════════════════
+
+"""
+    ShardedSafetensorsFile
+
+`weight_map::Dict{String,String}` -- nom de tenseur -> nom de fichier shard
+(tel que lu dans l'index HuggingFace).
+`shards::Dict{String,SafetensorsFile}` -- fichier shard -> en-tête déjà parsé
+(un seul `open_safetensors` par shard, pas par tenseur).
+"""
+struct ShardedSafetensorsFile
+    weight_map :: Dict{String,String}
+    shards     :: Dict{String,SafetensorsFile}
+end
+
+"""
+    open_safetensors_sharded(index_path) -> ShardedSafetensorsFile
+
+Lit `model.safetensors.index.json` (clé `"weight_map"`, format HuggingFace
+standard) puis ouvre l'en-tête de chaque shard référencé UNE fois (pas à
+chaque lecture de tenseur) -- même discipline que `open_safetensors` : aucune
+donnée de tenseur chargée ici, seulement les en-têtes JSON.
+"""
+function open_safetensors_sharded(index_path::AbstractString)
+    idx = JSON.parsefile(index_path)
+    weight_map = Dict{String,String}(String(k) => String(v) for (k, v) in idx["weight_map"])
+    dir = dirname(index_path)
+    shard_files = unique(values(weight_map))
+    shards = Dict{String,SafetensorsFile}(
+        f => open_safetensors(joinpath(dir, f)) for f in shard_files
+    )
+    return ShardedSafetensorsFile(weight_map, shards)
+end
+
+function read_tensor(st::ShardedSafetensorsFile, name::String)
+    haskey(st.weight_map, name) || error("safetensors (sharded): tenseur introuvable : $name")
+    return read_tensor(st.shards[st.weight_map[name]], name)
+end
+
+tensor_names(st::ShardedSafetensorsFile) = collect(keys(st.weight_map))
+haskey_tensor(st::ShardedSafetensorsFile, name::String) = haskey(st.weight_map, name)
+haskey_tensor(st::SafetensorsFile, name::String) = haskey(st.header, name)
+
+"""
+    open_any_safetensors(model_dir) -> SafetensorsFile or ShardedSafetensorsFile
+
+Détecte automatiquement le format présent dans `model_dir` : si
+`model.safetensors.index.json` existe, ouvre en mode sharded ; sinon retombe
+sur le fichier unique `model.safetensors` (comportement historique inchangé).
+"""
+function open_any_safetensors(model_dir::AbstractString)
+    idx_path = joinpath(model_dir, "model.safetensors.index.json")
+    if isfile(idx_path)
+        return open_safetensors_sharded(idx_path)
+    end
+    return open_safetensors(joinpath(model_dir, "model.safetensors"))
+end

@@ -1,0 +1,8 @@
+# real_llm_vram_probe.jl -- pic VRAM par épisode (watermark du pool CUDA)
+# char-LM TinyShakespeare, dim=256, 4 couches, 4 têtes, 2 722 369 paramètres
+# référence PyTorch (torch.cuda.max_memory_allocated, boucle entière) = 73.62 MB
+RESULT episode=train_step release_values=false peak_mb=91.78
+RESULT episode=train_step release_values=true  peak_mb=80.27
+RESULT episode=val_window release_values=false peak_mb=51.44
+RESULT episode=gen_token  release_values=false peak_mb=51.80
+RESULT retained_peak_mb=91.78 pytorch_ref_mb=73.62

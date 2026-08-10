@@ -69,6 +69,7 @@ function _apply_fusion!(g::NeuroGraph, ns::Symbol, chain::Vector{Symbol}, fused_
     # Réinitialisation explicite du cache de consommateurs -- ne pas dépendre
     # implicitement du fait que l'addrule! ci-dessous le réinitialise aussi.
     g._consumers_cache[ns] = nothing
+    empty!(g._ancestors_cache[ns])
 
     # Ajouter la règle fusionnée
     addrule!(g, GraphRule(fused_output, fused_inputs, fused_op;

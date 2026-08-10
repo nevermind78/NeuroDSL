@@ -1,0 +1,7 @@
+# demand_planned! : correction (egalite bit-a-bit avec demand!) puis
+# reutilisation du pool. Deterministe, sans chronometre.
+# Correctif du 2026-08-08 : la forme de sortie vient desormais de
+# _infer_output_shape et non d'une supposition sur la premiere entree.
+RESULT reference=demand! n_nodes=201 out_shape=(8, 32)
+RESULT arm=for_backward_false bitexact=true pool_hits=151 pool_allocs=13 hit_rate_pct=92.1 n_slots=40
+RESULT arm=for_backward_true bitexact=true pool_hits=0 pool_allocs=164 hit_rate_pct=0.0 n_slots=201
