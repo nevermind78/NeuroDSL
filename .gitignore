@@ -71,6 +71,34 @@ old/
 artilce/*.tex
 artilce/*.zip
 
+# Outillage local de soumission (construction des zips arXiv, comptage de
+# flottants, extraction de résumé) : opère sur artilce/*.tex, qui n'est pas
+# suivi, donc inutilisable par un tiers. Reste en local.
+artilce/*.py
+
+# Wrapper vers le dépôt LOCAL des sources d'articles : expose un chemin de
+# cette machine, n'a aucun sens ailleurs.
+papers-git.ps1
+
+# PDF compilés depuis les .tex non suivis. Les PDF publiables des articles
+# annoncés sont suivis séparément sous leur nom d'arXiv ou leur titre.
+# NeuroDSL.pdf en particulier est une soumission non encore annoncée.
+artilce/NeuroDSL.pdf
+artilce/article2.pdf
+artilce/article3.pdf
+artilce/math1.pdf
+artilce/math2.pdf
+
+# Artefacts de compilation LaTeX : régénérés par latexmk à chaque build,
+# contiennent des chemins absolus de cette machine, aucune valeur en revue.
+artilce/*.fdb_latexmk
+artilce/*.fls
+artilce/*.synctex.gz
+artilce/*.bbl
+artilce/*.blg
+artilce/*.out
+artilce/*.toc
+
 # Notes/scratch de bibliographie (fichiers de travail, pas des livrables)
 artilce/*.txt
 
@@ -97,3 +125,52 @@ notebook/*.pdf
 # ci-dessus, qui visent les sorties de scratch, pas les assets choisis.
 !assets/readme/
 !assets/readme/*
+# ═══════════════════════════════════════════════════════════════════════════
+# EXEMPTIONS DE REPRODUCTIBILITÉ (ajoutées le 2026-08-08)
+#
+# Les règles génériques ci-dessus (notebook/*.txt, *.json) visaient des sorties
+# de brouillon régénérables. Elles attrapaient au passage TOUTE la couche de
+# preuve des articles : bancs, pilotes et fichiers de résultats cités nommément
+# dans le texte. Un lecteur qui clonait le dépôt n'obtenait donc aucune des
+# données citées -- exactement le défaut de traçabilité que la révision de
+# NeuroDSL.tex a corrigé côté article, reproduit ici côté distribution.
+#
+# Règle de décision : est suivi tout ce qu'il faut pour REJOUER une expérience
+# citée (script, pilote, résultat archivé) ; reste ignoré tout ce qui se
+# régénère sans valeur propre (HTML, PDF de figures intermédiaires, poids,
+# checkpoints, scratch).
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Bancs de mesure et leurs pilotes
+!notebook/bench_*.jl
+!notebook/*_driver.sh
+
+# Résultats archivés cités dans les articles (RESULT lines + en-tête de protocole)
+!notebook/*_results.txt
+
+# Sondes VRAM citées par NeuroDSL.tex
+!notebook/real_llm_vram_probe.jl
+!notebook/article_benchmark_vram_probe.jl
+
+# Géométrie de coût à l'échelle GPT-2 (E9 de arXiv:2607.18323)
+!notebook/jalon0_cost_geometry_gpt2_scale.jl
+!notebook/jalon0b_cost_geometry_gpt2_medium.jl
+!notebook/jalon0_results.json
+!notebook/jalon0b_results.json
+
+# Résultats du run de bout en bout (NeuroDSL vs PyTorch, val loss appariée)
+!notebook/real_llm_neurodsl_results.json
+!notebook/real_llm_pytorch_results.json
+
+# Notebooks sources de lignes citées dans NeuroDSL.tex
+!notebook/GPT2.ipynb
+
+# Guides de reproduction
+!docs/*.md
+
+# ── Gros artefacts générés, retirés du suivi le 2026-08-08 ─────────────────
+# Aucun n'est nécessaire pour rejouer une expérience : tous se régénèrent, et
+# ensemble ils pesaient 83 des 127 Mo suivis.
+docs/*.html
+notebook/p4_export/*.bin
+*.bak

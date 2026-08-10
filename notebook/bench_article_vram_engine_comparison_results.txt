@@ -1,0 +1,39 @@
+# Pic VRAM absolu du bloc transformeur de l'article : MOTEUR DE JUIN contre MOTEUR ACTUEL.
+#
+# But : separer deux causes du retrait de la revendication "2-8x moins de memoire".
+#   (1) une ERREUR DE METHODE -- le chiffre publie comparait MemTrack (somme des
+#       allocations interceptees, cote NeuroDSL) a torch.cuda.max_memory_allocated()
+#       (pic absolu, poids residents inclus, cote PyTorch) : deux quantites
+#       differentes, ce qui gonflait le resultat ;
+#   (2) une AMELIORATION REELLE DU MOTEUR depuis la soumission.
+# Sans cette mesure on ne peut attribuer le retrait qu'a (1). Elle montre que (2)
+# existe aussi, et qu'elle est large.
+#
+# Instrument identique des deux cotes : watermark du pool CUDA
+# (CU_MEMPOOL_ATTR_USED_MEM_HIGH), pic ABSOLU contre pic ABSOLU -- jamais un delta
+# d'episode compare a un absolu. Script : notebook/article_benchmark_vram_probe.jl
+# (il assert l'egalite des pics sur 5 essais, donc un chiffre instable echouerait).
+# Charge : build_transformer_block_neuro, seq=64, forward + backward + perte MSE.
+#
+# MOTEUR DE JUIN : worktree git isole sur b666428 (2026-06-24, dernier commit
+# touchant src/ AVANT la soumission arXiv du 2026-06-25), avec les dependances
+# d'aujourd'hui epinglees pour que SEUL src/ varie. Verifie : 0 occurrence de
+# _relu_into! (donc etat pre-correctif), et diff -rq ne signalait que dispatch.jl.
+# MOTEUR ACTUEL : arbre de travail du 2026-08-08, meme sonde, meme session.
+# Reference PyTorch inchangee (notebook/notebook_py.ipynb), identique aux deux dates.
+#
+# Les deux campagnes ont ete relancees et ont reproduit ces chiffres a l'identique.
+
+RESULT engine=june_b666428 dim=256  baseline_mb=4.57  peak_mb=10.81  pytorch_mb=20.32 ratio=1.88 verdict=neurodsl_less
+RESULT engine=june_b666428 dim=512  baseline_mb=16.07 peak_mb=35.44  pytorch_mb=31.38 ratio=0.89 verdict=neurodsl_MORE
+RESULT engine=june_b666428 dim=1024 baseline_mb=60.08 peak_mb=126.71 pytorch_mb=74.51 ratio=0.59 verdict=neurodsl_MORE
+RESULT engine=current_2026_08_08 dim=256  baseline_mb=4.72  peak_mb=5.47  pytorch_mb=20.32 ratio=3.71 verdict=neurodsl_less
+RESULT engine=current_2026_08_08 dim=512  baseline_mb=16.57 peak_mb=18.07 pytorch_mb=31.38 ratio=1.74 verdict=neurodsl_less
+RESULT engine=current_2026_08_08 dim=1024 baseline_mb=61.02 peak_mb=64.02 pytorch_mb=74.51 ratio=1.16 verdict=neurodsl_less
+
+# Lecture : le moteur a divise son pic par ~2 a chaque taille (10.81->5.47,
+# 35.44->18.07, 126.71->64.02, soit -49.4% / -49.0% / -49.5%), et il est passe de
+# PERDANT contre PyTorch a dim 512 et 1024 a GAGNANT aux trois tailles.
+# Donc la fourchette honnete d'aujourd'hui (1.16-3.71x moins) n'est pas seulement
+# le dégonflage d'une mesure fausse : c'est un gain reel sur le moteur tel qu'il a
+# ete soumis, lequel ne pouvait rien revendiquer sur cet axe.

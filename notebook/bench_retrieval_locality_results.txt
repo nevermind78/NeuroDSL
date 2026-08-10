@@ -1,0 +1,16 @@
+RESULT pad=1 target=input n_total=601 new_cost=1 old_cost=1 oracle=1 agree=true speedup=1.000
+RESULT pad=1 target=layer1 n_total=601 new_cost=51 old_cost=51 oracle=51 agree=true speedup=1.000
+RESULT pad=1 target=layer6 n_total=601 new_cost=301 old_cost=301 oracle=301 agree=true speedup=1.000
+RESULT pad=1 target=output n_total=601 new_cost=601 old_cost=601 oracle=601 agree=true speedup=1.000
+RESULT pad=2 target=input n_total=1802 new_cost=1 old_cost=2 oracle=1 agree=true speedup=2.000
+RESULT pad=2 target=layer1 n_total=1802 new_cost=51 old_cost=52 oracle=51 agree=true speedup=1.020
+RESULT pad=2 target=layer6 n_total=1802 new_cost=301 old_cost=302 oracle=301 agree=true speedup=1.003
+RESULT pad=2 target=output n_total=1802 new_cost=601 old_cost=1789 oracle=601 agree=true speedup=2.977
+RESULT pad=4 target=input n_total=4204 new_cost=1 old_cost=592 oracle=1 agree=true speedup=592.000
+RESULT pad=4 target=layer1 n_total=4204 new_cost=51 old_cost=642 oracle=51 agree=true speedup=12.588
+RESULT pad=4 target=layer6 n_total=4204 new_cost=301 old_cost=892 oracle=301 agree=true speedup=2.963
+RESULT pad=4 target=output n_total=4204 new_cost=601 old_cost=4105 oracle=601 agree=true speedup=6.830
+RESULT pad=4 target=layer1 n_total=4204 new_cost=51 old_cost=642 oracle=51 agree=true speedup=12.588
+RESULT pad=4 target=layer1 n_total=4204 new_cost=51 old_cost=642 oracle=51 agree=true speedup=12.588
+RESULT pad=4 target=layer1 n_total=4204 new_cost=51 old_cost=642 oracle=51 agree=true speedup=12.588
+RESULT pad=4 target=layer1 n_total=4204 new_cost=51 old_cost=642 oracle=51 agree=true speedup=12.588

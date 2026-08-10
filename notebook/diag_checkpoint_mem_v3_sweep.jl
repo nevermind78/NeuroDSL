@@ -100,4 +100,4 @@ end
 println("="^78)
 println("   v3 : balayage de densité de checkpoint (every)")
 println("="^78)
-sweep(32, 512, 8192, [4, 6, 8, 12, 16])
+sweep(32, 512, 8192, [4, 16])

@@ -1,0 +1,10 @@
+RESULT arm=favorable nodes=27 bw_full=27 bw_pruned=4 pruned_pct=85.1852 max_err=0.000e+00 t_full_ms=0.9800 t_pruned_ms=0.2724 gain_pct=72.2055
+RESULT arm=favorable nodes=27 bw_full=27 bw_pruned=4 pruned_pct=85.1852 max_err=0.000e+00 t_full_ms=1.2725 t_pruned_ms=0.3007 gain_pct=76.3694
+RESULT arm=favorable nodes=27 bw_full=27 bw_pruned=4 pruned_pct=85.1852 max_err=0.000e+00 t_full_ms=1.0215 t_pruned_ms=0.3241 gain_pct=68.2688
+RESULT arm=favorable nodes=27 bw_full=27 bw_pruned=4 pruned_pct=85.1852 max_err=0.000e+00 t_full_ms=1.1015 t_pruned_ms=0.3413 gain_pct=69.0136
+RESULT arm=favorable nodes=27 bw_full=27 bw_pruned=4 pruned_pct=85.1852 max_err=0.000e+00 t_full_ms=1.1389 t_pruned_ms=0.3433 gain_pct=69.8538
+RESULT arm=controle nodes=27 bw_full=27 bw_pruned=18 pruned_pct=33.3333 max_err=0.000e+00 t_full_ms=0.9855 t_pruned_ms=0.9813 gain_pct=0.4262
+RESULT arm=controle nodes=27 bw_full=27 bw_pruned=18 pruned_pct=33.3333 max_err=0.000e+00 t_full_ms=1.4429 t_pruned_ms=1.3826 gain_pct=4.1859
+RESULT arm=controle nodes=27 bw_full=27 bw_pruned=18 pruned_pct=33.3333 max_err=0.000e+00 t_full_ms=1.0913 t_pruned_ms=1.0593 gain_pct=2.9233
+RESULT arm=controle nodes=27 bw_full=27 bw_pruned=18 pruned_pct=33.3333 max_err=0.000e+00 t_full_ms=0.9836 t_pruned_ms=0.9798 gain_pct=0.3863
+RESULT arm=controle nodes=27 bw_full=27 bw_pruned=18 pruned_pct=33.3333 max_err=0.000e+00 t_full_ms=1.5917 t_pruned_ms=1.5473 gain_pct=2.7864

@@ -5,6 +5,7 @@ function _ensure_namespace!(g::NeuroGraph, ns::Symbol)
     haskey(g.rules, ns)       || (g.rules[ns]       = Dict{Symbol, GraphRule}())
     haskey(g._topo_cache, ns) || (g._topo_cache[ns] = nothing)
     haskey(g._consumers_cache, ns) || (g._consumers_cache[ns] = nothing)
+    haskey(g._ancestors_cache, ns) || (g._ancestors_cache[ns] = Dict{Symbol,Vector{Symbol}}())
 end
 
 const _EMPTY_SYMBOL_VEC = Symbol[]
@@ -38,6 +39,52 @@ function _consumers_index!(g::NeuroGraph, ns::Symbol)
     end
     g._consumers_cache[ns] = idx
     return idx
+end
+
+"""
+    _ancestors_of!(g, ns, target) -> Vector{Symbol}
+
+Ancêtres de `target` (lui inclus, en dernière position), EN ORDRE
+TOPOLOGIQUE -- calculé par un DFS post-ordre sur `rule.inputs` (visite les
+entrées d'abord, puis ajoute le nœud courant), qui produit un ordre valide
+par construction sans jamais consulter `topo_order!(g)` (le préfixe complet
+du graphe). Mis en cache par cible (`g._ancestors_cache[ns]`), invalidé aux
+mêmes points que `_topo_cache`/`_consumers_cache`.
+
+Corrige un défaut trouvé dans `demand!` (`src/dispatch.jl`) : sans cette
+fonction, chaque appel parcourait tout le préfixe topologique jusqu'à la
+cible -- O(position de la cible dans l'ordre du graphe entier), PAS O(cône
+des ancêtres réels). Le théorème publié (`O(|V_θ|)`) ne couvre que la phase
+d'invalidation (`_invalidate_downstream!`/`_invalidate_upstream!`, déjà
+O(cône) via `_consumers_index!`) -- la phase de récupération avait un coût
+séparé, plus grand, non couvert par ce théorème. C'est aussi la cause
+directe d'un vrai bug déjà rencontré (2026-07-29, `copy_params_to_namespace!`) :
+un `demand!` sur un nœud SANS RAPPORT avec un cache KV actif dans le même
+namespace pouvait quand même le ré-exécuter, puisque le parcours ne
+s'arrêtait pas aux seuls ancêtres réels de la cible.
+"""
+function _ancestors_of!(g::NeuroGraph, ns::Symbol, target::Symbol)
+    cache = g._ancestors_cache[ns]
+    cached = get(cache, target, nothing)
+    cached !== nothing && return cached
+
+    order = Symbol[]
+    visited = Set{Symbol}()
+    function visit(sym::Symbol)
+        sym ∈ visited && return
+        push!(visited, sym)
+        rule = get(g.rules[ns], sym, nothing)
+        if rule !== nothing
+            for inp in rule.inputs
+                visit(inp)
+            end
+        end
+        push!(order, sym)
+    end
+    visit(target)
+
+    cache[target] = order
+    return order
 end
 
 activate!(g::NeuroGraph, ns::Symbol) = (_ensure_namespace!(g, ns); g.active_ns = ns; g)
@@ -166,6 +213,7 @@ function _fuse!(g::NeuroGraph, chain::Vector{Symbol}; ns=g.active_ns)
     # Réinitialisation explicite du cache de consommateurs -- ne pas dépendre
     # implicitement du fait que l'addrule! ci-dessous le réinitialise aussi.
     g._consumers_cache[ns] = nothing
+    empty!(g._ancestors_cache[ns])
 
     # 🚀 FIX: Pass the collected fused_attrs here!
     addrule!(g, GraphRule(fused_output, fused_inputs, fused_op; 
@@ -204,6 +252,7 @@ function addrule!(g::NeuroGraph, rule::GraphRule)
     g.rules[ns][rule.output] = rule
     g._topo_cache[ns] = nothing
     g._consumers_cache[ns] = nothing
+    empty!(g._ancestors_cache[ns])
     if is_redefinition
         _invalidate_downstream!(g, rule.output, ns)
     else

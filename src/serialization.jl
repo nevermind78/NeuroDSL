@@ -183,6 +183,7 @@ function load_graph!(g::NeuroGraph, ns::Symbol, path_prefix::AbstractString; ove
     empty!(g.nodes[ns]); empty!(g.rules[ns])
     g._topo_cache[ns] = nothing
     g._consumers_cache[ns] = nothing
+    empty!(g._ancestors_cache[ns])
 
     io = open(path_prefix * ".bin", "r")
     opt_state = nothing

@@ -1,0 +1,16 @@
+RESULT pad=1 site=input n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=493 oracle=493 agree=true ratio_model=0.8203 ratio_invalidable=1.0000
+RESULT pad=1 site=layer1 n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=452 oracle=452 agree=true ratio_model=0.7521 ratio_invalidable=0.9168
+RESULT pad=1 site=layer6 n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.5010
+RESULT pad=1 site=layer12 n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=1 oracle=1 agree=true ratio_model=0.0017 ratio_invalidable=0.0020
+RESULT pad=2 site=input n_model=601 n_total=1802 n_param=108 n_invalidable=1694 visited=493 oracle=493 agree=true ratio_model=0.8203 ratio_invalidable=0.2910
+RESULT pad=2 site=layer1 n_model=601 n_total=1802 n_param=108 n_invalidable=1694 visited=452 oracle=452 agree=true ratio_model=0.7521 ratio_invalidable=0.2668
+RESULT pad=2 site=layer6 n_model=601 n_total=1802 n_param=108 n_invalidable=1694 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.1458
+RESULT pad=2 site=layer12 n_model=601 n_total=1802 n_param=108 n_invalidable=1694 visited=1 oracle=1 agree=true ratio_model=0.0017 ratio_invalidable=0.0006
+RESULT pad=4 site=input n_model=601 n_total=4204 n_param=108 n_invalidable=4096 visited=493 oracle=493 agree=true ratio_model=0.8203 ratio_invalidable=0.1204
+RESULT pad=4 site=layer1 n_model=601 n_total=4204 n_param=108 n_invalidable=4096 visited=452 oracle=452 agree=true ratio_model=0.7521 ratio_invalidable=0.1104
+RESULT pad=4 site=layer6 n_model=601 n_total=4204 n_param=108 n_invalidable=4096 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.0603
+RESULT pad=4 site=layer12 n_model=601 n_total=4204 n_param=108 n_invalidable=4096 visited=1 oracle=1 agree=true ratio_model=0.0017 ratio_invalidable=0.0002
+RESULT pad=1 site=layer6 n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.5010
+RESULT pad=1 site=layer6 n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.5010
+RESULT pad=1 site=layer6 n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.5010
+RESULT pad=1 site=layer6 n_model=601 n_total=601 n_param=108 n_invalidable=493 visited=247 oracle=247 agree=true ratio_model=0.4110 ratio_invalidable=0.5010

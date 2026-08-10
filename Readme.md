@@ -43,14 +43,22 @@ The picture above is the informal version of the same idea (freeze/unfreeze mid-
 
 Every mutation above — a parameter update, a graft, an activation patch — works because NeuroDSL's invalidation is **local**. When you change a node θ, only the nodes reachable from it — its *impact subgraph* `V_θ` — get marked stale. The cost is proportional to `|V_θ|`, not to the size of the whole graph, and this is a proven theorem (structural locality, proved by double inclusion over the invalidation algorithm), not just a measured trend.
 
-| Experiment | Result |
-|---|---|
-| Invalidation time vs. graph depth `K` (5 → 100, impact subgraph size fixed) | **constant** — correlation with `K` ≈ 0 (ratio 0.86–1.00 across all depths) |
-| Invalidation time vs. impact subgraph size (1 → 200, depth `K` fixed) | **linear** — correlation = 0.93–0.95 |
-| Fine-tuning 10 of 100 layers, forward pass | **98% faster** than a full forward pass (908 ms → 18 ms) |
-| Surgery cost vs. cone size (8-block model, 412 nodes) | recompute tracks cone size at **r = 0.9992**; graft bookkeeping itself is flat (~0.75 ms) regardless of depth |
+This is measured as a **node count**, not as a duration — deterministic, timer-free, and reproducible bit-for-bit on any machine. Inflate the graph sevenfold with subgraphs the edit cannot reach and the count does not move by a single unit:
 
-The practical upshot: workflows that mutate or probe *part* of a graph repeatedly — fine-tuning, weight-tying experiments, growing a network, and activation patching (next section) — get cheaper the smaller the impact subgraph of the change is, by construction, not by a special case.
+| edited site | \|V\| = 601 | \|V\| = 1802 | \|V\| = 4204 |
+|---|---|---|---|
+| `:input` (negative control) | 493 | 493 | 493 |
+| `layer_1_out` | 452 | 452 | 452 |
+| `layer_6_out` | 247 | 247 | 247 |
+| `layer_12_out` | **1** | **1** | **1** |
+
+Two controls bracket the measurement from opposite sides. The negative one edits the graph input, where every invalidatable node is reachable and locality can save nothing — it saturates at 100%. The positive one makes the padding *reachable*, and the count then grows by exactly the predicted 600 nodes per unit while every deeper site stays bit-identical. A count that were constant by instrumentation error would pass the first and fail the second. Every point agrees with a BFS oracle written independently in the benchmark file, 16 of 16.
+
+**Retrieval locality**, a second and previously unreported half: evaluation used to walk the cached topological order from its start, so its cost followed the target's *position in the whole graph* rather than what the target depends on. Restricting it to the target's real ancestor cone makes retrieval invariant in graph size too — and the two localities run in *opposite* directions along depth (invalidation is cheap at deep sites, retrieval at shallow targets), so between them they cover the graph. Note the honest condition: on a graph holding a single model the gain is exactly **1.00×**; it comes entirely from excluding subgraphs the target does not depend on.
+
+Per-site cost varies over three orders of magnitude, which is the practically useful consequence: at GPT-2 scale a re-forward from `layer_12_mlp_out` takes 0.089 ms against a 23.04 ms full forward — **259×** — while the shallowest site is 1.04×. An *exhaustive uniform* sweep averages to a **2×** ceiling, which is a proven bound and not a number to headline; the payoff is in deep sites and in adaptive protocols where the recompute set changes as you go.
+
+Reproduce all of it: [`docs/REPRODUCING.md` §1.1–1.3](docs/REPRODUCING.md).
 
 ---
 
@@ -61,7 +69,7 @@ Activation patching — the core technique behind most mechanistic-interpretabil
 This is no longer a direction we're building toward — it's measured, at real scale:
 
 - **A proven ceiling, not an empirical accident.** An exhaustive site-by-site sweep (patch every candidate, restore, move to the next) speeds up by at most **2×** over independent full recomputations on a depth-uniform network — and this is a theorem, with the exact rate for non-uniform cost profiles given in closed form (Karamata index `q`: `(q+2)/(q+1)` output-heavy, `q+2` input-heavy). See *Cost Accounting for Reactive Computational Graphs* (see [Citation](#citation); PDF export not yet in this repo, submitted to arXiv).
-- **It holds up to ~1.82 billion parameters on GPU**, not just on toy models: `restore_from_cache_batched!`'s recomputation-avoidance gain measures **37–45.7%** across three scales (~0.05B, ~0.81B, ~1.82B params) — every one of them *above* the 36.1% figure originally measured on CPU only, once clock-locking and a batched restore kernel are accounted for. All correctness invariants (patched value survives, restoration equals recomputation, commutativity of independent patches) are re-verified at every scale, not assumed to carry over.
+- **The aggregate is an average over a very wide spread.** At GPT-2 scale (12 layers, 12 heads, 156 sites) the deepest site re-forwards **259× cheaper** than a full forward and the shallowest only 1.04× — see `notebook/jalon0_results.json`. The closed-form cone size reproduces all 564 measured cones with zero residual. All correctness invariants (patched value survives `demand!`, restoration equals recomputation, independent patches commute) are re-verified at each scale rather than assumed to carry over.
 - **`greedy_patch_search!` and `backward_prune!` find real circuits, not just cheap ones.** On an induction task with a documented causal circuit, automated search retrieves it directly, and backward pruning shows a handful of heads carry nearly all of the recovered effect — at GPU scale, on a real 1.82B-parameter model, not only on a CPU-sized toy.
 
 Full derivation, the GPU-scale validation, and the induction-circuit experiments: **[Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs](#citation)** (in preparation for peer review).
@@ -78,10 +86,43 @@ A third line of work asks a training-economics question the graft primitive make
 
 In the interest of not overselling this:
 
-- **Not a speed competitor to PyTorch/JAX on raw throughput.** Operator fusion works, but hasn't demonstrated a net win over cuBLAS on raw matmul. The claims above are about *avoided* recomputation on mutation-heavy workloads, not about out-running a mature framework on a plain forward pass.
-- **The "sparse backward" (skipping frozen layers) is proven *exact*, not proven *fast*.** Gradients from a partial backward pass are bit-identical to a full backward pass (verified on multiple topologies) — but the measured speed/memory gains have been inconsistent, and we're not claiming them until they hold up.
+- **Do not train with it.** On an end-to-end character-level LM run at matched final validation loss, NeuroDSL is about **2.2× slower per step** than PyTorch (25.29 ms vs 11.35) and uses **25% more peak VRAM** on the training step (1.25×, or 1.09× with the opt-in `release_values=true`). Train elsewhere, load the weights, intervene here.
+- **The memory profile is a trade, and it cuts both ways.** The graph keeps activations resident — which is exactly what makes the localities above possible, and exactly what makes training heavier. On forward-only episodes (validation, generation) that same design uses **30% less** peak VRAM than PyTorch (0.70×).
+- **Fusion buys almost nothing in speed at realistic width.** It calls the vendor GEMM and applies the elementwise epilogue separately, so it saves a dispatch and a buffer, never a FLOP: +11.9% at dim 32, +2.2% at 128, −0.3% at 512 on CPU. Its output is bit-identical to the unfused composition at every configuration tested. Where it does pay is memory — 47.1% fewer resident activation nodes, which is 9.9% of total VRAM at dim 512.
+- **"Optimal memory planning" is optimal but vacuous by default.** Interval colouring uses the minimum slot count for a fixed execution order, but a graph expecting a backward pass has no two disjoint activation lifetimes, so that minimum *is* the node count and no slot is ever shared (measured: 201 slots for 201 nodes). A forward-only plan does share — 201 → 40 — yet peak VRAM is unchanged, because the buffer pool retains what it reclaims. The mechanism that actually lowers the forward-only peak is eager release (`demand_release!`), at 2.77× better.
+- **Frozen-prefix backward pruning is now measured, not just proven exact.** 85.19% of the nodes receiving backward treatment are skipped when the frozen prefix reaches the graph input, gradients bit-identical (difference exactly 0), wall-clock gain 69.9% median under a pinned clock — against a negative control bounded at 4.19% when the prefix is absent.
 - **The interactive viewer and dynamic-mutation demos are small-scale (MLPs, MNIST).** The rigorous claims that now hold at real scale — exact grafting, activation-patching cost — are stated and measured on models up to ~1.82B parameters (see above); the *demos* in this README are intentionally small so you can re-run them in seconds.
 - **`math1.tex`/`math2.tex`/article2/article3 are, at the time of writing, preprints and in-preparation manuscripts, not peer-reviewed publications.** Read them as rigorous but unreviewed.
+
+---
+
+## Reproducing the experiments
+
+**→ [`docs/REPRODUCING.md`](docs/REPRODUCING.md)** is the guide: one section per
+paper, one entry per experiment, with the exact command, whether it needs a GPU
+or a pinned clock, how long it takes, and what result should come back.
+
+Each benchmark writes its raw output to `notebook/*_results.txt` next to the
+script, and those files are tracked here — so you can check a number in a paper
+without installing Julia at all. If a figure in a paper does not appear in that
+guide, treat it as a defect and open an issue: it means the claim has no
+traceable artifact.
+
+Two things worth knowing before you run anything:
+
+- **Structural measurements** (node counts, buffer counts, allocations) are
+  deterministic and need no GPU and no clock. Most of the load-bearing claims are
+  of this kind on purpose — a node count cannot be explained away by timing noise.
+- **Timed measurements** need `nvidia-smi -lgc 1402,1402` from an Administrator
+  shell. On this hardware an unpinned clock produced swings large enough to
+  invert a 22-point result. Every timed benchmark is run one arm per process,
+  over several launches, and reports `min / median / max` rather than a single
+  number.
+
+The protocol conventions and the reasons each of them exists — including the
+negative and positive controls, the independent oracles, and the
+correctness-before-speed gate — are documented at the top of the guide and in the
+header comment of every benchmark file.
 
 ---
 
@@ -139,10 +180,18 @@ Open `demo.html` in a browser and step through the computation, forward and back
 
 - `src/` — the NeuroDSL module: the graph engine and autodiff core (`graph_api.jl`, `backward.jl`, `dispatch.jl`), CUDA kernels (`kernels.jl`), the compiler/fusion layer (`compiler.jl`, `compiler_rules.jl`), architecture mutation (`graph_surgery.jl`: `insert_block!`, `graft_shadow_block!`), activation patching (`patching.jl`: `patch_node!`, `sweep_patch_sites!`, `greedy_patch_search!`, `backward_prune!`), graph/optimizer-state persistence (`serialization.jl`), synthetic causal-circuit tasks (`synthetic_circuits.jl`), and the interactive viewer (`viz.jl`).
 - `test/` — unit and integration tests.
-- `notebook/` — worked examples and the verification scripts behind every numeric claim in this README and the linked preprints (dynamic architecture mutation, impact-subgraph locality, GPU-scale patching, growth schedules).
-- `benchmarks/` — reproducible experiments.
-- `artilce/` — PDF exports of the preprints referenced below .
-- `figures/` — plots and diagrams, most of them regenerated directly by the scripts in `notebook/`.
+- `notebook/` — worked examples plus the benchmark suite behind every numeric claim
+  in this README and in the papers. Three naming conventions matter:
+  `bench_*.jl` is a single measurement arm (one arm per process by design),
+  `*_driver.sh` launches an arm repeatedly and aggregates across launches, and
+  `*_results.txt` is the archived raw output, tracked so a reader can check a
+  figure without running anything.
+- `docs/` — [`REPRODUCING.md`](docs/REPRODUCING.md), the per-paper, per-experiment
+  reproduction guide.
+- `benchmarks/` — older reproducible experiments predating the `bench_*` convention.
+- `artilce/` — PDF exports of the papers referenced below. The LaTeX sources are
+  deliberately not tracked here.
+- `figures/` — the papers' final figures, most regenerated directly by scripts in `notebook/`.
 - `old/` — superseded modules, kept for reference, not part of the build.
 
 ---
@@ -155,18 +204,30 @@ NeuroDSL was inspired by the early work of [Julius Technology](https://juliustec
 
 ## Citation
 
-Five manuscripts describe different parts of this work; two are on arXiv with public IDs, one more is on arXiv pending its public ID, two are in preparation.
+Seven manuscripts describe different parts of this work: four are on arXiv with public IDs, one is on arXiv pending its public ID, and two are in preparation.
 
-**NeuroDSL: A Dynamic Computational Graph Framework with Optimal Memory Planning** — the core engine and the invalidation complexity result. Submitted to arXiv (submission ID `arXiv:submit/7710615`, 25 Jun 2026; public arXiv ID pending final processing). PDF as submitted: [`NeuroDSL_article.pdf`](NeuroDSL_article.pdf).
+**NeuroDSL: A Mutable Computational Graph Framework with Local Invalidation and Inspectable Memory Planning** — the core engine, both halves of the locality result, and the memory profile that follows from them. Submitted to arXiv, awaiting moderation; no public ID yet. Reproduction guide: [`docs/REPRODUCING.md` §1](docs/REPRODUCING.md#1-neurodsl-the-framework-paper).
 
 ```bibtex
 @misc{khemais2026neurodsl,
-  title  = {NeuroDSL: A Dynamic Computational Graph Framework with Optimal Memory Planning},
+  title  = {NeuroDSL: A Mutable Computational Graph Framework with Local
+            Invalidation and Inspectable Memory Planning},
   author = {Khemais, Abdallah},
   year   = {2026},
-  note   = {arXiv submission id: arXiv:submit/7710615 (public arXiv ID pending)},
+  note   = {arXiv submission pending moderation; public arXiv ID not yet assigned},
 }
 ```
+
+> An earlier draft of this manuscript was titled *"A Dynamic Computational Graph
+> Framework with Optimal Memory Planning"* and claimed a 2–8× peak-memory
+> reduction over PyTorch. That claim came from comparing two different
+> quantities — a tracked-allocation total on one side against
+> `torch.cuda.max_memory_allocated()` on the other — and has been retracted. The
+> honest range, measured absolute-peak against absolute-peak, is 1.16–3.71× on a
+> single transformer block, and the training step uses *more* memory than
+> PyTorch. `artilce/CHANGES_since_v1.md` records what changed and why. The draft
+> was never announced, so no version carrying the retracted figures was ever
+> public.
 
 **Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. On arXiv: [arXiv:2607.16568](https://arxiv.org/abs/2607.16568). PDF as published: [`artilce/2607.16568v1.pdf`](<artilce/2607.16568v1.pdf>).
 
@@ -194,7 +255,33 @@ Five manuscripts describe different parts of this work; two are on arXiv with pu
 
 **Growing a Network During Training: The Economics of Depth** — the growth-schedule line of work described above. In preparation for peer review. PDF: [`artilce/Growing a Network During Training.pdf`](<artilce/Growing a Network During Training.pdf>).
 
-This section will be updated with a public arXiv ID for the first manuscript and, where applicable, venue/DOI information as each remaining manuscript clears review.
+Two further manuscripts study what happens when weights are ablated rather than grafted. They use NeuroDSL's inspection surface but stand on their own theory, so the framework paper is not a prerequisite for either.
+
+**A Theory of Conditional Collapse under Low-Rank Weight-Space Ablations: I. The Single-Block Theory and Synthetic Validation** — when a low-rank weight-space ablation makes a block collapse, and when it does not. On arXiv: [arXiv:2608.03620](https://arxiv.org/abs/2608.03620). PDF: [`artilce/conditional_collapse_theory.pdf`](<artilce/conditional_collapse_theory.pdf>). Reproduction guide: [`docs/REPRODUCING.md` §4](docs/REPRODUCING.md#4-conditional-collapse-and-crosslayer-interaction).
+
+```bibtex
+@article{khemais2026collapse,
+  title   = {A Theory of Conditional Collapse under Low-Rank Weight-Space
+             Ablations: I. The Single-Block Theory and Synthetic Validation},
+  author  = {Khemais, Abdallah},
+  journal = {arXiv preprint arXiv:2608.03620},
+  year    = {2026},
+}
+```
+
+**Cross-Layer Interaction under Weight-Space Ablation: A Closed-Form Attention Jacobian Bound and a Test on a Real Pretrained Model** — the closed-form Jacobian bound, tested on Qwen rather than on a synthetic stand-in. On arXiv: [arXiv:2608.03629](https://arxiv.org/abs/2608.03629). PDF: [`artilce/crosslayer_interaction_qwen.pdf`](<artilce/crosslayer_interaction_qwen.pdf>). Reproduction guide: [`docs/REPRODUCING.md` §4](docs/REPRODUCING.md#4-conditional-collapse-and-crosslayer-interaction).
+
+```bibtex
+@article{khemais2026crosslayer,
+  title   = {Cross-Layer Interaction under Weight-Space Ablation: A Closed-Form
+             Attention Jacobian Bound and a Test on a Real Pretrained Model},
+  author  = {Khemais, Abdallah},
+  journal = {arXiv preprint arXiv:2608.03629},
+  year    = {2026},
+}
+```
+
+This section will be updated with a public arXiv ID for the framework paper and, where applicable, venue/DOI information as each remaining manuscript clears review.
 
 ---
 

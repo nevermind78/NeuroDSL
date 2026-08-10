@@ -1,0 +1,23 @@
+# Balayage de fusion AVANT le correctif _relu_into! (src/dispatch.jl).
+# Produit dans un worktree git isole ou le src/ du 2026-08-08 est utilise avec
+# UNIQUEMENT dispatch.jl ramene a son etat pre-correctif -- verifie par diff -rq
+# (un seul fichier different) et par 0 occurrence de _relu_into!.
+# A comparer a bench_fusion_results.txt (meme banc, meme pilote, apres correctif).
+RESULT dev=cpu dim=32 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.0514 t_fused_ms=0.0718 gain_pct=-39.5914
+RESULT dev=cpu dim=32 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.0500 t_fused_ms=0.0701 gain_pct=-40.3000
+RESULT dev=cpu dim=32 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.0533 t_fused_ms=0.0831 gain_pct=-55.9099
+RESULT dev=cpu dim=128 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=1.7587 t_fused_ms=1.8853 gain_pct=-7.2013
+RESULT dev=cpu dim=128 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=1.6030 t_fused_ms=1.7458 gain_pct=-8.9052
+RESULT dev=cpu dim=128 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=1.6589 t_fused_ms=1.7894 gain_pct=-7.8664
+RESULT dev=cpu dim=512 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=3.0689 t_fused_ms=3.6948 gain_pct=-20.3966
+RESULT dev=cpu dim=512 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=3.0525 t_fused_ms=3.7346 gain_pct=-22.3456
+RESULT dev=cpu dim=512 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=3.7035 t_fused_ms=4.5578 gain_pct=-23.0690
+RESULT dev=gpu dim=32 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.6072 t_fused_ms=0.6038 gain_pct=0.5682
+RESULT dev=gpu dim=32 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.4372 t_fused_ms=0.4027 gain_pct=7.8911
+RESULT dev=gpu dim=32 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.4227 t_fused_ms=0.3570 gain_pct=15.5529
+RESULT dev=gpu dim=128 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.3818 t_fused_ms=0.3524 gain_pct=7.6883
+RESULT dev=gpu dim=128 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.3888 t_fused_ms=0.3655 gain_pct=5.9928
+RESULT dev=gpu dim=128 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.3590 t_fused_ms=0.3677 gain_pct=-2.4095
+RESULT dev=gpu dim=512 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.4861 t_fused_ms=0.4737 gain_pct=2.5612
+RESULT dev=gpu dim=512 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.4822 t_fused_ms=0.4696 gain_pct=2.6130
+RESULT dev=gpu dim=512 rules_unfused=16 rules_fused=8 fused_applied=8 max_err=0.000e+00 t_unfused_ms=0.4959 t_fused_ms=0.4802 gain_pct=3.1760

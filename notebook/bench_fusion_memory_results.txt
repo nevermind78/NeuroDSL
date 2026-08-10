@@ -1,0 +1,12 @@
+RESULT dev=cpu dim=32 arm=unfused rules=16 n_act=17 act_bytes=139264 baseline_mb=0.000 peak_mb=0.000 stable=true
+RESULT dev=cpu dim=32 arm=fused rules=8 n_act=9 act_bytes=73728 baseline_mb=0.000 peak_mb=0.000 stable=true
+RESULT dev=cpu dim=128 arm=unfused rules=16 n_act=17 act_bytes=557056 baseline_mb=0.000 peak_mb=0.000 stable=true
+RESULT dev=cpu dim=128 arm=fused rules=8 n_act=9 act_bytes=294912 baseline_mb=0.000 peak_mb=0.000 stable=true
+RESULT dev=cpu dim=512 arm=unfused rules=16 n_act=17 act_bytes=2228224 baseline_mb=0.000 peak_mb=0.000 stable=true
+RESULT dev=cpu dim=512 arm=fused rules=8 n_act=9 act_bytes=1179648 baseline_mb=0.000 peak_mb=0.000 stable=true
+RESULT dev=gpu dim=32 arm=unfused rules=16 n_act=17 act_bytes=139264 baseline_mb=0.164 peak_mb=0.164 stable=true
+RESULT dev=gpu dim=32 arm=fused rules=8 n_act=9 act_bytes=73728 baseline_mb=0.102 peak_mb=0.102 stable=true
+RESULT dev=gpu dim=128 arm=unfused rules=16 n_act=17 act_bytes=557056 baseline_mb=1.031 peak_mb=1.031 stable=true
+RESULT dev=gpu dim=128 arm=fused rules=8 n_act=9 act_bytes=294912 baseline_mb=0.781 peak_mb=0.781 stable=true
+RESULT dev=gpu dim=512 arm=unfused rules=16 n_act=17 act_bytes=2228224 baseline_mb=10.125 peak_mb=10.125 stable=true
+RESULT dev=gpu dim=512 arm=fused rules=8 n_act=9 act_bytes=1179648 baseline_mb=9.125 peak_mb=9.125 stable=true

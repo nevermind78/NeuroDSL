@@ -15,27 +15,38 @@
 # pour CETTE famille de modèles, comme prévu.
 # ══════════════════════════════════════════════════════════════════════════════
 
-using NeuroDSL, LinearAlgebra
+using NeuroDSL, LinearAlgebra, JSON, CUDA
 include(joinpath(@__DIR__, "safetensors_reader.jl"))
 
-const MODEL_DIR = joinpath(@__DIR__, "qwen2.5-1.5b-instruct")
-const ST_PATH = joinpath(MODEL_DIR, "model.safetensors")
+# `MODEL_DIR` réglable sans éditer ce fichier -- via la variable d'environnement
+# QWEN_MODEL_DIR (utile pour basculer 1.5B/7B/... sur le même dépôt), avec le
+# 1.5B comme défaut historique inchangé si elle n'est pas définie.
+const MODEL_DIR = get(ENV, "QWEN_MODEL_DIR", joinpath(@__DIR__, "qwen2.5-1.5b-instruct"))
 
-# ── Config (lu à la main depuis config.json -- valeurs déjà vérifiées) ───────
-const DIM        = 1536
-const N_LAYERS   = 28
-const N_HEADS    = 12
-const N_KV_HEADS = 2
-const D_HEAD     = DIM ÷ N_HEADS          # 128
-const HIDDEN_DIM = 8960                    # intermediate_size (SwiGLU)
-const VOCAB_SIZE = 151936
-const ROPE_THETA = 1_000_000.0
-const RMS_EPS    = 1e-6
-const TIE_EMBED  = true
+# ── Config lue DYNAMIQUEMENT depuis config.json (fini le "à la main") --
+# fonctionne pour n'importe quelle taille de la famille Qwen2/Qwen2.5 sans
+# jamais recopier des valeurs devinées ou mal transcrites.
+const HF_CONFIG  = JSON.parsefile(joinpath(MODEL_DIR, "config.json"))
+const DIM        = HF_CONFIG["hidden_size"]
+const N_LAYERS   = HF_CONFIG["num_hidden_layers"]
+const N_HEADS    = HF_CONFIG["num_attention_heads"]
+const N_KV_HEADS = get(HF_CONFIG, "num_key_value_heads", N_HEADS)
+const D_HEAD     = DIM ÷ N_HEADS
+const HIDDEN_DIM = HF_CONFIG["intermediate_size"]          # SwiGLU
+const VOCAB_SIZE = HF_CONFIG["vocab_size"]
+const ROPE_THETA = Float64(get(HF_CONFIG, "rope_theta", 1_000_000.0))
+const RMS_EPS    = Float64(get(HF_CONFIG, "rms_norm_eps", 1e-6))
+const TIE_EMBED  = get(HF_CONFIG, "tie_word_embeddings", true)
+println("Config lue depuis $(joinpath(MODEL_DIR, "config.json")) :")
+println("  dim=$DIM  n_layers=$N_LAYERS  n_heads=$N_HEADS  n_kv_heads=$N_KV_HEADS  d_head=$D_HEAD  hidden_dim=$HIDDEN_DIM  vocab=$VOCAB_SIZE")
+println("  rope_theta=$ROPE_THETA  rms_eps=$RMS_EPS  tie_embed=$TIE_EMBED")
 
-st = open_safetensors(ST_PATH)
+# `open_any_safetensors` détecte seul le format sharded (plusieurs fichiers +
+# model.safetensors.index.json, ex. Qwen2.5-7B découpé en 4) ou fichier unique
+# (ex. Qwen2.5-1.5B) -- voir safetensors_reader.jl.
+st = open_any_safetensors(MODEL_DIR)
 names = tensor_names(st)
-println("Nombre de tenseurs dans le fichier : ", length(names))
+println("Nombre de tenseurs : ", length(names))
 
 # Détection : biais QKV présents ? (Qwen2 en a historiquement -- vérifié ici,
 # pas supposé)
@@ -77,7 +88,7 @@ function load_layer!(g, ns, st, l_hf::Int, l_nd::Int; rms_eps_check::Bool)
     NeuroDSL.set!(g, Symbol(prefix,"_mha_k_W"), read_tensor(st, p*"self_attn.k_proj.weight"); is_param=true, namespace=ns)
     NeuroDSL.set!(g, Symbol(prefix,"_mha_v_W"), read_tensor(st, p*"self_attn.v_proj.weight"); is_param=true, namespace=ns)
     NeuroDSL.set!(g, Symbol(prefix,"_mha_output_W"), read_tensor(st, p*"self_attn.o_proj.weight"); is_param=true, namespace=ns)
-    if haskey(st.header, p*"self_attn.q_proj.bias")
+    if haskey_tensor(st, p*"self_attn.q_proj.bias")
         NeuroDSL.set!(g, Symbol(prefix,"_mha_q_b"), read_tensor(st, p*"self_attn.q_proj.bias"); is_param=true, namespace=ns)
         NeuroDSL.set!(g, Symbol(prefix,"_mha_k_b"), read_tensor(st, p*"self_attn.k_proj.bias"); is_param=true, namespace=ns)
         NeuroDSL.set!(g, Symbol(prefix,"_mha_v_b"), read_tensor(st, p*"self_attn.v_proj.bias"); is_param=true, namespace=ns)
@@ -96,7 +107,23 @@ end
 
 for l in 1:N_LAYERS
     load_layer!(g, ns, st, l-1, l; rms_eps_check=true)
+    # `set!` (src/graph_api.jl) remplace chaque paramètre par un NOUVEAU
+    # GraphNode -- l'ancien buffer GPU (poids aléatoires de la construction
+    # initiale du graphe, ou poids d'une couche précédente si ce script est
+    # relancé) devient orphelin mais n'est PAS libéré synchronement (rien
+    # n'appelle Backend.free! ici, contrairement aux correctifs apportés
+    # cette session à backward_with_checkpointing!). Sans ce nettoyage
+    # périodique, les anciens ET les nouveaux buffers coexistent en VRAM
+    # jusqu'au bon vouloir du GC -- vérifié : pour un modèle ~30 Go réels,
+    # ça peut transitoirement grimper à 90+ Go (2-3x), presque un OOM sur un
+    # H100 à 96 Go. Toutes les quelques couches suffit (pas besoin à chaque
+    # couche -- coût du GC lui-même sinon).
+    if l % 4 == 0
+        GC.gc()
+        NeuroDSL.Backend.CUDA_AVAILABLE && CUDA.reclaim()
+    end
 end
+GC.gc(); NeuroDSL.Backend.CUDA_AVAILABLE && CUDA.reclaim()
 
 # Embedding de token
 tok_W = read_tensor(st, "model.embed_tokens.weight")   # [vocab, dim]

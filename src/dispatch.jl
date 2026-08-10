@@ -143,6 +143,39 @@ end
 
 _infer_output_type(::Symbol, ::Any, ::Any) = Float32
 
+# ── Épilogue ReLU derrière une barrière de fonction ──────────────────────────
+# Écrit hors de `_dispatch_op` à cause d'un défaut de performance mesuré le
+# 2026-08-08 : la forme *inline* `output_buffer .= max.(output_buffer, 0f0)`
+# dans la branche `:fused_matmul_relu` coûtait **+143 µs** de surcoût moteur
+# (64×512 Float32, CPU) là où le calcul lui-même en coûte 377 -- soit une
+# pessimisation de 25-36% qui rendait la fusion PLUS LENTE que la paire
+# `:matmul` + `:relu` non fusionnée (celle-ci ne paie que +2 µs).
+#
+# Cause isolée expérimentalement (deux hypothèses plus simples réfutées en
+# route -- ce n'est ni la taille de `_dispatch_op`, qui reçoit déjà un buffer
+# concrètement typé via `_run_kernel!`, ni l'aliasing seul) : c'est la
+# CONJONCTION d'un broadcast aliasé (`dest === src`) et d'une fonction branchue
+# non inlinable (`Base.max` sur des flottants passe par `signbit`/`ifelse`/
+# `isnan`). Les deux facteurs pris séparément sont inoffensifs, mesures à
+# l'appui sur le même fichier :
+#   :fused_matmul_add      aliasé (`.+=`) mais `+` trivial  -> +13 µs
+#   :fused_matmul_add_relu `max` mais NON aliasé            -> +14 µs
+#   :fused_matmul_relu     aliasé ET `max`                  -> +143 µs
+# Aliasé + `max` retombe sur le `copyto!` scalaire générique (visible au
+# profil : `_broadcast_getindex_evalf`, `signbit`, `ifelse` en frames
+# séparées), soit ~4 ns par élément sur 32768 éléments.
+#
+# La barrière suffit : la même expression dans une petite fonction typée coûte
+# 2.2 µs. Générique en `eltype` (et non figé en `Float32`) pour ne pas casser
+# un graphe en Float64/Float16, et valable CPU comme GPU (`CuArray <:
+# AbstractArray`, le broadcast reste un unique kernel fusionné).
+# `@noinline` est ESSENTIEL et non décoratif : une barrière de fonction n'existe
+# que si le corps n'est PAS réinséré dans l'appelant. Un premier essai annoté
+# `@inline` n'a rien changé (+126 µs au lieu de +143), ce qui est cohérent --
+# inliner le helper reconstitue exactement le site problématique.
+@noinline _relu_into!(y::AbstractArray) = (y .= max.(y, zero(eltype(y))); y)
+@noinline _relu_into!(y::AbstractArray, x::AbstractArray) = (y .= max.(x, zero(eltype(y))); y)
+
 function _run_kernel!(dev, output_buffer::T, rule, inputs_vals, out_sym, out_node, ctx_store) where {T <: AbstractArray}
     _dispatch_op(dev, output_buffer, rule.op, inputs_vals, rule.attrs, out_sym, out_node, ctx_store)
 end
@@ -355,7 +388,7 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
         else
             LinearAlgebra.mul!(output_buffer, A, B)
         end
-        output_buffer .= max.(output_buffer, 0f0)
+        _relu_into!(output_buffer)   # barrière de fonction : voir _relu_into! plus haut
 
         # 🚀 THIS IS THE MISSING PART 🚀
         # We MUST save the output and metadata for the backward pass to work
@@ -538,7 +571,7 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
 
     elseif op == :relu
         x = inputs[1]
-        output_buffer .= max.(x, 0f0)
+        _relu_into!(output_buffer, x)   # barrière de fonction : voir _relu_into! plus haut
         if ctx_store !== nothing
             _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:x => x))
         end
@@ -748,22 +781,24 @@ function demand!(g::NeuroGraph, name::Symbol;
     nd = g.nodes[ns][name]
     nd.valid && nd.value !== nothing && return _unwrap_value(nd.value)
 
-    order = topo_order!(g; namespace=ns)
-    for sym in order
+    # Restreint au cône des ANCÊTRES RÉELS de `name` (_ancestors_of!,
+    # src/graph_api.jl), pas au préfixe topologique complet du graphe --
+    # correctif du défaut trouvé après l'audit du théorème O(|V_θ|) : ce
+    # théorème couvre l'invalidation (déjà O(cône) via _consumers_index!),
+    # pas la récupération, qui parcourait auparavant O(position de la cible
+    # dans l'ordre du graphe entier). Vérifié comme cause directe du bug
+    # KV-cache du 2026-07-29 (`copy_params_to_namespace!`) : un `demand!` sur
+    # un nœud sans rapport pouvait ré-exécuter un nœud à état plus tôt dans
+    # l'ordre topologique, simplement parce qu'il se trouvait dans le
+    # préfixe -- impossible maintenant, puisque seuls les vrais ancêtres de
+    # `name` sont visités.
+    anc = _ancestors_of!(g, ns, name)
+    for sym in anc
         nd_i = g.nodes[ns][sym]
-        # Bug corrigé : le `break` était gardé par `haskey(...)`, donc
-        # inatteignable pour une cible SANS règle (un paramètre ou une
-        # source) -- la boucle continuait alors jusqu'à la fin de l'ordre
-        # topologique entier, ré-exécutant toute règle invalide rencontrée
-        # en chemin, bien au-delà de `name`. Vérifié : `demand!(g, :W1)`
-        # sur un paramètre recalculait des nœuds bien après W1 dans le
-        # graphe. Le `break` doit se vérifier indépendamment de la
-        # présence d'une règle pour `sym`.
         if !(nd_i.valid && nd_i.value !== nothing) && haskey(g.rules[ns], sym)
             # On passe le log à execute_rule!
             execute_rule!(g, g.rules[ns][sym]; ctx_store=ctx_store, namespace=ns, log=log)
         end
-        sym == name && break
     end
 
     return _unwrap_value(g.nodes[ns][name].value)

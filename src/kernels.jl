@@ -496,29 +496,44 @@ scale_mask_fwd!(out, scores, d_head::Int, mask) =
     (out .= scores .* (1f0/sqrt(Float32(d_head))) .+ mask)
 
 # ── AdamW (version corrigée) ───────────────────────────────────────────
-function adamw_step_cpu!(W, dW, m1, m2, lr, b1, b2, eps_v, t, clip, wd)
+#
+# `age` (kwarg optionnel, défaut `nothing` = comportement historique inchangé)
+# ─────────────────────────────────────────────────────────────────────────
+# La correction de biais d'Adam suppose que les moments `m1`/`m2` ont accumulé
+# exactement `t` gradients depuis leur initialisation à zéro. Ce n'est plus vrai
+# pour un paramètre *inséré en cours de route* (greffe, croissance de réseau) :
+# ses moments partent de zéro alors que le compteur global `t` est déjà grand,
+# et les dénominateurs `1-β^t ≈ 1` ne corrigent donc plus rien. Le pas effectif
+# est alors gonflé d'un facteur
+#     I(s,t) = [(1-β₁ˢ)/(1-β₁ᵗ)] · [√(1-β₂ᵗ)/√(1-β₂ˢ)]
+# (s = âge local du paramètre), qui vaut ≈ (1-β₁ˢ)/√(1-β₂ˢ) pour t≫s et culmine
+# à ≈6.5× vers s=10-15 pas avec (β₁,β₂)=(0.9,0.999).
+# Passer `age=s` applique la correction de biais à l'âge LOCAL du paramètre et
+# annule exactement ce facteur. `age=nothing` (défaut) conserve `t` et donc le
+# comportement bit-exact de toutes les versions antérieures.
+function adamw_step_cpu!(W, dW, m1, m2, lr, b1, b2, eps_v, t, clip, wd; age=nothing)
     # 1. Clipping sécurisé
     gc = clamp.(dW, -Float32(clip), Float32(clip))
-    
+
     # 2. Mise à jour des moments
     m1 .= Float32(b1) .* m1 .+ (1f0 - Float32(b1)) .* gc
     m2 .= Float32(b2) .* m2 .+ (1f0 - Float32(b2)) .* (gc .* gc)
-    
-    # 3. Correction de biais (t doit être >= 1)
-    t_f = Float32(t)
+
+    # 3. Correction de biais (t doit être >= 1 ; `age` la rend locale au paramètre)
+    t_f = Float32(age === nothing ? t : age)
     mh = m1 ./ (1f0 - Float32(b1)^t_f)
     vh = m2 ./ (1f0 - Float32(b2)^t_f)
-    
+
     # 4. Mise à jour des poids avec Weight Decay dissocié
     # W = W - lr * (wd * W + update)
     W .= W .* (1f0 - Float32(lr) * Float32(wd)) .- Float32(lr) .* (mh ./ (sqrt.(vh) .+ Float32(eps_v)))
-    
+
     # 5. Reset gradient
     fill!(dW, 0f0)
 end
 
-adamw_step!(::Backend.CPUDevice, W,dW,m1,m2,lr,b1,b2,eps_v,t,clip,wd) =
-    adamw_step_cpu!(W,dW,m1,m2,lr,b1,b2,eps_v,t,clip,wd)
+adamw_step!(::Backend.CPUDevice, W,dW,m1,m2,lr,b1,b2,eps_v,t,clip,wd; age=nothing) =
+    adamw_step_cpu!(W,dW,m1,m2,lr,b1,b2,eps_v,t,clip,wd; age=age)
 
 if Backend.CUDA_AVAILABLE
     function _adamw_fused_kernel!(W::CUDA.CuDeviceVector{Float32}, 
@@ -565,21 +580,25 @@ if Backend.CUDA_AVAILABLE
         return
     end
 
-    function adamw_step!(::Backend.CUDADevice, W, dW, m1, m2, lr, b1, b2, eps_v, t, clip, wd)
+    function adamw_step!(::Backend.CUDADevice, W, dW, m1, m2, lr, b1, b2, eps_v, t, clip, wd; age=nothing)
         n = Int32(length(W))
         threads = 256
         blocks = cld(n, threads)
-        
+
         # On aplatit les tenseurs pour le kernel 1D
         W_vec  = vec(W)
         dW_vec = vec(dW)
         m1_vec = vec(m1)
         m2_vec = vec(m2)
-        
+
+        # `age` : correction de biais locale à l'âge du paramètre (cf. commentaire
+        # au-dessus de `adamw_step_cpu!`). `nothing` ⟹ `t` ⟹ comportement inchangé.
+        t_bias = age === nothing ? t : age
+
         @cuda threads=threads blocks=blocks _adamw_fused_kernel!(
             W_vec, dW_vec, m1_vec, m2_vec,
             Float32(lr), Float32(b1), Float32(b2), Float32(eps_v),
-            Int32(t), Float32(clip), Float32(wd), n
+            Int32(t_bias), Float32(clip), Float32(wd), n
         )
     end
 end
@@ -588,9 +607,14 @@ end
 # au lieu d'un lancement par tenseur) -- même patron pointeur-brut-par-bloc
 # que `_multi_copy_kernel!` (src/patching.jl), corps de boucle copié verbatim
 # depuis `_adamw_fused_kernel!` ci-dessus pour garantir la bit-exactitude. ──
-adamw_step_batched!(::Backend.CPUDevice, Ws, dWs, m1s, m2s, lr, b1, b2, eps_v, t, clip, wd) =
+#
+# `ages` (kwarg optionnel, défaut `nothing`) : vecteur d'âges locaux, un par
+# tenseur de `Ws` (même sémantique que le kwarg `age` de `adamw_step_cpu!`).
+# `nothing` ⟹ tous les tenseurs utilisent `t` ⟹ comportement bit-exact inchangé.
+adamw_step_batched!(::Backend.CPUDevice, Ws, dWs, m1s, m2s, lr, b1, b2, eps_v, t, clip, wd; ages=nothing) =
     for i in eachindex(Ws)
-        adamw_step!(Backend.CPUDevice(), Ws[i], dWs[i], m1s[i], m2s[i], lr, b1, b2, eps_v, t, clip, wd)
+        adamw_step!(Backend.CPUDevice(), Ws[i], dWs[i], m1s[i], m2s[i], lr, b1, b2, eps_v, t, clip, wd;
+                    age = ages === nothing ? nothing : ages[i])
     end
 
 if Backend.CUDA_AVAILABLE
@@ -643,9 +667,64 @@ if Backend.CUDA_AVAILABLE
         return
     end
 
-    function adamw_step_batched!(::Backend.CUDADevice, Ws, dWs, m1s, m2s, lr, b1, b2, eps_v, t, clip, wd)
+    # Variante à correction de biais locale à l'âge : identique au kernel
+    # ci-dessus, à ceci près que `t` (donc bc1/bc2) est lu par bloc dans `ages`
+    # au lieu d'être une constante globale. Kernel SÉPARÉ pour laisser le chemin
+    # chaud (`ages=nothing`) strictement inchangé, sans upload supplémentaire.
+    function _multi_adamw_age_kernel!(ptrs::CUDA.CuDeviceVector{CUDA.CuPtr{Float32}},
+                                       lens::CUDA.CuDeviceVector{Int32},
+                                       ages::CUDA.CuDeviceVector{Int32}, N::Int32,
+                                       lr::Float32, b1::Float32, b2::Float32,
+                                       eps_v::Float32, clip::Float32, wd::Float32)
+        bid = blockIdx().x
+        n = Int(lens[bid])
+        Nn = Int(N)
+        W  = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[bid]), (n,))
+        dW = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[Nn + bid]), (n,))
+        m1 = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[2Nn + bid]), (n,))
+        m2 = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, ptrs[3Nn + bid]), (n,))
+
+        t_f32 = Float32(ages[bid])
+        bc1 = 1f0 - b1^t_f32
+        bc2 = 1f0 - b2^t_f32
+
+        i = Int(threadIdx().x)
+        while i <= n
+            @inbounds begin
+                g_val = dW[i]
+                g_clip = max(-clip, min(clip, g_val))
+
+                m1_curr = m1[i]
+                m2_curr = m2[i]
+
+                m1_new = b1 * m1_curr + (1f0 - b1) * g_clip
+                m2_new = b2 * m2_curr + (1f0 - b2) * g_clip^2
+
+                m1[i] = m1_new
+                m2[i] = m2_new
+
+                mh = m1_new / bc1
+                vh = m2_new / bc2
+
+                w_curr = W[i]
+                w_new = w_curr * (1f0 - lr * wd) - lr * mh / (sqrt(vh) + eps_v)
+
+                W[i] = w_new
+                dW[i] = 0f0
+            end
+            i += Int(blockDim().x)
+        end
+        return
+    end
+
+    function adamw_step_batched!(::Backend.CUDADevice, Ws, dWs, m1s, m2s, lr, b1, b2, eps_v, t, clip, wd; ages=nothing)
         N = length(Ws)
         @assert length(dWs) == N && length(m1s) == N && length(m2s) == N "adamw_step_batched! : Ws/dWs/m1s/m2s doivent avoir la même longueur"
+        @assert ages === nothing || length(ages) == N "adamw_step_batched! : `ages` doit avoir un âge par tenseur de Ws"
         N == 0 && return
 
         lens = Int32.(length.(Ws))
@@ -660,11 +739,20 @@ if Backend.CUDA_AVAILABLE
         lens_gpu = CUDA.CuArray(lens)
         threads = min(256, Int(maximum(lens)))
 
-        @cuda threads=threads blocks=N _multi_adamw_kernel!(
-            ptrs_gpu, lens_gpu, Int32(N),
-            Float32(lr), Float32(b1), Float32(b2), Float32(eps_v),
-            Int32(t), Float32(clip), Float32(wd)
-        )
+        if ages === nothing
+            @cuda threads=threads blocks=N _multi_adamw_kernel!(
+                ptrs_gpu, lens_gpu, Int32(N),
+                Float32(lr), Float32(b1), Float32(b2), Float32(eps_v),
+                Int32(t), Float32(clip), Float32(wd)
+            )
+        else
+            ages_gpu = CUDA.CuArray(Int32.(collect(ages)))
+            @cuda threads=threads blocks=N _multi_adamw_age_kernel!(
+                ptrs_gpu, lens_gpu, ages_gpu, Int32(N),
+                Float32(lr), Float32(b1), Float32(b2), Float32(eps_v),
+                Float32(clip), Float32(wd)
+            )
+        end
     end
 end
 

@@ -1,0 +1,8 @@
+# demand! vs demand_release! vs demand_planned! -- pic VRAM absolu (watermark pool CUDA).
+# Forward seul, char-LM identique a real_llm_vram_probe.jl : vocab=65, dim=256, 4 tetes,
+# hidden=512, 4 couches, block_size=256. Un bras par processus.
+# Porte de correction : chaque bras compare sa sortie a demand! DU MEME processus,
+# en egalite BIT-A-BIT (bitexact=true exige).
+RESULT arm=demand n_nodes=210 n_slots=-1 pool_hits=-1 baseline_mb=43.46 peak_mb=46.96 stable=true bitexact=true
+RESULT arm=release n_nodes=210 n_slots=-1 pool_hits=-1 baseline_mb=10.71 peak_mb=16.96 stable=true bitexact=true
+RESULT arm=planned n_nodes=210 n_slots=43 pool_hits=1169 baseline_mb=43.46 peak_mb=46.96 stable=true bitexact=true
