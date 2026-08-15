@@ -1,0 +1,107 @@
+EXPÉRIENCE EPSILON SUR POIDS ENTRAÎNÉS -- Qwen2.5-1.5B-Instruct
+Amorçage : vraie cross-entropy next-token sur un prompt tokenisé.
+Date : 2026-08-11T00:38:59Z
+
+VRAM libre au départ : 14.88 Go
+Chargement du checkpoint natif (pas de re-parse safetensors)...
+Nœuds : 2948   règles : 2607   VRAM libre : 8.26 Go
+
+Prompt : "If a train travels 60 miles in 2 hours, its speed is"  (16 tokens)
+
+Tenseurs rétrogradés is_param=false : 282 (gradients non conservés)
+Témoins conservés : 56 gammas de couche + final_norm_gamma
+
+Passe de référence (graphe non recâblé)...
+  perte CE = 2.333230   VRAM libre : 6.17 Go   témoins avec gradient : 57
+
+Jonctions recâblées : 56 (attendu 56 = 2L)
+
+------------------------------------------------------------------------------
+G1  logits bit-identiques après recâblage : OUI   (max|diff| = 0.000e+00)
+G2  gradients témoins à eps=1 bit-identiques : 57/57   (max|diff| = 0.000e+00)
+    branches capturées : 56/56
+G3a gammas de COUCHE à eps=0 exactement nuls : 0/56 non nuls
+G3b final_norm_gamma à eps=0 NON nul (skip intact) : OUI
+
+✓ G1, G2, G3a, G3b franchies sur poids entraînés.
+
+------------------------------------------------------------------------------
+ORDRE DE BRANCHE MOYEN n_bar -- POIDS ENTRAÎNÉS
+  ordre max = 1 + 2(L-i) ;  n_bar >= 1 toujours (a_0 = 0)
+------------------------------------------------------------------------------
+
+couche   L-i   type  max ordre     n_bar  n_bar/max   |h-h/2|
+     1    27   attn         56     8.958     0.1600  7.46e-03
+     1    27    mlp         55     8.371     0.1522  2.94e-03
+     2    26   attn         54     8.165     0.1512  3.95e-04
+     2    26    mlp         53     8.156     0.1539  6.15e-03
+     3    25   attn         52     8.129     0.1563  4.37e-03
+     3    25    mlp         51     7.977     0.1564  5.35e-03
+     4    24   attn         50     7.895     0.1579  4.67e-03
+     4    24    mlp         49     7.750     0.1582  4.50e-03
+     5    23   attn         48     7.584     0.1580  4.06e-03
+     5    23    mlp         47     7.501     0.1596  4.24e-03
+     6    22   attn         46     7.530     0.1637  4.84e-03
+     6    22    mlp         45     7.257     0.1613  4.90e-03
+     7    21   attn         44     7.274     0.1653  4.49e-03
+     7    21    mlp         43     7.092     0.1649  4.46e-03
+     8    20   attn         42     7.146     0.1702  2.93e-03
+     8    20    mlp         41     6.840     0.1668  1.61e-03
+     9    19   attn         40     6.820     0.1705  6.25e-04
+     9    19    mlp         39     6.593     0.1691  1.43e-05
+    10    18   attn         38     6.585     0.1733  4.36e-04
+    10    18    mlp         37     6.173     0.1668  1.10e-04
+    11    17   attn         36     6.227     0.1730  9.78e-05
+    11    17    mlp         35     5.988     0.1711  3.36e-04
+    12    16   attn         34     5.978     0.1758  5.04e-04
+    12    16    mlp         33     5.618     0.1702  1.68e-03
+    13    15   attn         32     5.620     0.1756  1.29e-03
+    13    15    mlp         31     5.209     0.1680  4.46e-03
+    14    14   attn         30     5.154     0.1718  4.17e-03
+    14    14    mlp         29     4.884     0.1684  5.71e-03
+    15    13   attn         28     4.900     0.1750  5.60e-03
+    15    13    mlp         27     4.677     0.1732  6.92e-03
+    16    12   attn         26     4.708     0.1811  6.71e-03
+    16    12    mlp         25     4.486     0.1794  6.31e-03
+    17    11   attn         24     4.483     0.1868  6.08e-03
+    17    11    mlp         23     4.237     0.1842  5.63e-03
+    18    10   attn         22     4.223     0.1919  5.43e-03
+    18    10    mlp         21     3.949     0.1881  5.31e-03
+    19     9   attn         20     3.947     0.1973  5.27e-03
+    19     9    mlp         19     3.743     0.1970  3.76e-03
+    20     8   attn         18     3.776     0.2098  3.71e-03
+    20     8    mlp         17     3.545     0.2085  2.44e-03
+    21     7   attn         16     3.525     0.2203  2.42e-03
+    21     7    mlp         15     3.140     0.2093  2.50e-03
+    22     6   attn         14     3.082     0.2202  2.39e-03
+    22     6    mlp         13     2.785     0.2142  1.76e-03
+    23     5   attn         12     2.772     0.2310  2.02e-03
+    23     5    mlp         11     2.406     0.2187  1.78e-03
+    24     4   attn         10     2.433     0.2433  1.62e-03
+    24     4    mlp          9     1.999     0.2221  1.35e-03
+    25     3   attn          8     1.987     0.2484  1.32e-03
+    25     3    mlp          7     1.560     0.2229  9.30e-04
+    26     2   attn          6     1.541     0.2569  9.18e-04
+    26     2    mlp          5     1.248     0.2497  8.68e-04
+    27     1   attn          4     1.234     0.3085  8.08e-04
+    27     1    mlp          3     1.095     0.3650  5.82e-04
+    28     0   attn          2     1.073     0.5365  5.46e-04
+    28     0    mlp          1     1.000     1.0000  2.38e-06
+
+  n_bar maximal            : 8.958
+  ordre max à la couche 1  : 56
+  ratio à la couche 1      : 0.1600
+  écart Richardson max     : 7.464e-03
+
+==============================================================================
+VERDICT -- poids entraînés
+==============================================================================
+
+  n_bar dépasse-t-il 3 (ordre max 56) ? OUI
+  => la masse suit la profondeur sur poids entraînés aussi.
+
+  Comparaison au régime à l'initialisation (bench_eps_branch_order.jl,
+  L=24 : n_bar max 4.691, ordre max 47, ratio 0.0998) -- même mesure,
+  mêmes portes, seuls les poids changent.
+
+VRAM libre en fin de run : 6.17 Go

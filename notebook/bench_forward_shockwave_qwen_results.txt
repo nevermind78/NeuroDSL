@@ -1,0 +1,113 @@
+TRACE UNIQUE : ABLATION FORWARD ET ANTI-ONDE -- Qwen2.5-1.5B-Instruct
+Machinerie de src/patching.jl (capture_activations, patch_node!,
+recovery_metric), déjà publiée. AUCUN lien avec branch_order_theorem.tex :
+les portes eps y sont identité en forward par construction, donc ne
+peuvent structurellement pas voir ce que cette trace mesure.
+Date : 2026-08-15T00:37:48Z
+
+Chargement du checkpoint natif...
+
+Prompt : "The capital of the country where the Eiffel Tower stands is"  (13 tokens)
+
+Run propre : perte = 2.861947
+Porte : run propre redemandé bit-identique au premier : oui
+
+------------------------------------------------------------------------------
+CHOC : site ablaté = layer_14_mha_output_out (couche 14, branche attention -> zéro)
+------------------------------------------------------------------------------
+
+ couche    ||Delta||    ||clean||  Delta relatif
+     14      55.3286   11046.3867       0.005009
+     15      56.1933   11045.8037       0.005087
+     16      55.5434   11043.2744       0.005030
+     17      55.4422   11041.4453       0.005021
+     18      55.1575   11039.7871       0.004996
+     19      55.8669   11040.8740       0.005060
+     20      56.8781   11040.9922       0.005152
+     21      59.5879   11038.1221       0.005398
+     22      62.3853   11035.7529       0.005653
+     23      69.2019   11029.9551       0.006274
+     24      77.8750   11025.3613       0.007063
+     25      87.1056   10995.6699       0.007922
+     26      95.6683   10987.7158       0.008707
+     27     106.2113    1117.6830       0.095028
+     28     125.9660    1324.7014       0.095090
+
+Perte : propre 2.861947 -> ablatée 2.920400  (Δperte = +0.058453)
+
+------------------------------------------------------------------------------
+ANTI-ONDE : patch_node! restaure layer_18_out à sa valeur PROPRE
+------------------------------------------------------------------------------
+
+ couche    ||Delta||    ||clean||  Delta relatif
+     14   5.5329e+01   11046.3867     5.0088e-03
+     15   5.6193e+01   11045.8037     5.0873e-03
+     16   5.5543e+01   11043.2744     5.0296e-03
+     17   5.5442e+01   11041.4453     5.0213e-03
+     18   0.0000e+00   11039.7871     0.0000e+00
+     19   0.0000e+00   11040.8740     0.0000e+00
+     20   0.0000e+00   11040.9922     0.0000e+00
+     21   0.0000e+00   11038.1221     0.0000e+00
+     22   0.0000e+00   11035.7529     0.0000e+00
+     23   0.0000e+00   11029.9551     0.0000e+00
+     24   0.0000e+00   11025.3613     0.0000e+00
+     25   0.0000e+00   10995.6699     0.0000e+00
+     26   0.0000e+00   10987.7158     0.0000e+00
+     27   0.0000e+00    1117.6830     0.0000e+00
+     28   0.0000e+00    1324.7014     0.0000e+00
+
+Perte : propre 2.861947  ablatée 2.920400  anti-ondée 2.861947  (Δperte = +0.00e+00)
+recovery_metric (logits) = 1.000000  (1.0 = récupération totale)
+
+------------------------------------------------------------------------------
+LECTURE DE LA SIGNATURE HYDRA (une seule trace, pas une réplication)
+------------------------------------------------------------------------------
+
+  Delta relatif : couche 14 = 0.0050 -> couche 28 = 0.0951
+  NON monotone (au sens strict, tolérance 1e-6) -- le script le signale ainsi
+  mais CETTE LECTURE EST TROMPEUSE, corrigée ci-dessous après inspection.
+
+------------------------------------------------------------------------------
+CORRECTION POST-HOC (inspection manuelle des mêmes nombres, aucun recalcul)
+------------------------------------------------------------------------------
+  Les décroissances détectées (couches 15->16, 17->18) sont de 6e-5 et 2.5e-5,
+  soit un flottement de ~1% autour de 0.0050 -- du bruit, pas un plafonnement
+  substantiel. Le vrai fait notable est ailleurs : ||Delta|| ABSOLU croît
+  LENTEMENT et régulièrement (55.3 -> 95.7 sur les couches 14-26, x1.73 sur 12
+  couches), puis seulement x1.32 de plus sur les couches 26->28 (95.7 -> 126.0)
+  -- alors que le Delta RELATIF y bondit x11 (0.0087 -> 0.0951). La cause est
+  ||clean|| lui-même : la norme du flux résiduel PROPRE chute d'un facteur 10.2
+  entre les couches 26 et 27 (10987 -> 1118), un trait architectural des
+  dernières couches de Qwen2.5, sans rapport avec l'ablation. Le bond du Delta
+  relatif est donc presque entièrement un effet de dénominateur, pas une
+  amplification de la perturbation elle-même.
+  LECTURE HONNÊTE : cette trace ne montre ni amplification catastrophique ni
+  compensation nette -- le Delta absolu croît doucement et regulièrement sur
+  toute la profondeur testée. Ce n'est PAS une signature claire d'auto-
+  réparation façon effet Hydra dans un sens ou dans l'autre ; conclure à une
+  compensation à partir de cette seule trace serait une lecture forcée.
+
+==============================================================================
+PONT VERS q_j -- UN SEUL POINT, AUCUNE CORRÉLATION POSSIBLE À n=1
+==============================================================================
+
+ERREUR TROUVÉE ET CORRIGÉE : le script lisait CAPTURED[ABL_SITE] avant et
+après avoir fermé la porte de ABL_SITE lui-même -- exactement la Corollaire
+du branchement obligatoire (q au site lu sur lui-même = 1 PAR CONSTRUCTION,
+indépendamment de tout ce que fait ce branchement). Le +1.00000 imprimé
+plus haut est ce trivial, pas une mesure de la couche 14. Corrigé ici SANS
+nouveau calcul, par une simple relecture de bench_eps_exact_ablation_qwen_
+multiprompt_matrix.csv déjà validé : ce prompt ("The capital of the country
+where the Eiffel Tower stands is") en est l'entrée d'indice 5 ; q_j pour la
+branche layer_14_mha_output_out, LUE AU SITE layer_1_mha_output_out (le site
+standard de tout le reste de l'article), y est déjà exact :
+
+  q_j (site couche 1, branche couche 14, ce prompt) : +0.06679
+  rho_j                                             :  0.16478
+  c_j                                               : +0.29033
+
+  Delta relatif à la sortie (couche 28), sans anti-onde : 0.0951
+  recovery_metric avec anti-onde                        : 1.0000
+
+  Un point. Ni signe, ni magnitude relative ne peuvent être généralisés.
+  Rapporté parce que le coût marginal était nul, pas comme un résultat.

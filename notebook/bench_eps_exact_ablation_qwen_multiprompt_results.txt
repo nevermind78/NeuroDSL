@@ -1,0 +1,206 @@
+IDENTITÉ EXACTE D'ABLATION SUR 22 PROMPTS -- Qwen2.5-1.5B-Instruct
+Referme le n=1 de la matrice q, et teste la dérive d'alignement c_j
+à travers les entrées. Écriture incrémentale : chaque prompt est écrit
+dès qu'il est calculé.
+Date : 2026-08-13T17:38:11Z
+
+Chargement du checkpoint natif (une seule fois)...
+
+22 prompts chargés depuis qwen_sweep_prompts.json (mêmes que le balayage p par DF).
+
+Portes structurelles (une fois) : G1 ok  G2 ok (57)  G3a ok  G3b ok
+
+------------------------------------------------------------------------------
+PAR PROMPT -- matrice complète (56 sites x 56 branches, 1596 paires en cône)
+Colonnes : P1 = max|q_jj - 1| ; P2 = max|q_j| en amont ; 2sc = max écart
+à la forme à deux scalaires ; sgn = violations de la loi de signe ;
+puis, AU SITE DE COUCHE 1 (55 branches contournables) : %neg, moyenne et
+médiane de c_j, et part de branches avec c_j < -rho_j.
+------------------------------------------------------------------------------
+
+  #    n        P1        P2       2sc  sgn |   %neg    moy c    méd c   c<-rho
+
+Ordre de traitement : longueur décroissante (n = 16 ... 5).
+La colonne # est l'indice ORIGINAL du prompt, pas l'ordre d'exécution.
+
+  6   16  0.00e+00  7.49e-07  2.22e-16    0 |   20.0  -0.1971  -0.1953     20.0
+ 12   14  0.00e+00  4.35e-07  1.94e-16    0 |   12.7  -0.0857  -0.1147     12.7
+ 17   14  0.00e+00  5.69e-07  2.22e-16    0 |    9.1  -0.1516  -0.1857      9.1
+  5   13  0.00e+00  7.75e-07  5.83e-16    0 |   14.5  -0.0456  -0.0520     14.5
+ 13   12  0.00e+00  4.02e-07  1.22e-15    0 |   12.7  -0.0602  -0.0270     12.7
+ 22   12  0.00e+00  4.21e-07  5.00e-16    0 |   18.2  -0.0561  -0.0555     18.2
+  4   11  0.00e+00  3.74e-07  7.77e-16    0 |   16.4  -0.0624  -0.0295     16.4
+IDENTITÉ EXACTE D'ABLATION SUR 22 PROMPTS -- Qwen2.5-1.5B-Instruct
+Referme le n=1 de la matrice q, et teste la dérive d'alignement c_j
+à travers les entrées. Écriture incrémentale : chaque prompt est écrit
+dès qu'il est calculé.
+Date : 2026-08-13T18:11:38Z
+
+Chargement du checkpoint natif (une seule fois)...
+
+22 prompts chargés depuis qwen_sweep_prompts.json (mêmes que le balayage p par DF).
+
+Portes structurelles (une fois) : G1 ok  G2 ok (57)  G3a ok  G3b ok
+
+------------------------------------------------------------------------------
+PAR PROMPT -- matrice complète (56 sites x 56 branches, 1596 paires en cône)
+Colonnes : P1 = max|q_jj - 1| ; P2 = max|q_j| en amont ; 2sc = max écart
+à la forme à deux scalaires ; sgn = violations de la loi de signe ;
+puis, AU SITE DE COUCHE 1 (55 branches contournables) : %neg, moyenne et
+médiane de c_j, et part de branches avec c_j < -rho_j.
+------------------------------------------------------------------------------
+
+  #    n        P1        P2       2sc  sgn |   %neg    moy c    méd c   c<-rho
+
+Ordre de traitement : longueur décroissante (n = 16 ... 5).
+La colonne # est l'indice ORIGINAL du prompt, pas l'ordre d'exécution.
+
+IDENTITÉ EXACTE D'ABLATION SUR 22 PROMPTS -- Qwen2.5-1.5B-Instruct
+Referme le n=1 de la matrice q, et teste la dérive d'alignement c_j
+à travers les entrées. Écriture incrémentale : chaque prompt est écrit
+dès qu'il est calculé.
+Date : 2026-08-13T18:12:58Z
+
+Chargement du checkpoint natif (une seule fois)...
+
+22 prompts chargés depuis qwen_sweep_prompts.json (mêmes que le balayage p par DF).
+
+Portes structurelles (une fois) : G1 ok  G2 ok (57)  G3a ok  G3b ok
+
+------------------------------------------------------------------------------
+PAR PROMPT -- matrice complète (56 sites x 56 branches, 1596 paires en cône)
+Colonnes : P1 = max|q_jj - 1| ; P2 = max|q_j| en amont ; 2sc = max écart
+à la forme à deux scalaires ; sgn = violations de la loi de signe ;
+puis, AU SITE DE COUCHE 1 (55 branches contournables) : %neg, moyenne et
+médiane de c_j, et part de branches avec c_j < -rho_j.
+------------------------------------------------------------------------------
+
+  #    n        P1        P2       2sc  sgn |   %neg    moy c    méd c   c<-rho
+
+Ordre de traitement : longueur décroissante (n = 16 ... 5).
+La colonne # est l'indice ORIGINAL du prompt, pas l'ordre d'exécution.
+
+IDENTITÉ EXACTE D'ABLATION SUR 22 PROMPTS -- Qwen2.5-1.5B-Instruct
+Referme le n=1 de la matrice q, et teste la dérive d'alignement c_j
+à travers les entrées. Écriture incrémentale : chaque prompt est écrit
+dès qu'il est calculé.
+Date : 2026-08-13T18:18:35Z
+
+Chargement du checkpoint natif (une seule fois)...
+
+22 prompts chargés depuis qwen_sweep_prompts.json (mêmes que le balayage p par DF).
+
+Portes structurelles (une fois) : G1 ok  G2 ok (57)  G3a ok  G3b ok
+
+------------------------------------------------------------------------------
+PAR PROMPT -- matrice complète (56 sites x 56 branches, 1596 paires en cône)
+Colonnes : P1 = max|q_jj - 1| ; P2 = max|q_j| en amont ; 2sc = max écart
+à la forme à deux scalaires ; sgn = violations de la loi de signe ;
+puis, AU SITE DE COUCHE 1 (55 branches contournables) : %neg, moyenne et
+médiane de c_j, et part de branches avec c_j < -rho_j.
+------------------------------------------------------------------------------
+
+  #    n        P1        P2       2sc  sgn |   %neg    moy c    méd c   c<-rho
+
+Ordre de traitement : longueur décroissante (n = 16 ... 5).
+La colonne # est l'indice ORIGINAL du prompt, pas l'ordre d'exécution.
+
+  8   11  0.00e+00  4.18e-07  1.67e-16    0 |   16.4  -0.1269  -0.1202     16.4
+ 10   11  0.00e+00  4.40e-07  2.39e-16    0 |   10.9  -0.1197  -0.0939     10.9
+ 18    9  0.00e+00  3.46e-07  2.22e-16    0 |   25.5  -0.2047  -0.1975     25.5
+
+[lot partiel : 3 prompts mesurés ici, 7 déjà faits, 22 au total.
+ Pas d'agrégat : il serait partiel. Relancer avec MP_SKIP mis à jour.]
+IDENTITÉ EXACTE D'ABLATION SUR 22 PROMPTS -- Qwen2.5-1.5B-Instruct
+Referme le n=1 de la matrice q, et teste la dérive d'alignement c_j
+à travers les entrées. Écriture incrémentale : chaque prompt est écrit
+dès qu'il est calculé.
+Date : 2026-08-14T00:31:18Z
+
+Chargement du checkpoint natif (une seule fois)...
+
+22 prompts chargés depuis qwen_sweep_prompts.json (mêmes que le balayage p par DF).
+
+Portes structurelles (une fois) : G1 ok  G2 ok (57)  G3a ok  G3b ok
+
+------------------------------------------------------------------------------
+PAR PROMPT -- matrice complète (56 sites x 56 branches, 1596 paires en cône)
+Colonnes : P1 = max|q_jj - 1| ; P2 = max|q_j| en amont ; 2sc = max écart
+à la forme à deux scalaires ; sgn = violations de la loi de signe ;
+puis, AU SITE DE COUCHE 1 (55 branches contournables) : %neg, moyenne et
+médiane de c_j, et part de branches avec c_j < -rho_j.
+------------------------------------------------------------------------------
+
+  #    n        P1        P2       2sc  sgn |   %neg    moy c    méd c   c<-rho
+
+Ordre de traitement : longueur décroissante (n = 16 ... 5).
+La colonne # est l'indice ORIGINAL du prompt, pas l'ordre d'exécution.
+
+  9    8  0.00e+00  3.93e-07  2.78e-16    0 |   14.5  -0.1539  -0.1751     14.5
+ 15    8  0.00e+00  4.72e-07  2.22e-16    0 |   18.2  -0.1383  -0.1609     18.2
+ 20    8  0.00e+00  4.51e-07  2.22e-16    0 |   20.0  -0.0924  -0.1037     20.0
+  3    7  0.00e+00  2.58e-07  1.73e-16    0 |   14.5  -0.0458  -0.0624     14.5
+ 11    7  0.00e+00  3.21e-07  4.44e-16    0 |   10.9   0.0287   0.0697     10.9
+ 16    7  0.00e+00  2.79e-07  9.44e-16    0 |   16.4  -0.2046  -0.2097     16.4
+
+[lot partiel : 6 prompts mesurés ici, 10 déjà faits, 22 au total.
+ Pas d'agrégat : il serait partiel. Relancer avec MP_SKIP mis à jour.]
+IDENTITÉ EXACTE D'ABLATION SUR 22 PROMPTS -- Qwen2.5-1.5B-Instruct
+Referme le n=1 de la matrice q, et teste la dérive d'alignement c_j
+à travers les entrées. Écriture incrémentale : chaque prompt est écrit
+dès qu'il est calculé.
+Date : 2026-08-14T00:41:05Z
+
+Chargement du checkpoint natif (une seule fois)...
+
+22 prompts chargés depuis qwen_sweep_prompts.json (mêmes que le balayage p par DF).
+
+Portes structurelles (une fois) : G1 ok  G2 ok (57)  G3a ok  G3b ok
+
+------------------------------------------------------------------------------
+PAR PROMPT -- matrice complète (56 sites x 56 branches, 1596 paires en cône)
+Colonnes : P1 = max|q_jj - 1| ; P2 = max|q_j| en amont ; 2sc = max écart
+à la forme à deux scalaires ; sgn = violations de la loi de signe ;
+puis, AU SITE DE COUCHE 1 (55 branches contournables) : %neg, moyenne et
+médiane de c_j, et part de branches avec c_j < -rho_j.
+------------------------------------------------------------------------------
+
+  #    n        P1        P2       2sc  sgn |   %neg    moy c    méd c   c<-rho
+
+Ordre de traitement : longueur décroissante (n = 16 ... 5).
+La colonne # est l'indice ORIGINAL du prompt, pas l'ordre d'exécution.
+
+ 14    6  0.00e+00  2.74e-07  1.05e-15    0 |   16.4  -0.1640  -0.1406     16.4
+  1    5  0.00e+00  3.48e-07  5.48e-16    0 |   21.8  -0.0302  -0.0678     21.8
+  2    5  0.00e+00  2.76e-07  1.64e-15    0 |   21.8  -0.0880  -0.0684     21.8
+  7    5  0.00e+00  4.07e-07  1.67e-16    0 |   23.6  -0.0254  -0.1037     23.6
+ 19    5  0.00e+00  2.36e-07  2.22e-16    0 |   32.7  -0.0989  -0.0517     32.7
+ 21    5  0.00e+00  3.44e-07  1.55e-15    0 |   20.0  -0.0861  -0.0544     20.0
+
+==============================================================================
+AGRÉGAT SUR LES 6 PROMPTS
+==============================================================================
+
+  n_bar (site couche 1) : min 3.9326  médian 5.7112  max 6.5073
+  p_L1                  : min 0.07023  médian 0.10199  max 0.11620
+  % négatifs, cône du site 1 (55 br.) : min 16.4  médian 21.8  max 32.7
+  % négatifs, matrice entière (1596)  : min 9.5  médian 16.2  max 24.4
+  moyenne de c_j (site couche 1)      : min -0.1640  médiane -0.0870  max -0.0254
+  % de branches avec c_j < -rho_j     : min 16.4  médian 21.8  max 32.7
+
+  portes, pires valeurs sur tous les prompts :
+    P1 max 0.000e+00   P2 max 4.073e-07   2-scalaires max 1.638e-15   violations de signe 0
+
+------------------------------------------------------------------------------
+DÉRIVE D'ALIGNEMENT : ENTRAÎNÉ CONTRE INITIALISATION
+------------------------------------------------------------------------------
+
+  moyenne de c_j négative sur 6 des 6 prompts
+  moyenne des moyennes : -0.0821
+  Référence à l'INITIALISATION (modèle pré-norm synthétique,
+  bench_eps_convergence_general_results.txt) : moyenne c_j = +0.037,
+  56 % de valeurs positives.
+  Une moyenne négative sur la grande majorité des prompts indiquerait
+  une propriété du MODÈLE ENTRAÎNÉ et non du prompt unique déjà mesuré.
+
+Matrice complète exportée : bench_eps_exact_ablation_qwen_multiprompt_matrix.csv

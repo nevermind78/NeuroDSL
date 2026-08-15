@@ -1,0 +1,56 @@
+SOMME D'EXCÈS SOUS LE MODÈLE IDÉALISÉ -- FORME EXACTE PAR digamma
+Teste, sans nouvelle mesure, le modèle rho_j=kappa/sqrt(j), c_j=0 de la
+Section 8 contre les six médianes déjà publiées dans Table~tab:depth
+(source : bench_eps_depth_synthetic_results.txt).
+Date : 2026-08-13T13:38:49Z
+
+------------------------------------------------------------------------------
+PORTE : digamma() vérifiée contre trois valeurs exactes connues
+------------------------------------------------------------------------------
+  psi(1) = -gamma              : digamma=-0.5772156649015  exact=-0.5772156649015  écart=1.30e-14
+  psi(1/2) = -gamma-2ln2       : digamma=-1.9635100260214  exact=-1.9635100260214  écart=9.77e-15
+  psi(5) = -gamma+1+1/2+1/3+1/4 : digamma=1.5061176684318  exact=1.5061176684318  écart=1.33e-14
+
+------------------------------------------------------------------------------
+MODÈLE EXACT (UN PARAMÈTRE) : e(N) = kappa^2 [psi(N+1+kappa^2)-psi(1+kappa^2)]
+------------------------------------------------------------------------------
+
+  kappa^2 ajusté (1 paramètre, moindres carrés) : 0.8643  (kappa=0.9297)
+  R^2 (modèle exact digamma, 1 paramètre)       : 0.9315
+
+     L      N   e mesuré   e modèle     résidu
+     4      7     1.1434     1.5498    -0.4064
+     8     15     1.8359     2.1295    -0.2936
+    16     31     2.3300     2.7188    -0.3888
+    32     63     3.6180     3.3129     0.3051
+    64    127     4.2767     3.9095     0.3672
+   128    255     4.4320     4.5074    -0.0754
+
+------------------------------------------------------------------------------
+COMPARAISON AUX AJUSTEMENTS DÉJÀ PUBLIÉS
+------------------------------------------------------------------------------
+
+  log-linéaire (2 paramètres, déjà publié) : a=-0.2818 b=1.0327  R^2=0.9651
+  sqrt(L)      (1 paramètre)               : a=0.4826          R^2=0.7383
+
+------------------------------------------------------------------------------
+DÉVELOPPEMENT ASYMPTOTIQUE (Euler-Maclaurin sur psi, ordre suivant après log L)
+------------------------------------------------------------------------------
+
+  e(L) ~ kappa^2 log(L) + [kappa^2 log2 - kappa^2 psi(1+kappa^2)] + kappa^2(2kappa^2-1)/(4L)
+  ordonnée prédite (kappa^2=0.8643) : 0.3127   (ordonnée ajustée publiée : 0.718)
+  coefficient exact en 1/L : 0.1574
+
+==============================================================================
+CONCLUSION
+==============================================================================
+  Le modèle idéalisé à un seul paramètre est une évaluation EXACTE (pas un
+  ajustement) sous ses hypothèses -- mais il n'atteint que R^2=0.93, sous l'ajustement log-linéaire à deux
+  paramètres déjà publié (R^2=0.965), et son ordonnée
+  prédite (0.31) est loin de l'ordonnée ajustée (0.718).
+  La croissance en sqrt(L), elle, est bien PLUS fortement exclue (R^2=0.74)
+  que le modèle idéalisé lui-même -- ce qui suggère, sans le prouver, que
+  l'effet net de l'alignement (c_j, non nul individuellement) ne s'accumule
+  pas de façon cohérente sur la plage testée. Le modèle idéalisé n'explique
+  pas tout ; il donne un terme suivant
+  exact et une explication structurelle de l'écart, pas une clôture du problème.

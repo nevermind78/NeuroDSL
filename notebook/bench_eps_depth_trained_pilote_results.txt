@@ -1,0 +1,62 @@
+PILOTE -- calibrage de TAU et du budget de pas
+dim=384  n_heads=6  hidden=1024  seq=64  vocab=65  lr=0.0003  batch=1
+corpus tinyshakespeare, découpe 90/10, 24 fenêtres de validation fixes
+entropie unigramme du train : 3.3091 nats -- porte : perte < 3.1091
+TAU (perte appariée) = 2.00   S_MAX = 2000   éval tous les 250 pas
+Date : 2026-08-11T14:19:45Z
+
+L=  4 graine=1  7155840 params  VRAM 1.33 Go  66 s  perte val finale 2.2373  TAU NON ATTEINT
+L= 64 graine=1  113370240 params  VRAM 4.11 Go  935 s  perte val finale 2.5795  TAU NON ATTEINT
+
+==============================================================================
+COURBES DE VALIDATION
+==============================================================================
+L=  4 s=1 : 250:2.725  500:2.614  750:2.599  1000:2.479  1250:2.377  1500:2.338  1750:2.290  2000:2.237
+L= 64 s=1 : 250:3.174  500:2.959  750:2.789  1000:2.705  1250:2.634  1500:2.628  1750:2.599  2000:2.580
+
+==============================================================================
+PROTOCOLE PERTE APPARIÉE (primaire)
+==============================================================================
+
+    L     B    étape    perte n_bar min n_bar méd n_bar max  p_deep m  p_L1 méd
+    4     8  -- aucune exécution qualifiée --
+   64   128  -- aucune exécution qualifiée --
+
+==============================================================================
+PROTOCOLE PAS ÉGAUX (secondaire)
+==============================================================================
+
+    L     B    étape    perte n_bar min n_bar méd n_bar max  p_deep m  p_L1 méd
+    4     8     2000   2.2373    2.1268    2.1268    2.1268   0.22233   0.26585
+   64   128     2000   2.5795    3.1879    3.1879    3.1879   0.01234   0.02491
+
+==============================================================================
+IDENTITÉS, À CHAQUE PROFONDEUR
+==============================================================================
+
+    L n_ins      q_jj-1     q amont      2-scal   signe   queue   envel   seuil    % neg
+    4    36   0.000e+00   0.000e+00   1.110e-16       0       0       0       0      5.6
+   64  8256   0.000e+00   8.969e-08   1.110e-16       0       0       0       0     13.3
+
+  colonnes : écart max sur q_jj = 1 ; écart max sur q_j = 0 en amont ;
+  écart max |q - forme à deux scalaires| ; violations de la loi de signe,
+  de c < -rho pour les négatifs, de l'enveloppe en rho, du seuil
+  q < 1/2 <=> rho < 1 ; part de coefficients négatifs.
+
+==============================================================================
+BORNE ALIGNEMENT-LIBRE (théorème)
+==============================================================================
+
+    L    q̄ bypass    rho_max >=
+    4     0.16098        0.1919
+   64     0.01723        0.0175
+
+==============================================================================
+PORTE DE CONVERGENCE (D2)
+==============================================================================
+
+  ÉCHEC  L=4 graine=1 : TAU non atteint (perte finale 2.2373)
+  ÉCHEC  L=64 graine=1 : TAU non atteint (perte finale 2.5795)
+
+  Ces exécutions sont RAPPORTÉES, pas retirées. Une profondeur qui
+  n'a pas convergé ne dit rien sur p entraîné.

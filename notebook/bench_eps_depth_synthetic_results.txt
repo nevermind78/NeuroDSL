@@ -1,0 +1,123 @@
+PROFONDEUR ET IDENTITÉS EXACTES -- pile pré-norm SYNTHÉTIQUE, init ALÉATOIRE
+Poids NON entraînés. Ne pas lire comme une mesure sur un modèle entraîné.
+Double précision, dérivées écrites à la main, aucune différence finie
+dans les identités (seule la comparaison DF en utilise une).
+Date : 2026-08-11T14:00:00Z
+
+==============================================================================
+PORTES D'EXACTITUDE ET IDENTITÉS (L = 16, 6 graines)
+==============================================================================
+
+q_j0 = 1 au site lu           : écart max = 0.000e+00
+q_j = 0 en amont (relatif)    : écart max = 0.000e+00
+forme à deux scalaires        : écart max = 1.110e-16  sur 186 coefficients
+ablation exacte vs DF (h=.05) : écart max sur n_bar = 1.172e-02
+
+loi de signe sign(q)=sign(rho+c)      : 0 violation(s) sur 186
+enveloppe exacte en rho seul          : 0 violation(s) sur 186
+seuil q < 1/2 <=> rho < 1             : 0 violation(s) sur 186
+coefficients négatifs                 : 22 (11.8 %)
+
+==============================================================================
+VÉRITÉ TERRAIN : DÉVELOPPEMENT EXHAUSTIF SUR LES 2^B SOUS-ENSEMBLES
+==============================================================================
+
+Instance synthétique, facteurs délibérément non normaux et non commutants,
+B = 12 donc 4096 sous-ensembles. Les coefficients a_k sont calculés
+exactement, ce qui donne n_bar sans passer par aucune identité.
+
+n_bar par énumération exacte des 2^12 sous-ensembles : 2.040597050147
+n_bar par identité d'ablation (théorème)            : 2.040597050147   écart 4.441e-16
+n_bar par forme à deux scalaires                    : 2.040597050147   écart 8.882e-16
+n_bar par différence finie centrée (h = 0.05)        : 2.041863787115   écart 1.267e-03
+écart max par coefficient, ablation vs deux scalaires : 1.110e-16
+somme des poids w_k (doit valoir 1)                  : 1.000000000000
+w_k minimal : -1.0062e-02 à k = 6   -> des w_k NÉGATIFS existent : OUI
+
+La différence finie est correcte à ~1e-3 près, les deux identités à la
+précision machine : elles ne corrigent pas l'estimateur, elles rendent
+les coefficients par branche observables, ce qu'aucun schéma à deux
+points ne peut faire.
+
+==============================================================================
+IDENTITÉ DE TRANSPORT ENTRE DEUX SITES
+==============================================================================
+
+q_j^(s) = <beta_j, M g^(t)>/<g^(t), M g^(t)>, M = T'T : écart max 2.047e-16
+ligne engendrée par le seul vecteur h_s = T' g^(s)   : écart max 2.082e-16
+q^(s)_j - q^(t)_j = <beta_j, u>, u = Mg/<g,Mg> - g/||g||^2 : écart max 2.012e-16
+  ||u|| = 0.05953 ; u = 0 ssi Mg est colinéaire à g (transport conforme)
+dépendance au site réelle : max |q^(s) - q^(t)| = 0.0838  (|q^(t)| moyen 0.0431)
+T conforme (2.7 x orthogonale) : max |q^(s) - q^(t)| = 3.331e-16  -> invariance EXACTE
+
+==============================================================================
+CONTRE-EXEMPLE : n_bar < 1, ET NON BORNÉ INFÉRIEUREMENT
+==============================================================================
+
+Site à porte obligatoire, une branche facultative, K v = -lambda v :
+theorie  n_bar = 1 - lambda/(1-lambda)  (soit rho = lambda, c = -1)
+
+    lambda    n_bar mesuré   n_bar théorie
+      0.30        +0.57143        +0.57143
+      0.50        -0.00000        +0.00000
+      0.60        -0.50000        -0.50000
+      0.90        -8.00000        -8.00000
+      0.99       -98.00000       -98.00000
+
+=> n_bar >= 1 est FAUX en général : q_j0 = 1 ne contraint pas la somme
+   des autres coefficients, qui ne sont pas de signe constant.
+
+==============================================================================
+PRÉ-NORM : rho_j DÉCROÎT EN j^{-1/2}  (L = 32, 6 graines)
+==============================================================================
+
+     j   rho_j méd   rho_j*sqrt(j)     q_j méd
+     2      0.5775           0.817     +0.2886
+     4      0.5022           1.004     +0.1895
+     8      0.2794           0.790     +0.1041
+    16      0.2346           0.938     +0.0129
+    32      0.2034           1.151     +0.0464
+    64      0.1219           0.975     +0.0386
+
+La pré-norm fixe l'échelle de l'ENTRÉE de branche ; le flux résiduel
+accumule les sorties de façon incohérente, donc ||x_j|| ~ sqrt(j) et le
+jacobien de branche porte un facteur 1/RMS(x_j) ~ j^{-1/2}. D'où
+q_j ~ rho_j^2 ~ 1/j et n_bar ~ somme 1/j ~ log L.
+
+==============================================================================
+BALAYAGE EN PROFONDEUR : n_bar ET p CONTRE L  (8 graines par L)
+==============================================================================
+
+      L      B   n_bar méd  n_bar éc-t       p méd  n_bar/logL
+      4      8      2.1434      0.1566     0.26793      1.5461
+      8     16      2.8359      0.5101     0.17724      1.3638
+     16     32      3.3300      0.3051     0.10406      1.2010
+     32     64      4.6180      0.5704     0.07216      1.3325
+     64    128      5.2767      0.7768     0.04122      1.2688
+    128    256      5.4320      0.9553     0.02122      1.1195
+
+Deux formes ajustées à n_bar par moindres carrés, R² calculé sur n_bar :
+  n_bar = +0.7182 +1.0327 log L        R² = 0.9651   résidu rel. max 0.076
+  n_bar = +1.7219 L^0.252            R² = 0.9286   résidu rel. max 0.139
+
+  linéaire en L exigerait n_bar x32 de L=4 à L=128 ; mesuré x2.53
+  log L prédit x3.50
+
+  => la forme logarithmique l'emporte sur la meilleure loi de
+     puissance, sur la même cible et avec le même critère.
+
+  p décroît de 0.2679 (L=4) à 0.02122 (L=128), soit un facteur 12.6,
+  tandis que L croît d'un facteur 32 : p ~ log L / L.
+
+==============================================================================
+PORTÉE
+==============================================================================
+Poids ALÉATOIRES, branches non attentionnelles, une seule largeur
+(D = 64, Dh = 256), un seul site par pile (position 1). La croissance
+en log L est donc établie À L'INITIALISATION et pour cette famille
+seulement. Sur le seul modèle ENTRAÎNÉ disponible (L = 28) on mesure
+n_bar = 8.9678 là où la tendance à l'initialisation prédirait bien
+moins : profondeur et entraînement ne sont pas séparables avec ces
+données. Lever le confondant demande n_bar à profondeur variable et à
+entraînement APPARIÉ, donc plusieurs modèles entraînés d'une même
+famille -- non disponibles ici.

@@ -1,0 +1,99 @@
+AGRÉGAT SUR LES 22 PROMPTS -- recalculé depuis le CSV complet
+Source : bench_eps_exact_ablation_qwen_multiprompt_matrix.csv  (35112 lignes)
+Aucune nouvelle mesure : relecture seule.
+Date : 2026-08-15T00:52:37Z
+
+------------------------------------------------------------------------------
+PORTES, SUR LES 22 PROMPTS (recalculées ligne à ligne)
+------------------------------------------------------------------------------
+
+  P1  max |q_jj - 1|                    : 0.000e+00
+  2sc max |q - forme à deux scalaires|  : 1.638e-15
+  loi de signe, violations cumulées     : 0  sur 35112 paires en cône
+
+------------------------------------------------------------------------------
+QUANTITÉS PAR PROMPT, AGRÉGÉES
+------------------------------------------------------------------------------
+
+  n_bar (site couche 1)      : min 3.3680  médian 6.3221  max 9.4580
+  p_L1                       : min 0.06014  médian 0.11290  max 0.16889
+  % négatifs, cône du site 1 : min 9.1  médian 16.4  max 32.7
+  % négatifs, matrice entière: min 4.2  médian 12.9  max 24.4
+  moyenne de c_j             : min -0.2047  médiane -0.0902  max +0.0287
+  % avec c_j < -rho_j        : min 9.1  médian 16.4  max 32.7
+
+  CV de p_L1 sur les prompts : 25.2 %
+  CV de la moyenne de c_j    : 62.2 %
+
+------------------------------------------------------------------------------
+DÉRIVE D'ALIGNEMENT : ENTRAÎNÉ CONTRE INITIALISATION
+------------------------------------------------------------------------------
+
+  moyenne de c_j NÉGATIVE sur 21 des 22 prompts
+  moyenne des moyennes : -0.1004   (médiane des moyennes : -0.0902)
+  EXCEPTION(S) -- moyenne positive sur le(s) prompt(s) : 11
+  Le signe n'est donc PAS universel sur les entrées testées ; il est
+  très majoritaire, ce qui n'est pas la même affirmation.
+  Référence à l'INITIALISATION (pile pré-norm synthétique,
+  bench_eps_convergence_general_results.txt) : moyenne c_j = +0.037,
+  56 % de valeurs positives.
+
+------------------------------------------------------------------------------
+LOI DE SIGNE, VÉRIFICATION CROISÉE
+------------------------------------------------------------------------------
+  Le Corollaire de la loi de signe prédit q_j < 0 SSI c_j < -rho_j, donc
+  les deux pourcentages doivent coïncider prompt par prompt.
+
+  écart max |% négatifs - % (c_j < -rho_j)| : 0.000 point de %
+  ✓ coïncidence exacte sur les 22 prompts.
+
+------------------------------------------------------------------------------
+PROFIL PAR COUCHE (sites attn), MÉDIANE ET PLAGE SUR LES 22 PROMPTS
+------------------------------------------------------------------------------
+  Remplace un profil mesuré sur UNE entrée. La dispersion est le point :
+  la donner en médiane + plage, jamais en valeur unique.
+
+
+couche   L-i     B | n_bar min n_bar méd n_bar max |    p min    p méd    p max
+     1    27    56 |    3.3680    6.3221    9.4580 |  0.06014  0.11290  0.16889
+     2    26    54 |    2.6705    5.6999    8.9936 |  0.04945  0.10555  0.16655
+     5    23    48 |    3.9872    5.3704    7.5970 |  0.08307  0.11188  0.15827
+    12    16    34 |    2.7693    4.2994    5.9782 |  0.08145  0.12645  0.17583
+    16    12    26 |    2.3723    3.7184    5.0889 |  0.09124  0.14301  0.19573
+    22     6    14 |    1.4316    2.3258    3.0791 |  0.10226  0.16613  0.21993
+    27     1     4 |    1.1126    1.3125    1.8915 |  0.27814  0.32813  0.47288
+    28     0     2 |    0.9439    1.1233    1.5166 |  0.47195  0.56165  0.75830
+
+  p_deep = moyenne de p sur les sites attn des couches 1..14 :
+    min 0.07780   médian 0.11606   max 0.16584   (CV 19.0 %)
+
+------------------------------------------------------------------------------
+DÉPENDANCE AU SITE (sites adjacents, même branche), SUR LES 22 PROMPTS
+------------------------------------------------------------------------------
+  Referme le dernier holdout à n=1 signalé en Portée : gratuit, la
+  matrice complète par site existe déjà dans le CSV pour chaque prompt.
+
+  33880 paires (55 x 22 prompts, jusqu'à 1540 chacun)
+  échelle de référence : |q| médian = 0.0784
+
+  écart SYMÉTRIQUE |a-b|/(|a|+|b|) :
+    médian 0.0272   p90 0.2620   p99 1.0000   max 1.0000
+    paires de signes opposés (écart > 0.5) : 2183 (6.4 %)
+
+  écart ABSOLU |a-b| :
+    médian 0.00330   p90 0.02379   max 1.05610
+    en fraction du |q| médian : médian 4.2 %, p90 30.4 %
+
+  Comparaison à la mesure à n=1 (un seul prompt) déjà publiée :
+  médian 0.0192, p90 0.2033, 76/1540 opposés (4.9%), médian absolu 0.0033.
+
+------------------------------------------------------------------------------
+LONGUEUR DU PROMPT
+------------------------------------------------------------------------------
+
+  n va de 5 à 16 sur les 22 prompts.
+  corrélation n vs moyenne de c_j : r = -0.217
+  corrélation n vs p_L1           : r = +0.556
+  Sur 22 points et une plage de longueur étroite, une corrélation de
+  cet ordre est une indication, pas un résultat : elle ne sépare pas
+  la longueur du contenu, les prompts longs différant aussi par le sujet.

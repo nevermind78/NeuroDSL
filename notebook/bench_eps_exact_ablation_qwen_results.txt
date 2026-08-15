@@ -1,0 +1,134 @@
+MESURE EXACTE DE p PAR ABLATION DE BRANCHE -- Qwen2.5-1.5B-Instruct
+Remplace la différence finie : B+1 passes arrière, exact, sans pas h.
+Date : 2026-08-13T16:46:33Z
+
+Chargement du checkpoint natif...
+
+Prompt : "If a train travels 60 miles in 2 hours, its speed is"  (16 tokens)
+
+G1 ok   G2 ok (57)   G3a ok   G3b ok   branches 56/56
+
+Ablation branche par branche (57 passes arrière)...
+
+------------------------------------------------------------------------------
+PORTES D'EXACTITUDE (identités, pas des contrôles ajoutés)
+------------------------------------------------------------------------------
+
+P1  q_jj = 1 au site lu   : écart max = 0.000e+00  sur 56 sites
+P2  q_j = 0 en amont      : écart max = 1.058e-07  sur 1540 paires
+✓ les deux identités tiennent.
+
+  RÉSERVE SUR P1, à ne pas surévaluer : la capture du gradient se fait
+  APRÈS la multiplication par eps, donc à eps=0 le tableau capturé est
+  exactement nul et q_jj = 1 tombe PAR CONSTRUCTION du mécanisme de
+  capture, pas par une propriété du réseau. P1 vérifie l'ordre des
+  opérations dans la règle de gradient -- utile, mais faible.
+  P2 est la porte substantielle : annuler une branche AMONT ne doit pas
+  changer le gradient au site aval, ce qui teste réellement la structure
+  des chemins. Elle passe à 1.1e-07, soit le niveau de l'epsilon Float32.
+
+==============================================================================
+n_bar ET p EXACTS, par couche (sites attn)
+==============================================================================
+
+couche   L-i     B     n_bar         p  n_bar (DF)    écart DF
+     1    27    56    8.9678    0.1601       8.958      0.0098
+     2    26    54    8.1644    0.1512           -           -
+     3    25    52    8.1230    0.1562           -           -
+     4    24    50    7.8889    0.1578           -           -
+     5    23    48    7.5784    0.1579       7.584     -0.0056
+     6    22    46    7.5237    0.1636           -           -
+     7    21    44    7.2677    0.1652           -           -
+     8    20    42    7.1424    0.1701           -           -
+     9    19    40    6.8196    0.1705           -           -
+    10    18    38    6.5853    0.1733           -           -
+    11    17    36    6.2266    0.1730           -           -
+    12    16    34    5.9782    0.1758       5.978      0.0002
+    13    15    32    5.6186    0.1756           -           -
+    14    14    30    5.1488    0.1716           -           -
+    15    13    28    4.8924    0.1747           -           -
+    16    12    26    4.6993    0.1807       4.708     -0.0087
+    17    11    24    4.4747    0.1864           -           -
+    18    10    22    4.2156    0.1916           -           -
+    19     9    20    3.9399    0.1970           -           -
+    20     8    18    3.7712    0.2095           -           -
+    21     7    16    3.5215    0.2201           -           -
+    22     6    14    3.0791    0.2199       3.082     -0.0029
+    23     5    12    2.7690    0.2307           -           -
+    24     4    10    2.4307    0.2431           -           -
+    25     3     8    1.9852    0.2481           -           -
+    26     2     6    1.5400    0.2567           -           -
+    27     1     4    1.2328    0.3082       1.234     -0.0012
+    28     0     2    1.0722    0.5361       1.073     -0.0008
+
+  p_deep exact (moyenne couches 1..14) : 0.16584
+  p_deep par différence finie          : 0.16590
+  écart de méthode sur p_deep          : -0.00006 (-0.03 %)
+
+  p au site de couche 1, exact         : 0.16014
+  p au site de couche 1, par DF        : 0.16000
+  écart de méthode sur p_L1            : +0.00014 (0.09 %)
+
+  écart |exact - DF| sur les 7 couches comparables : max 0.0098, médian 0.0029
+
+------------------------------------------------------------------------------
+SIGNE DES q_j (le théorème avertit qu'ils sont SIGNÉS)
+------------------------------------------------------------------------------
+
+  q_j dans un cône : 1596 valeurs, 258 négatives (16.2 %)
+  min = -0.2757   max = +1.0000
+  Des q_j négatifs existent : p est une moyenne sur une quasi-distribution
+  SIGNÉE. Ne jamais écrire « fraction de masse » sans le mot « signée ».
+
+------------------------------------------------------------------------------
+LOI DE SIGNE : sign(q_j) = sign(rho_j + c_j)
+------------------------------------------------------------------------------
+
+  paires testées : 1596   dont q_j < 0 : 258
+  violations de sign(q) = sign(rho+c)        : 0
+  négatifs violant c < -rho ou rho < 1       : 0
+  écart max |q mesuré - forme à deux scalaires| : 2.498e-16
+
+  ✓ La loi de signe tient sur toutes les paires, et TOUS les q_j négatifs
+    vérifient c_j < -rho_j avec rho_j < 1. Le corollaire est confirmé, et la
+    forme exacte à deux scalaires est vérifiée numériquement au passage.
+
+------------------------------------------------------------------------------
+DÉPENDANCE AU SITE de q_j (le transport U_<j n'est pas une isométrie)
+------------------------------------------------------------------------------
+
+  1540 paires (sites adjacents, même branche)
+  échelle de référence : |q| médian = 0.1449, max = 1.0000
+
+  écart SYMÉTRIQUE |a-b|/(|a|+|b|), borné dans [0,1] :
+    médian 0.0192   p90 0.2033   p99 1.0000   max 1.0000
+    paires de SIGNES OPPOSÉS (écart > 0.5) : 76 (4.9 %)
+
+  écart ABSOLU |a-b| :
+    médian 0.00334   p90 0.02074   max 0.99932
+    en fraction du |q| médian : médian 2.3 %, p90 14.3 %
+
+  Dépendance au site SUBSTANTIELLE dans la QUEUE : la médiane est modeste,
+  la queue ne l'est pas. q_j n'est donc pas une propriété de la branche
+  seule, et un profil par site ne peut PAS être différencié pour retrouver
+  des q_j par branche.
+
+  MAIS ne pas en conclure que la matrice est sans structure : l'identité
+  de transport (Prop. de branch_order_theorem.tex) montre que l'écart
+  entre deux sites vaut <beta_j, u_{s,t}> pour UN SEUL vecteur u par paire
+  de sites. Les écarts sont donc les valeurs d'une unique forme linéaire :
+  en grande dimension la plupart des beta_j y sont presque orthogonaux
+  (médiane 0.003) et quelques-uns s'y alignent (max ~1). C'est fortement
+  contraint, pas libre. Seul le STOCKAGE ne se comprime pas.
+
+Matrice q exportée : bench_eps_exact_ablation_qwen_qmatrix.csv
+
+==============================================================================
+CONCLUSION
+==============================================================================
+  p est désormais mesuré par une identité exacte, sans terme d'erreur
+  numérique. Les deux portes d'exactitude (q_jj = 1 au site lu, q_j = 0
+  en amont) sont des conséquences du théorème et non des contrôles
+  ajoutés : leur succès valide l'implémentation contre l'algèbre.
+  B(s) = 2L - pos(s) + 1 redonne l'ordre maximal corrigé par dérivation,
+  là où il avait d'abord été rapiécé après violation d'une identité.

@@ -1,0 +1,13 @@
+PLAGE DE c_j -- modèle pré-norm synthétique, L=32, 6 graines (200+s)
+Mêmes fonctions et graines que bench_eps_depth_synthetic.jl.
+Date : 2026-08-13T13:43:00Z
+
+  graine 1 : c_j min=-0.6276 max=0.6173  (sur 63 branches contournables)
+  graine 2 : c_j min=-0.6489 max=0.6963  (sur 63 branches contournables)
+  graine 3 : c_j min=-0.6721 max=0.7842  (sur 63 branches contournables)
+  graine 4 : c_j min=-0.5459 max=0.6914  (sur 63 branches contournables)
+  graine 5 : c_j min=-0.5694 max=0.4370  (sur 63 branches contournables)
+  graine 6 : c_j min=-0.6154 max=0.6073  (sur 63 branches contournables)
+
+PLAGE GLOBALE (6 graines x 63 branches contournables) : min=-0.6721  max=0.7842
+moyenne = 0.0371   médiane = 0.0598   % positifs = 55.6

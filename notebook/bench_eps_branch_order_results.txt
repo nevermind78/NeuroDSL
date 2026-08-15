@@ -1,0 +1,203 @@
+EXPÉRIENCE EPSILON : masse par ordre de branche d'un readout arrière
+Poids à l'INITIALISATION ALÉATOIRE -- régime architecture+init, pas un
+modèle entraîné. Limite de portée, pas un oubli.
+Critère préenregistré : n_bar borné (<=3) alors que l'ordre max croît
+  => masse découplée du compte => lois pilotées par le comptage mortes.
+Date : 2026-08-11T00:40:08Z
+
+==============================================================================
+CONFIG L6H4 : L=6  H=4  dim=64  hidden=128  seq=8
+==============================================================================
+
+Jonctions recâblées : 12 (attendu 12 = 2L)
+Sites de branche mesurés : 12 (attendu 12 = 2L)
+
+------------------------------------------------------------------------------
+G1  forward bit-identique au graphe non recâblé : OUI   (max|diff| = 0.000e+00)
+G2  gradients de paramètres à eps=1 bit-identiques : 54/54   (max|diff| = 0.000e+00)
+    branches capturées : 12/12
+G3  gradients de paramètres à eps=0 exactement nuls : 0/54 non nuls
+
+✓ G1, G2, G3 franchies -- les chiffres de masse sont lisibles.
+
+------------------------------------------------------------------------------
+ORDRE DE BRANCHE MOYEN n_bar, par couche et par type de branche
+  ordre max possible = 1 + 2(L-i) ;  n_bar >= 1 toujours (a_0 = 0)
+------------------------------------------------------------------------------
+
+couche    L-i   type  max ordre      n_bar  n_bar/max   |h-h/2|
+     1      5   attn         12      3.557      0.296  2.50e-05
+     1      5    mlp         11      3.425      0.311  2.94e-04
+     2      4   attn         10      2.840      0.284  1.31e-04
+     2      4    mlp          9      2.537      0.282  2.86e-04
+     3      3   attn          8      2.125      0.266  3.48e-04
+     3      3    mlp          7      2.107      0.301  1.53e-04
+     4      2   attn          6      1.807      0.301  1.43e-04
+     4      2    mlp          5      1.627      0.325  1.36e-04
+     5      1   attn          4      1.395      0.349  2.46e-04
+     5      1    mlp          3      1.278      0.426  1.67e-04
+     6      0   attn          2      1.081      0.540  7.15e-05
+     6      0    mlp          1      1.000      1.000  2.38e-06
+
+  n_bar maximal sur toutes les couches : 3.557
+  écart Richardson max (h vs h/2)       : 3.481e-04
+  couche 1 (attn) : n_bar = 3.557 pour un ordre max de 12 (ratio 0.2964)
+
+Profil ||g(eps)||/||g(1)|| au site attn de couche 1 :
+  eps=0.125   mesuré=2.669016e-02   eps^1=1.250e-01   eps^12=1.455e-11
+  eps=0.250   mesuré=5.797327e-02   eps^1=2.500e-01   eps^12=5.960e-08
+  eps=0.500   mesuré=1.608958e-01   eps^1=5.000e-01   eps^12=2.441e-04
+  eps=1.000   mesuré=1.000000e+00   eps^1=1.000e+00   eps^12=1.000e+00
+  eps=2.000   mesuré=2.290840e+01   eps^1=2.000e+00   eps^12=4.096e+03
+
+==============================================================================
+CONFIG L12H12 : L=12  H=12  dim=96  hidden=192  seq=8
+==============================================================================
+
+Jonctions recâblées : 24 (attendu 24 = 2L)
+Sites de branche mesurés : 24 (attendu 24 = 2L)
+
+------------------------------------------------------------------------------
+G1  forward bit-identique au graphe non recâblé : OUI   (max|diff| = 0.000e+00)
+G2  gradients de paramètres à eps=1 bit-identiques : 108/108   (max|diff| = 0.000e+00)
+    branches capturées : 24/24
+G3  gradients de paramètres à eps=0 exactement nuls : 0/108 non nuls
+
+✓ G1, G2, G3 franchies -- les chiffres de masse sont lisibles.
+
+------------------------------------------------------------------------------
+ORDRE DE BRANCHE MOYEN n_bar, par couche et par type de branche
+  ordre max possible = 1 + 2(L-i) ;  n_bar >= 1 toujours (a_0 = 0)
+------------------------------------------------------------------------------
+
+couche    L-i   type  max ordre      n_bar  n_bar/max   |h-h/2|
+     1     11   attn         24      3.346      0.139  1.76e-03
+     1     11    mlp         23      3.161      0.137  1.16e-03
+     2     10   attn         22      2.857      0.130  1.60e-03
+     2     10    mlp         21      2.786      0.133  1.80e-03
+     3      9   attn         20      2.562      0.128  1.88e-03
+     3      9    mlp         19      2.419      0.127  2.06e-03
+     4      8   attn         18      2.386      0.133  1.26e-03
+     4      8    mlp         17      2.327      0.137  1.35e-03
+     5      7   attn         16      2.175      0.136  1.18e-03
+     5      7    mlp         15      2.134      0.142  1.12e-03
+     6      6   attn         14      2.029      0.145  7.94e-04
+     6      6    mlp         13      1.938      0.149  6.10e-04
+     7      5   attn         12      1.750      0.146  6.96e-04
+     7      5    mlp         11      1.675      0.152  6.01e-04
+     8      4   attn         10      1.589      0.159  5.36e-04
+     8      4    mlp          9      1.550      0.172  5.10e-04
+     9      3   attn          8      1.421      0.178  3.50e-04
+     9      3    mlp          7      1.403      0.200  3.36e-04
+    10      2   attn          6      1.298      0.216  2.62e-04
+    10      2    mlp          5      1.256      0.251  2.34e-04
+    11      1   attn          4      1.168      0.292  1.53e-04
+    11      1    mlp          3      1.116      0.372  1.14e-04
+    12      0   attn          2      1.035      0.517  3.58e-05
+    12      0    mlp          1      1.000      1.000  2.38e-06
+
+  n_bar maximal sur toutes les couches : 3.346
+  écart Richardson max (h vs h/2)       : 2.060e-03
+  couche 1 (attn) : n_bar = 3.346 pour un ordre max de 24 (ratio 0.1394)
+
+Profil ||g(eps)||/||g(1)|| au site attn de couche 1 :
+  eps=0.125   mesuré=3.079757e-02   eps^1=1.250e-01   eps^24=2.118e-22
+  eps=0.250   mesuré=6.816614e-02   eps^1=2.500e-01   eps^24=3.553e-15
+  eps=0.500   mesuré=1.879502e-01   eps^1=5.000e-01   eps^24=5.960e-08
+  eps=1.000   mesuré=1.000000e+00   eps^1=1.000e+00   eps^24=1.000e+00
+  eps=2.000   mesuré=4.026257e+01   eps^1=2.000e+00   eps^24=1.678e+07
+
+==============================================================================
+CONFIG L24H16 : L=24  H=16  dim=128  hidden=256  seq=8
+==============================================================================
+
+Jonctions recâblées : 48 (attendu 48 = 2L)
+Sites de branche mesurés : 48 (attendu 48 = 2L)
+
+------------------------------------------------------------------------------
+G1  forward bit-identique au graphe non recâblé : OUI   (max|diff| = 0.000e+00)
+G2  gradients de paramètres à eps=1 bit-identiques : 216/216   (max|diff| = 0.000e+00)
+    branches capturées : 48/48
+G3  gradients de paramètres à eps=0 exactement nuls : 0/216 non nuls
+
+✓ G1, G2, G3 franchies -- les chiffres de masse sont lisibles.
+
+------------------------------------------------------------------------------
+ORDRE DE BRANCHE MOYEN n_bar, par couche et par type de branche
+  ordre max possible = 1 + 2(L-i) ;  n_bar >= 1 toujours (a_0 = 0)
+------------------------------------------------------------------------------
+
+couche    L-i   type  max ordre      n_bar  n_bar/max   |h-h/2|
+     1     23   attn         48      4.691      0.098  5.94e-03
+     1     23    mlp         47      4.582      0.097  5.82e-03
+     2     22   attn         46      4.401      0.096  3.41e-03
+     2     22    mlp         45      4.273      0.095  3.32e-03
+     3     21   attn         44      3.945      0.090  2.42e-03
+     3     21    mlp         43      3.767      0.088  2.73e-03
+     4     20   attn         42      3.545      0.084  1.78e-03
+     4     20    mlp         41      3.358      0.082  1.51e-03
+     5     19   attn         40      3.296      0.082  1.07e-03
+     5     19    mlp         39      3.201      0.082  1.27e-03
+     6     18   attn         38      3.003      0.079  1.34e-03
+     6     18    mlp         37      2.957      0.080  1.45e-03
+     7     17   attn         36      2.782      0.077  1.23e-03
+     7     17    mlp         35      2.701      0.077  1.13e-03
+     8     16   attn         34      2.567      0.075  1.14e-03
+     8     16    mlp         33      2.566      0.078  1.04e-03
+     9     15   attn         32      2.413      0.075  1.14e-03
+     9     15    mlp         31      2.351      0.076  1.04e-03
+    10     14   attn         30      2.288      0.076  8.88e-04
+    10     14    mlp         29      2.259      0.078  9.48e-04
+    11     13   attn         28      2.195      0.078  7.33e-04
+    11     13    mlp         27      2.154      0.080  7.47e-04
+    12     12   attn         26      2.044      0.079  9.76e-04
+    12     12    mlp         25      2.029      0.081  8.82e-04
+    13     11   attn         24      1.988      0.083  1.05e-03
+    13     11    mlp         23      1.939      0.084  9.93e-04
+    14     10   attn         22      1.866      0.085  9.31e-04
+    14     10    mlp         21      1.827      0.087  9.16e-04
+    15      9   attn         20      1.739      0.087  9.32e-04
+    15      9    mlp         19      1.729      0.091  9.01e-04
+    16      8   attn         18      1.666      0.093  7.09e-04
+    16      8    mlp         17      1.652      0.097  7.13e-04
+    17      7   attn         16      1.577      0.099  6.89e-04
+    17      7    mlp         15      1.559      0.104  6.78e-04
+    18      6   attn         14      1.500      0.107  5.26e-04
+    18      6    mlp         13      1.499      0.115  5.17e-04
+    19      5   attn         12      1.381      0.115  4.27e-04
+    19      5    mlp         11      1.366      0.124  4.08e-04
+    20      4   attn         10      1.285      0.129  3.08e-04
+    20      4    mlp          9      1.266      0.141  2.88e-04
+    21      3   attn          8      1.204      0.151  2.26e-04
+    21      3    mlp          7      1.194      0.171  2.17e-04
+    22      2   attn          6      1.134      0.189  1.60e-04
+    22      2    mlp          5      1.116      0.223  1.50e-04
+    23      1   attn          4      1.074      0.268  8.34e-05
+    23      1    mlp          3      1.060      0.353  7.15e-05
+    24      0   attn          2      1.016      0.508  1.91e-05
+    24      0    mlp          1      1.000      1.000  4.77e-06
+
+  n_bar maximal sur toutes les couches : 4.691
+  écart Richardson max (h vs h/2)       : 5.938e-03
+  couche 1 (attn) : n_bar = 4.691 pour un ordre max de 48 (ratio 0.0977)
+
+Profil ||g(eps)||/||g(1)|| au site attn de couche 1 :
+  eps=0.125   mesuré=9.451671e-03   eps^1=1.250e-01   eps^48=4.484e-44
+  eps=0.250   mesuré=2.278871e-02   eps^1=2.500e-01   eps^48=1.262e-29
+  eps=0.500   mesuré=9.000256e-02   eps^1=5.000e-01   eps^48=3.553e-15
+  eps=1.000   mesuré=1.000000e+00   eps^1=1.000e+00   eps^48=1.000e+00
+  eps=2.000   mesuré=2.000211e+02   eps^1=2.000e+00   eps^48=2.815e+14
+
+==============================================================================
+VERDICT
+==============================================================================
+
+  portes de correction franchies partout : true
+
+  config      L    H    max n_bar    ordre max      ratio
+  L6H4        6    4        3.557           12     0.2964
+  L12H12     12   12        3.346           24     0.1394
+  L24H16     24   16        4.691           48     0.0977
+
+  n_bar dépasse-t-il 3 à L=24 (ordre max 47) ? OUI
+  => la masse suit la profondeur : voie « comptage » VIVANTE.

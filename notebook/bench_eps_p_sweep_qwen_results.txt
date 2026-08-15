@@ -1,0 +1,104 @@
+BALAYAGE DE p -- Qwen2.5-1.5B-Instruct entraîné, 22 prompts réels + contrôles
+Question : p est-il une constante d'architecture+poids, ou dépend-il de l'entrée ?
+Date : 2026-08-11T00:53:54Z
+
+Chargement du checkpoint natif...
+
+------------------------------------------------------------------------------
+Jonctions recâblées : 56/56   branches capturées : 56/56
+G1 logits bit-identiques : OUI
+G2 témoins bit-identiques à eps=1 : OUI (57)
+G3a gammas de couche nuls à eps=0 : OUI
+G3b final_norm_gamma non nul à eps=0 : OUI
+✓ portes franchies. VRAM libre : 0.44 Go
+
+==============================================================================
+PROMPTS RÉELS
+==============================================================================
+
+  # prompt                                          n     p_L1   p_deep       sd    n_bar
+  1 The capital of France is                        5   0.1087   0.1050   0.0035    6.086
+     (contrôle Richardson h vs h/2 : 1.35e-02)
+  2 The capital of Japan is                         5   0.0951   0.0930   0.0036    5.324
+     (contrôle Richardson h vs h/2 : 1.53e-02)
+  3 The largest ocean on Earth is the               7   0.1122   0.1167   0.0078    6.282
+  4 The capital of the country famous for ramen    11   0.1194   0.1041   0.0075    6.684
+  5 The capital of the country where the Eiffel    13   0.1391   0.1163   0.0092    7.787
+  6 If a train travels 60 miles in 2 hours, its    16   0.1600   0.1659   0.0081    8.958
+  7 2 plus 2 equals                                 5   0.1166   0.1201   0.0091    6.527
+  8 The sum of 15 and 27 is                        11   0.1453   0.1422   0.0043    8.135
+  9 def add(a, b):\n    return                      8   0.1152   0.1247   0.0095    6.452
+ 10 for i in range(10):\n    print(                11   0.0968   0.1076   0.0180    5.421
+ 11 SELECT name FROM users WHERE id =               7   0.0836   0.1103   0.0135    6.090
+ 12 It was a bright cold day in April, and the c   14   0.1566   0.1633   0.0096    8.767
+ 13 Once upon a time there lived a young girl wh   12   0.0606   0.0782   0.0104    4.662
+ 14 Monday, Tuesday, Wednesday,                     6   0.1047   0.1132   0.0084    5.860
+ 15 one, two, three, four,                          8   0.1126   0.1195   0.0098    6.307
+ 16 a b c d e f g                                   7   0.1021   0.1131   0.0083    6.146
+ 17 Q: What is the largest planet in the solar s   14   0.1326   0.1314   0.0067    7.424
+ 18 Question: Who wrote Hamlet?\nAnswer:            9   0.1688   0.1612   0.0034    9.452
+ 19 The opposite of hot is                          5   0.1006   0.1113   0.0153    5.631
+ 20 big is to small as tall is to                   8   0.1218   0.1194   0.0072    6.820
+ 21 cat dog bird cat dog                            5   0.0708   0.0980   0.0165    4.784
+ 22 The key is under the mat. The key is under t   12   0.1659   0.1474   0.0067    9.289
+
+==============================================================================
+CONTRÔLES -- tokens ALÉATOIRES (le modèle n'a rien à prédire)
+==============================================================================
+
+  # contrôle                                        n     p_L1   p_deep       sd    n_bar
+  1 aléatoire (n=5)                                 5   0.0870   0.0866   0.0077    4.874
+  2 aléatoire (n=6)                                 6   0.0900   0.0923   0.0064    5.038
+  3 aléatoire (n=7)                                 7   0.1103   0.1096   0.0060    6.176
+  4 aléatoire (n=8)                                 8   0.1296   0.1113   0.0086    7.258
+  5 aléatoire (n=9)                                 9   0.1189   0.1056   0.0077    6.660
+  6 aléatoire (n=11)                               11   0.1111   0.1057   0.0042    6.220
+  7 aléatoire (n=12)                               12   0.1064   0.1056   0.0045    5.960
+  8 aléatoire (n=13)                               13   0.1472   0.1292   0.0070    8.244
+  9 aléatoire (n=14)                               14   0.1439   0.1309   0.0107    8.059
+ 10 aléatoire (n=16)                               16   0.1414   0.1389   0.0068    7.917
+
+==============================================================================
+VERDICT
+==============================================================================
+
+                          moyenne  écart-t      min      max
+  p_L1  réels  (n=22)      0.1177   0.0294   0.0606   0.1688
+  p_deep réels             0.1210   0.0228   0.0782   0.1659
+  p_L1  aléat. (n=10)      0.1186   0.0216   0.0870   0.1472
+  p_deep aléat.            0.1116   0.0168   0.0866   0.1389
+
+  ── EFFET DE LONGUEUR (le confondant) ──────────────────────────
+  corrélation p_deep vs n, prompts réels      : r = +0.528
+  corrélation p_deep vs n, tokens aléatoires  : r = +0.886
+  droite ajustée sur les ALÉATOIRES : p = 0.0705 + 0.00406 n
+    p(n=5) = 0.0908   p(n=16) = 0.1355   soit +49 % sur la plage testée
+  Sur des tokens ALÉATOIRES il n'y a aucun contenu : cette montée est
+  structurelle, pas sémantique.
+
+  ── CONTENU, À LONGUEUR CONTRÔLÉE ──────────────────────────────
+  résidu moyen des réels vs la droite aléatoire : +0.0137 (+12.8 %)
+  CV de p_deep, brut                           : 18.9 %
+  CV de p_deep, longueur retirée               : 16.1 %
+
+  ── À LONGUEUR APPARIÉE ────────────────────────────────────────
+  22 prompts appariés à un contrôle de même n
+  écart réel vs aléatoire : médian +9.7 %  moyen +13.9 %  [-26.0, 52.6]
+  prompts au-dessus de leur contrôle : 19/22
+
+  ── CONCLUSION ─────────────────────────────────────────────────
+  p n'est PAS une constante d'architecture+poids :
+    - il croît d'environ 49 % quand n passe de 5 à 16 tokens, effet
+      mesuré sur des tokens aléatoires donc purement structurel ;
+    - à longueur appariée, le texte réel donne un p supérieur au bruit
+      (médian +10 %, 19/22 au-dessus), donc le contenu compte aussi ;
+    - il reste ~16 % de variation entre prompts après retrait de la longueur.
+  Une loi paramétrée par un p unique et universel est donc mal posée.
+  Mais p est PRÉDICTIBLE : la longueur en est le moteur dominant et
+  s'ajuste proprement (r = 0.89 sur les contrôles). La forme utilisable
+  est p_j(n), pas une constante.
+
+  LIMITE : n ne va que de 5 à 16 tokens. Une lens réelle tourne sur des
+  centaines de tokens. Rien ici n'autorise à extrapoler la montée en n.
+
+VRAM libre en fin de balayage : 0.00 Go

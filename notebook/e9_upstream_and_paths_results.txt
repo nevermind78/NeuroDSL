@@ -1,0 +1,433 @@
+PRÉALABLE E9 : formes closes AMONT et comptes de chemins EXACTS
+Structurel uniquement -- aucun chronométrage, aucun bruit d'horloge.
+Oracles indépendants de _ancestors_of! / _downstream_nodes, comparés à eux.
+Date : 2026-08-11T00:05:30Z
+
+==============================================================================
+CONFIG E9-a(12,12) : L=12  H=12  dim=96  hidden=192  seq=20
+==============================================================================
+
+Nœuds total N            : 1297
+Nœuds calculés (règles)  : 1188
+Feuilles                 : 109  (dont 108 paramètres)
+Sortie                   : layer_12_out
+
+M = 7H+15 prédit         : 99
+Nœuds calculés / couche  : 99.0000  (= 1188/12)
+Sites                    : 156 (144 têtes + 12 MLP)
+
+------------------------------------------------------------------------------
+PORTE 1 -- reproduction de la forme close AVAL publiée (E9)
+  |V+_head(i)| = 10 + (L-i)M   |V+_mlp(i)| = 2 + (L-i)M   M = 7H+15
+------------------------------------------------------------------------------
+
+Résidu aval : 0/156 sites non nuls  (max |résidu| = 0)
+  ✓ PORTE 1 FRANCHIE -- le harnais reproduit un résultat déjà vérifié.
+Désaccords avec le moteur : aval 0, amont 0 (sur 156 sites)
+
+------------------------------------------------------------------------------
+MESURE 2 -- cône AMONT |V^-(i)|, décomposé calculés / feuilles
+------------------------------------------------------------------------------
+
+couche   type       |V^-|   calculés   feuilles   P(s) vers sortie
+     1   head          83         78          5   ~1e44
+     2   head         191        177         14   ~1e40
+     3   head         299        276         23   ~1e36
+     4   head         407        375         32   ~1e32
+     5   head         515        474         41   ~1e28
+     6   head         623        573         50   ~1e24
+     7   head         731        672         59   441410983288731522729
+     8   head         839        771         68   40860037331179443
+     9   head         947        870         77   3782286154881
+    10   head        1055        969         86   350114427
+    11   head        1163       1068         95   32409
+    12   head        1271       1167        104   3
+     1    mlp         107         97         10   ~1e44
+     2    mlp         215        196         19   ~1e40
+     3    mlp         323        295         28   ~1e36
+     4    mlp         431        394         37   ~1e32
+     5    mlp         539        493         46   ~1e28
+     6    mlp         647        592         55   ~1e24
+     7    mlp         755        691         64   147136994429577174243
+     8    mlp         863        790         73   13620012443726481
+     9    mlp         971        889         82   1260762051627
+    10    mlp        1079        988         91   116704809
+    11    mlp        1187       1087        100   10803
+    12    mlp        1295       1186        109   1
+
+Différences consécutives de |V^-| (têtes) -- pas par couche :
+  [108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108]
+  constantes ? OUI, pas = 108
+
+Différences consécutives de |V^-| (MLP) :
+  [108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108]
+  constantes ? OUI, pas = 108
+
+Ratio P(i)/P(i+1) (têtes) -- raison géométrique attendue :
+  ["10803", "10803", "10803", "10803", "10803", "10803", "10803", "10803", "10803", "10803", "10803"]
+
+------------------------------------------------------------------------------
+MESURE 3 -- ancêtres universels (fuite potentielle du corollaire)
+------------------------------------------------------------------------------
+
+Nœuds ancêtres de TOUS les 156 sites : 83
+  échantillon : [:input, :layer_1_mha_ao3, :layer_1_mha_k_W, :layer_1_mha_k_h1, :layer_1_mha_k_h10, :layer_1_mha_k_h11, :layer_1_mha_k_h12, :layer_1_mha_k_h2, :layer_1_mha_k_h3, :layer_1_mha_k_h4, :layer_1_mha_k_h5, :layer_1_mha_k_h6]
+  dont feuilles : 5, calculés : 78
+
+==============================================================================
+CONFIG E9-b(24,16) : L=24  H=16  dim=128  hidden=256  seq=20
+==============================================================================
+
+Nœuds total N            : 3265
+Nœuds calculés (règles)  : 3048
+Feuilles                 : 217  (dont 216 paramètres)
+Sortie                   : layer_24_out
+
+M = 7H+15 prédit         : 127
+Nœuds calculés / couche  : 127.0000  (= 3048/24)
+Sites                    : 408 (384 têtes + 24 MLP)
+
+------------------------------------------------------------------------------
+PORTE 1 -- reproduction de la forme close AVAL publiée (E9)
+  |V+_head(i)| = 10 + (L-i)M   |V+_mlp(i)| = 2 + (L-i)M   M = 7H+15
+------------------------------------------------------------------------------
+
+Résidu aval : 0/408 sites non nuls  (max |résidu| = 0)
+  ✓ PORTE 1 FRANCHIE -- le harnais reproduit un résultat déjà vérifié.
+Désaccords avec le moteur : aval 0, amont 0 (sur 408 sites)
+
+------------------------------------------------------------------------------
+MESURE 2 -- cône AMONT |V^-(i)|, décomposé calculés / feuilles
+------------------------------------------------------------------------------
+
+couche   type       |V^-|   calculés   feuilles   P(s) vers sortie
+     1   head         107        102          5   ~1e101
+     2   head         243        229         14   ~1e97
+     3   head         379        356         23   ~1e92
+     4   head         515        483         32   ~1e88
+     5   head         651        610         41   ~1e84
+     6   head         787        737         50   ~1e79
+     7   head         923        864         59   ~1e75
+     8   head        1059        991         68   ~1e70
+     9   head        1195       1118         77   ~1e66
+    10   head        1331       1245         86   ~1e62
+    11   head        1467       1372         95   ~1e57
+    12   head        1603       1499        104   ~1e53
+    13   head        1739       1626        113   ~1e48
+    14   head        1875       1753        122   ~1e44
+    15   head        2011       1880        131   ~1e40
+    16   head        2147       2007        140   ~1e35
+    17   head        2283       2134        149   ~1e31
+    18   head        2419       2261        158   ~1e26
+    19   head        2555       2388        167   ~1e22
+    20   head        2691       2515        176   1238304679321881843
+    21   head        2827       2642        185   48854092370769
+    22   head        2963       2769        194   1927411227
+    23   head        3099       2896        203   76041
+    24   head        3235       3023        212   3
+     1    mlp         135        125         10   ~1e101
+     2    mlp         271        252         19   ~1e96
+     3    mlp         407        379         28   ~1e92
+     4    mlp         543        506         37   ~1e88
+     5    mlp         679        633         46   ~1e83
+     6    mlp         815        760         55   ~1e79
+     7    mlp         951        887         64   ~1e74
+     8    mlp        1087       1014         73   ~1e70
+     9    mlp        1223       1141         82   ~1e66
+    10    mlp        1359       1268         91   ~1e61
+    11    mlp        1495       1395        100   ~1e57
+    12    mlp        1631       1522        109   ~1e52
+    13    mlp        1767       1649        118   ~1e48
+    14    mlp        1903       1776        127   ~1e44
+    15    mlp        2039       1903        136   ~1e39
+    16    mlp        2175       2030        145   ~1e35
+    17    mlp        2311       2157        154   ~1e30
+    18    mlp        2447       2284        163   ~1e26
+    19    mlp        2583       2411        172   ~1e22
+    20    mlp        2719       2538        181   412768226440627281
+    21    mlp        2855       2665        190   16284697456923
+    22    mlp        2991       2792        199   642470409
+    23    mlp        3127       2919        208   25347
+    24    mlp        3263       3046        217   1
+
+Différences consécutives de |V^-| (têtes) -- pas par couche :
+  [136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136]
+  constantes ? OUI, pas = 136
+
+Différences consécutives de |V^-| (MLP) :
+  [136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136]
+  constantes ? OUI, pas = 136
+
+Ratio P(i)/P(i+1) (têtes) -- raison géométrique attendue :
+  ["25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347", "25347"]
+
+------------------------------------------------------------------------------
+MESURE 3 -- ancêtres universels (fuite potentielle du corollaire)
+------------------------------------------------------------------------------
+
+Nœuds ancêtres de TOUS les 408 sites : 107
+  échantillon : [:input, :layer_1_mha_ao3, :layer_1_mha_k_W, :layer_1_mha_k_h1, :layer_1_mha_k_h10, :layer_1_mha_k_h11, :layer_1_mha_k_h12, :layer_1_mha_k_h13, :layer_1_mha_k_h14, :layer_1_mha_k_h15, :layer_1_mha_k_h16, :layer_1_mha_k_h2]
+  dont feuilles : 5, calculés : 102
+
+==============================================================================
+CONFIG holdout(6,8) : L=6  H=8  dim=64  hidden=128  seq=20
+==============================================================================
+
+Nœuds total N            : 481
+Nœuds calculés (règles)  : 426
+Feuilles                 : 55  (dont 54 paramètres)
+Sortie                   : layer_6_out
+
+M = 7H+15 prédit         : 71
+Nœuds calculés / couche  : 71.0000  (= 426/6)
+Sites                    : 54 (48 têtes + 6 MLP)
+
+------------------------------------------------------------------------------
+PORTE 1 -- reproduction de la forme close AVAL publiée (E9)
+  |V+_head(i)| = 10 + (L-i)M   |V+_mlp(i)| = 2 + (L-i)M   M = 7H+15
+------------------------------------------------------------------------------
+
+Résidu aval : 0/54 sites non nuls  (max |résidu| = 0)
+  ✓ PORTE 1 FRANCHIE -- le harnais reproduit un résultat déjà vérifié.
+Désaccords avec le moteur : aval 0, amont 0 (sur 54 sites)
+
+------------------------------------------------------------------------------
+MESURE 2 -- cône AMONT |V^-(i)|, décomposé calculés / feuilles
+------------------------------------------------------------------------------
+
+couche   type       |V^-|   calculés   feuilles   P(s) vers sortie
+     1   head          59         54          5   1116521080257783321
+     2   head         139        125         14   341757294232563
+     3   head         219        196         23   104608905489
+     4   head         299        267         32   32019867
+     5   head         379        338         41   9801
+     6   head         459        409         50   3
+     1    mlp          79         69         10   372173693419261107
+     2    mlp         159        140         19   113919098077521
+     3    mlp         239        211         28   34869635163
+     4    mlp         319        282         37   10673289
+     5    mlp         399        353         46   3267
+     6    mlp         479        424         55   1
+
+Différences consécutives de |V^-| (têtes) -- pas par couche :
+  [80, 80, 80, 80, 80]
+  constantes ? OUI, pas = 80
+
+Différences consécutives de |V^-| (MLP) :
+  [80, 80, 80, 80, 80]
+  constantes ? OUI, pas = 80
+
+Ratio P(i)/P(i+1) (têtes) -- raison géométrique attendue :
+  ["3267", "3267", "3267", "3267", "3267"]
+
+------------------------------------------------------------------------------
+MESURE 3 -- ancêtres universels (fuite potentielle du corollaire)
+------------------------------------------------------------------------------
+
+Nœuds ancêtres de TOUS les 54 sites : 59
+  échantillon : [:input, :layer_1_mha_ao3, :layer_1_mha_k_W, :layer_1_mha_k_h1, :layer_1_mha_k_h2, :layer_1_mha_k_h3, :layer_1_mha_k_h4, :layer_1_mha_k_h5, :layer_1_mha_k_h6, :layer_1_mha_k_h7, :layer_1_mha_k_h8, :layer_1_mha_k_out]
+  dont feuilles : 5, calculés : 54
+
+==============================================================================
+CONFIG holdout(18,4) : L=18  H=4  dim=32  hidden=64  seq=20
+==============================================================================
+
+Nœuds total N            : 937
+Nœuds calculés (règles)  : 774
+Feuilles                 : 163  (dont 162 paramètres)
+Sortie                   : layer_18_out
+
+M = 7H+15 prédit         : 43
+Nœuds calculés / couche  : 43.0000  (= 774/18)
+Sites                    : 90 (72 têtes + 18 MLP)
+
+------------------------------------------------------------------------------
+PORTE 1 -- reproduction de la forme close AVAL publiée (E9)
+  |V+_head(i)| = 10 + (L-i)M   |V+_mlp(i)| = 2 + (L-i)M   M = 7H+15
+------------------------------------------------------------------------------
+
+Résidu aval : 0/90 sites non nuls  (max |résidu| = 0)
+  ✓ PORTE 1 FRANCHIE -- le harnais reproduit un résultat déjà vérifié.
+Désaccords avec le moteur : aval 0, amont 0 (sur 90 sites)
+
+------------------------------------------------------------------------------
+MESURE 2 -- cône AMONT |V^-(i)|, décomposé calculés / feuilles
+------------------------------------------------------------------------------
+
+couche   type       |V^-|   calculés   feuilles   P(s) vers sortie
+     1   head          35         30          5   ~1e45
+     2   head          87         73         14   ~1e42
+     3   head         139        116         23   ~1e40
+     4   head         191        159         32   ~1e37
+     5   head         243        202         41   ~1e34
+     6   head         295        245         50   ~1e32
+     7   head         347        288         59   ~1e29
+     8   head         399        331         68   ~1e26
+     9   head         451        374         77   ~1e24
+    10   head         503        417         86   3846230525902876171875
+    11   head         555        460         95   8841909254949140625
+    12   head         607        503        104   20326228172296875
+    13   head         659        546        113   46726961315625
+    14   head         711        589        122   107418301875
+    15   head         763        632        131   246938625
+    16   head         815        675        140   567675
+    17   head         867        718        149   1305
+    18   head         919        761        158   3
+     1    mlp          51         41         10   ~1e44
+     2    mlp         103         84         19   ~1e42
+     3    mlp         155        127         28   ~1e39
+     4    mlp         207        170         37   ~1e36
+     5    mlp         259        213         46   ~1e34
+     6    mlp         311        256         55   ~1e31
+     7    mlp         363        299         64   ~1e29
+     8    mlp         415        342         73   ~1e26
+     9    mlp         467        385         82   ~1e23
+    10    mlp         519        428         91   1282076841967625390625
+    11    mlp         571        471        100   2947303084983046875
+    12    mlp         623        514        109   6775409390765625
+    13    mlp         675        557        118   15575653771875
+    14    mlp         727        600        127   35806100625
+    15    mlp         779        643        136   82312875
+    16    mlp         831        686        145   189225
+    17    mlp         883        729        154   435
+    18    mlp         935        772        163   1
+
+Différences consécutives de |V^-| (têtes) -- pas par couche :
+  [52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52]
+  constantes ? OUI, pas = 52
+
+Différences consécutives de |V^-| (MLP) :
+  [52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52]
+  constantes ? OUI, pas = 52
+
+Ratio P(i)/P(i+1) (têtes) -- raison géométrique attendue :
+  ["435", "435", "435", "435", "435", "435", "435", "435", "435", "435", "435", "435", "435", "435", "435", "435", "435"]
+
+------------------------------------------------------------------------------
+MESURE 3 -- ancêtres universels (fuite potentielle du corollaire)
+------------------------------------------------------------------------------
+
+Nœuds ancêtres de TOUS les 90 sites : 35
+  échantillon : [:input, :layer_1_mha_ao3, :layer_1_mha_k_W, :layer_1_mha_k_h1, :layer_1_mha_k_h2, :layer_1_mha_k_h3, :layer_1_mha_k_h4, :layer_1_mha_k_out, :layer_1_mha_pr_h1, :layer_1_mha_pr_h2, :layer_1_mha_pr_h3, :layer_1_mha_pr_h4]
+  dont feuilles : 5, calculés : 30
+
+==============================================================================
+CONFIG holdout(8,20) : L=8  H=20  dim=160  hidden=320  seq=20
+==============================================================================
+
+Nœuds total N            : 1313
+Nœuds calculés (règles)  : 1240
+Feuilles                 : 73  (dont 72 paramètres)
+Sortie                   : layer_8_out
+
+M = 7H+15 prédit         : 155
+Nœuds calculés / couche  : 155.0000  (= 1240/8)
+Sites                    : 168 (160 têtes + 8 MLP)
+
+------------------------------------------------------------------------------
+PORTE 1 -- reproduction de la forme close AVAL publiée (E9)
+  |V+_head(i)| = 10 + (L-i)M   |V+_mlp(i)| = 2 + (L-i)M   M = 7H+15
+------------------------------------------------------------------------------
+
+Résidu aval : 0/168 sites non nuls  (max |résidu| = 0)
+  ✓ PORTE 1 FRANCHIE -- le harnais reproduit un résultat déjà vérifié.
+Désaccords avec le moteur : aval 0, amont 0 (sur 168 sites)
+
+------------------------------------------------------------------------------
+MESURE 2 -- cône AMONT |V^-(i)|, décomposé calculés / feuilles
+------------------------------------------------------------------------------
+
+couche   type       |V^-|   calculés   feuilles   P(s) vers sortie
+     1   head         131        126          5   ~1e33
+     2   head         295        281         14   ~1e28
+     3   head         459        436         23   ~1e23
+     4   head         623        591         32   17582781858527621043
+     5   head         787        746         41   357351825265281
+     6   head         951        901         50   7262805627
+     7   head        1115       1056         59   147609
+     8   head        1279       1211         68   3
+     1    mlp         163        153         10   ~1e32
+     2    mlp         327        308         19   ~1e28
+     3    mlp         491        463         28   ~1e23
+     4    mlp         655        618         37   5860927286175873681
+     5    mlp         819        773         46   119117275088427
+     6    mlp         983        928         55   2420935209
+     7    mlp        1147       1083         64   49203
+     8    mlp        1311       1238         73   1
+
+Différences consécutives de |V^-| (têtes) -- pas par couche :
+  [164, 164, 164, 164, 164, 164, 164]
+  constantes ? OUI, pas = 164
+
+Différences consécutives de |V^-| (MLP) :
+  [164, 164, 164, 164, 164, 164, 164]
+  constantes ? OUI, pas = 164
+
+Ratio P(i)/P(i+1) (têtes) -- raison géométrique attendue :
+  ["49203", "49203", "49203", "49203", "49203", "49203", "49203"]
+
+------------------------------------------------------------------------------
+MESURE 3 -- ancêtres universels (fuite potentielle du corollaire)
+------------------------------------------------------------------------------
+
+Nœuds ancêtres de TOUS les 168 sites : 131
+  échantillon : [:input, :layer_1_mha_ao3, :layer_1_mha_k_W, :layer_1_mha_k_h1, :layer_1_mha_k_h10, :layer_1_mha_k_h11, :layer_1_mha_k_h12, :layer_1_mha_k_h13, :layer_1_mha_k_h14, :layer_1_mha_k_h15, :layer_1_mha_k_h16, :layer_1_mha_k_h17]
+  dont feuilles : 5, calculés : 126
+
+==============================================================================
+FORMES CLOSES : ajustement sur E9, validation HORS ÉCHANTILLON
+==============================================================================
+
+Pas amont par couche :
+  H=12  mesuré=108  7H+24=108  ok
+  H=16  mesuré=136  7H+24=136  ok
+  H= 8  mesuré=80  7H+24=80  ok
+  H= 4  mesuré=52  7H+24=52  ok
+  H=20  mesuré=164  7H+24=164  ok
+
+Ajusté sur E9 :  |V^-_head(1)| = 6*H + 11
+                 |V^-_mlp(1)|  = 7*H + 23
+
+VALIDATION hors échantillon (configs jamais utilisées pour l'ajustement) :
+  config          L    H  |V^-_head(1)|          |V^-_mlp(1)|          
+  holdout(6,8)    6    8      59 vs 59     ok         79 vs 79     ok    
+  holdout(18,4)   18    4      35 vs 35     ok         51 vs 51     ok    
+  holdout(8,20)    8   20     131 vs 131    ok        163 vs 163    ok    
+  ✓ forme close amont VALIDÉE hors échantillon.
+
+Multiplicateur de chemins par couche r(H) -- P(i) = P(L) * r^(L-i) :
+     L    H  r exact          P_head(L)        P_mlp(L)
+    12   12  10803            3                1
+    24   16  25347            3                1
+     6    8  3267             3                1
+    18    4  435              3                1
+     8   20  49203            3                1
+
+Forme close proposée : r(H) = 6H^3 + 3H^2 + 3
+  H=12  mesuré=10803    prédit=10803    ok
+  H=16  mesuré=25347    prédit=25347    ok
+  H= 8  mesuré=3267     prédit=3267     ok
+  H= 4  mesuré=435      prédit=435      ok
+  H=20  mesuré=49203    prédit=49203    ok
+  ✓ r(H) VALIDÉE sur les 5 configs.
+
+  P_head(L)=3 et P_mlp(L)=1 sur toutes les configs : true
+
+  ── LE CONTRASTE ─────────────────────────────────────────────────
+  Dépendance arrière : LINÉAIRE en (L-i), pente 7H+24.
+  Termes sommés      : GÉOMÉTRIQUE en (L-i), raison 6H^3+3H^2+3.
+  Sur le MÊME graphe. C'est ce que la loi de longueur de chemin
+  doit exploiter -- et ce que l'expérience epsilon doit peser,
+  puisque le compte de termes ne dit rien de leur MASSE.
+
+==============================================================================
+SYNTHÈSE
+==============================================================================
+  sites E9 couverts     : 564 (attendu 564)
+  porte aval franchie   : true
+  forme close validée   : true
+  E9-a(12,12)    L=12 H=12  N= 1297  M= 99  pas amont=108  anc.univ=83
+  E9-b(24,16)    L=24 H=16  N= 3265  M=127  pas amont=136  anc.univ=107
+  holdout(6,8)   L= 6 H= 8  N=  481  M= 71  pas amont=80  anc.univ=59
+  holdout(18,4)  L=18 H= 4  N=  937  M= 43  pas amont=52  anc.univ=35
+  holdout(8,20)  L= 8 H=20  N= 1313  M=155  pas amont=164  anc.univ=131
