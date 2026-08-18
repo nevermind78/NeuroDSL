@@ -103,12 +103,31 @@ GRAD_RULES[:matmul] = (dev,dy,ctx,inputs) -> begin
     tb = get(ctx,:trans_b,false)
     A  = get(ctx, :A, inputs[1])
     B  = inputs[2]
+    in_nodes = get(ctx, :_in_nodes, nothing)
+
+    # `needs_bwd` (voir backward_graph!, prune_frozen=true seulement) : si un
+    # sous-arbre en amont de A ou de B est prouvé sans paramètre entraînable,
+    # le `continue` de l'appelant jette de toute façon dA/dB sans jamais les
+    # utiliser -- inutile de payer le GEMM correspondant. Décisif pour un
+    # nœud comme `lm_head_out` (matmul [seq,dim]x[vocab,dim]') : dB (le
+    # gradient du poids vocabulaire, un GEMM ~vocab-large) était calculé à
+    # CHAQUE passe backward même quand lm_head_W.is_param=false (poids gelé
+    # pour cette étude, gradient jamais lu) -- seule son ACCUMULATION était
+    # sautée avant ce fix, jamais son calcul. `nothing` (prune_frozen=false)
+    # préserve le comportement historique : les deux gradients sont toujours
+    # calculés.
+    needs_bwd = get(ctx, :_needs_bwd, nothing)
+    need_dA = needs_bwd === nothing || in_nodes === nothing || needs_bwd[in_nodes[1].name]
+    need_dB = needs_bwd === nothing || in_nodes === nothing || needs_bwd[in_nodes[2].name]
+
     # dA emprunté au pool de gradients quand actif (voir grad_pool.jl) --
     # sinon la même allocation BLAS fraîche qu'avant (`dy*B`/`dy*B'`), jamais
     # libérée avant le prochain GC. `mul!` calcule directement dans le
     # tampon emprunté, sans étape intermédiaire.
     gpool = get(ctx, :_gpool, nothing)
-    if gpool !== nothing
+    if !need_dA
+        dA = nothing
+    elseif gpool !== nothing
         dA = grad_acquire!(gpool, size(A))
         tb ? mul!(dA, dy, B) : mul!(dA, dy, B')
     else
@@ -124,9 +143,10 @@ GRAD_RULES[:matmul] = (dev,dy,ctx,inputs) -> begin
     # (notebook/real_llm_vram_probe.jl). `dy'*A` est l'identité algébrique de
     # `(A'*dy)'`, calculée directement par BLAS sans matérialiser de transposée
     # intermédiaire.
-    in_nodes = get(ctx, :_in_nodes, nothing)
     B_node = in_nodes === nothing ? nothing : in_nodes[2]
-    if B_node !== nothing && B_node.is_param && B_node.gradient !== nothing
+    if !need_dB
+        dB = nothing
+    elseif B_node !== nothing && B_node.is_param && B_node.gradient !== nothing
         if tb
             mul!(B_node.gradient, dy', A, 1f0, 1f0)
         else
@@ -786,6 +806,19 @@ function backward_graph!(g::NeuroGraph, loss_sym::Symbol;
         # Pool de gradients (voir grad_pool.jl) : lu par _buf!/_buf_zeros!
         # pour emprunter leurs tampons scratch au lieu d'allouer frais.
         ctx[:_gpool] = gpool
+        # `needs_bwd` (prune_frozen=true seulement, sinon `nothing`) : exposé
+        # aux GRAD_RULES qui calculent le gradient de PLUSIEURS entrées en un
+        # seul appel (ex. :matmul -- dA et dB) pour qu'elles puissent sauter
+        # le calcul (pas seulement l'accumulation) d'une des deux quand son
+        # résultat serait de toute façon jeté par le `continue` ci-dessous
+        # (input prouvé sans paramètre entraînable en amont). Avant ce fix,
+        # le calcul (le vrai GEMM) avait déjà eu lieu au moment où ce `continue`
+        # s'exécutait -- prune_frozen ne sautait que l'accumulation, jamais le
+        # calcul, pour un nœud à plusieurs entrées comme :matmul. `nothing`
+        # (prune_frozen=false) préserve exactement le comportement historique
+        # : aucune règle ne doit interpréter son absence comme "rien n'est
+        # nécessaire".
+        ctx[:_needs_bwd] = needs_bwd
         dy_val = nd_out.gradient   # conservé : nd_out.gradient peut être réaffecté plus bas
         grads = GRAD_RULES[rule.op](g.device, dy_val, ctx, inputs_vals)
 
