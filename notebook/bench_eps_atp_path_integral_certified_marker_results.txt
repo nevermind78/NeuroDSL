@@ -1,0 +1,70 @@
+RAFFINEMENT PAR CHEMIN (K=8 PAS, RÈGLE DU POINT MILIEU) DE AtP
+IG_K = (1/K) * sum_k phi'(eps_k), eps_k=(k-0.5)/K -- discrétisation de
+Integrated Gradients ; borne théorique |IG_K-vrai| <= sup|phi'''|/(24K^2).
+M3 = proxy EMPIRIQUE (différence finie à 3 points sur la grille phi' déjà
+calculée, AUCUN passage supplémentaire) -- PAS un sup rigoureux, voir en-tête.
+Checkpoint réutilisé tel quel, AUCUN réentraînement. Mêmes 3 paires que P3/q_j/AtP/certificat.
+
+P1 (checkpoint) : acc_A=1.0000  acc_B=1.0000
+
+Branches (B=8, ordre en profondeur) : layer_1_mha_output_out, layer_1_mlp_out, layer_2_mha_output_out, layer_2_mlp_out, layer_3_mha_output_out, layer_3_mlp_out, layer_4_mha_output_out, layer_4_mlp_out
+Circuit P3 (cité) : layer_1_mlp_out
+
+Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4  dl_donneur=3.225  dl_receveur=-10.078
+  layer_1_mha_output_out   AtP=+4.9506  IG_8=+13.3207  vrai=+13.3052  |err_AtP|=8.3546  |err_IG_8|=0.0156  M3=784.39  borne=0.5107  AMÉLIORE  COUVERT
+  layer_1_mlp_out          AtP=+4.7986  IG_8=+11.6596  vrai=+11.6170  |err_AtP|=6.8183  |err_IG_8|=0.0426  M3=586.60  borne=0.3819  AMÉLIORE  COUVERT
+  layer_2_mlp_out          AtP=+3.5606  IG_8=+6.7627  vrai=+6.7618  |err_AtP|=3.2012  |err_IG_8|=0.0009  M3=15.01  borne=0.0098  AMÉLIORE  COUVERT
+  layer_3_mha_output_out   AtP=+6.1547  IG_8=+6.2513  vrai=+6.2511  |err_AtP|=0.0964  |err_IG_8|=0.0003  M3=1.47  borne=0.0010  AMÉLIORE  COUVERT
+  layer_3_mlp_out          AtP=+4.9497  IG_8=+5.5928  vrai=+5.5929  |err_AtP|=0.6433  |err_IG_8|=0.0001  M3=1.38  borne=0.0009  AMÉLIORE  COUVERT
+  layer_4_mlp_out          AtP=+0.9978  IG_8=+0.9978  vrai=+0.9977  |err_AtP|=0.0000  |err_IG_8|=0.0000  M3=0.00  borne=0.0000  N'AMÉLIORE PAS  NON COUVERT
+  layer_4_mha_output_out   AtP=+0.7505  IG_8=+0.7466  vrai=+0.7466  |err_AtP|=0.0039  |err_IG_8|=0.0000  M3=0.00  borne=0.0000  AMÉLIORE  NON COUVERT
+  layer_2_mha_output_out   AtP=-0.0200  IG_8=-0.0270  vrai=-0.0270  |err_AtP|=0.0069  |err_IG_8|=0.0000  M3=0.04  borne=0.0000  AMÉLIORE  COUVERT
+
+Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2  dl_donneur=11.950  dl_receveur=-14.006
+  layer_1_mha_output_out   AtP=-1.3673  IG_8=+22.9859  vrai=+25.9579  |err_AtP|=27.3252  |err_IG_8|=2.9720  M3=4871.76  borne=3.1717  AMÉLIORE  COUVERT
+  layer_1_mlp_out          AtP=+11.7168  IG_8=+24.3394  vrai=+25.9060  |err_AtP|=14.1892  |err_IG_8|=1.5666  M3=4520.63  borne=2.9431  AMÉLIORE  COUVERT
+  layer_2_mha_output_out   AtP=+14.5215  IG_8=+12.7329  vrai=+12.7376  |err_AtP|=1.7839  |err_IG_8|=0.0048  M3=23.54  borne=0.0153  AMÉLIORE  COUVERT
+  layer_3_mha_output_out   AtP=+8.2802  IG_8=+7.6905  vrai=+7.6908  |err_AtP|=0.5894  |err_IG_8|=0.0003  M3=1.96  borne=0.0013  AMÉLIORE  COUVERT
+  layer_4_mlp_out          AtP=-5.4158  IG_8=-5.4158  vrai=-5.4158  |err_AtP|=0.0000  |err_IG_8|=0.0000  M3=0.00  borne=0.0000  AMÉLIORE  NON COUVERT
+  layer_2_mlp_out          AtP=-4.6618  IG_8=-3.8003  vrai=-3.7983  |err_AtP|=0.8634  |err_IG_8|=0.0020  M3=3.58  borne=0.0023  AMÉLIORE  COUVERT
+  layer_4_mha_output_out   AtP=+1.3584  IG_8=+1.3055  vrai=+1.3055  |err_AtP|=0.0529  |err_IG_8|=0.0000  M3=0.01  borne=0.0000  AMÉLIORE  COUVERT
+  layer_3_mlp_out          AtP=+0.3662  IG_8=+0.3493  vrai=+0.3493  |err_AtP|=0.0169  |err_IG_8|=0.0000  M3=0.01  borne=0.0000  AMÉLIORE  NON COUVERT
+
+Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8  dl_donneur=9.229  dl_receveur=-13.182
+  layer_1_mha_output_out   AtP=+5.5347  IG_8=+22.7124  vrai=+22.7102  |err_AtP|=17.1754  |err_IG_8|=0.0022  M3=4535.32  borne=2.9527  AMÉLIORE  COUVERT
+  layer_1_mlp_out          AtP=+3.4883  IG_8=+19.9784  vrai=+19.9868  |err_AtP|=16.4984  |err_IG_8|=0.0083  M3=872.68  borne=0.5682  AMÉLIORE  COUVERT
+  layer_2_mha_output_out   AtP=+7.8404  IG_8=+13.8961  vrai=+13.8826  |err_AtP|=6.0422  |err_IG_8|=0.0135  M3=47.86  borne=0.0312  AMÉLIORE  COUVERT
+  layer_3_mha_output_out   AtP=+6.0777  IG_8=+6.3760  vrai=+6.3765  |err_AtP|=0.2988  |err_IG_8|=0.0005  M3=0.97  borne=0.0006  AMÉLIORE  COUVERT
+  layer_2_mlp_out          AtP=+1.7484  IG_8=+1.9505  vrai=+1.9506  |err_AtP|=0.2022  |err_IG_8|=0.0000  M3=0.06  borne=0.0000  AMÉLIORE  COUVERT
+  layer_3_mlp_out          AtP=+0.7187  IG_8=+0.7182  vrai=+0.7182  |err_AtP|=0.0005  |err_IG_8|=0.0000  M3=0.00  borne=0.0000  AMÉLIORE  NON COUVERT
+  layer_4_mlp_out          AtP=+0.5111  IG_8=+0.5111  vrai=+0.5111  |err_AtP|=0.0000  |err_IG_8|=0.0000  M3=0.00  borne=0.0000  N'AMÉLIORE PAS  NON COUVERT
+  layer_4_mha_output_out   AtP=-0.3560  IG_8=-0.3566  vrai=-0.3566  |err_AtP|=0.0006  |err_IG_8|=0.0000  M3=0.00  borne=0.0000  AMÉLIORE  NON COUVERT
+
+════════════════════════════════════════════════════════════════════════════════════════════
+AGRÉGAT SUR LES 3 PAIRES × 8 BRANCHES (24 mesures), K=8
+════════════════════════════════════════════════════════════════════════════════════════════
+  Médiane |err_AtP|  (K=1, un point)             : 0.2988
+  Médiane |err_IG_8|                             : 0.0003
+  Moyenne |err_AtP|                               : 4.3402
+  Moyenne |err_IG_8|                              : 0.1929
+  Cas où IG_8 AMÉLIORE sur AtP                    : 22 / 24
+  Cas où l'erreur réelle tombe SOUS la borne M3    : 17 / 24
+  Ratio erreur moyenne IG_8 / AtP                 : 0.0444  (< 1 = raffinement utile)
+
+════════════════════════════════════════════════════════════════════════════════════════════
+FOCUS layer_1_mha_output_out (la branche qui a fait sur-corriger le
+certificat à un point dans bench_eps_atp_certified_interval_marker.jl)
+════════════════════════════════════════════════════════════════════════════════════════════
+  Paire 1 : AtP=+4.9506 (|err|=8.3546)  IG_8=+13.3207 (|err|=0.0156)  vrai=+13.3052  borne=0.5107  COUVERT
+  Paire 2 : AtP=-1.3673 (|err|=27.3252)  IG_8=+22.9859 (|err|=2.9720)  vrai=+25.9579  borne=3.1717  COUVERT
+  Paire 3 : AtP=+5.5347 (|err|=17.1754)  IG_8=+22.7124 (|err|=0.0022)  vrai=+22.7102  borne=2.9527  COUVERT
+
+════════════════════════════════════════════════════════════════════════════════════════════
+VERDICT
+════════════════════════════════════════════════════════════════════════════════════════════
+Le raffinement à K pas réduit fortement l'erreur par rapport à AtP seul,
+y compris (à vérifier ligne par ligne ci-dessus) sur layer_1_mha_output_out.
+La borne M3/(24K^2) est violée sur 7/24 mesures : le proxy empirique
+(différence finie à 3 points, sous-intervalles de bord non couverts) sous-estime
+par endroits la vraie courbure -- confirmerait que ce n'est PAS un certificat
+rigoureux, juste un proxy mieux testé que celui à un seul point.

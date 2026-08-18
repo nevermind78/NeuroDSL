@@ -1,0 +1,92 @@
+RETEST layer_26 APRÈS le correctif GEMM -- avec plafond de temps et
+progression détaillée à chaque étape (voir invocation `timeout`).
+Date : 2026-08-18T14:59:29Z
+
+[progress] avant load_graph!
+[progress] après load_graph!
+[progress] eps-ops installés sur les 56 branches
+Prompt : "If a train travels 60 miles in 2 hours, " (n=16 tokens)
+
+[progress] avant g^(s) plein réseau (backward complet is_param depuis couche 1)
+[progress] après g^(s) plein réseau
+[progress] u_dev calculé
+  [progress] time_pass! FULL (is_param depuis couche 1) : warmup (2 passes)...
+    [progress] warmup 1/2 fait
+    [progress] warmup 2/2 fait
+    [progress] timing 1/6 fait (1106.0 ms)
+    [progress] timing 2/6 fait (928.8 ms)
+    [progress] timing 3/6 fait (846.2 ms)
+    [progress] timing 4/6 fait (803.5 ms)
+    [progress] timing 5/6 fait (744.1 ms)
+    [progress] timing 6/6 fait (936.6 ms)
+
+Passe backward COMPLÈTE (is_param depuis couche 1) : médiane sur 6 = 887.517 ms
+
+============================================================================================
+ANCRE t = layer_26_mha_output_out (pos=51, B(t)=6)   vs   s = layer_1_mha_output_out (B(s)=56)
+[progress] avant PORTE (g_t_full, is_param depuis couche 1)
+[progress] g_t_full calculé -- avant PORTE (g_t_pruned, is_param depuis couche 26)
+[progress] g_t_pruned calculé
+  PORTE  g^(t) élagué == g^(t) plein réseau : max|diff| = 0.000e+00 OK
+[progress] avant boucle DIRECTE (base, is_param depuis couche 1)
+[progress] base calculé -- entrée boucle DIRECTE (6 itérations)
+  [progress] DIRECTE 1/6 : ablation layer_26_mha_output_out...
+  [progress] DIRECTE 1/6 fait (q=1.3566e-01)
+  [progress] DIRECTE 2/6 : ablation layer_26_mlp_out...
+  [progress] DIRECTE 2/6 fait (q=4.0339e-01)
+  [progress] DIRECTE 3/6 : ablation layer_27_mha_output_out...
+  [progress] DIRECTE 3/6 fait (q=4.1973e-02)
+  [progress] DIRECTE 4/6 : ablation layer_27_mlp_out...
+  [progress] DIRECTE 4/6 fait (q=2.6347e-01)
+  [progress] DIRECTE 5/6 : ablation layer_28_mha_output_out...
+  [progress] DIRECTE 5/6 fait (q=5.1734e-02)
+  [progress] DIRECTE 6/6 : ablation layer_28_mlp_out...
+  [progress] DIRECTE 6/6 fait (q=-1.6745e-01)
+[progress] avant boucle RELAIS (base_t, is_param depuis couche 26)
+[progress] base_t calculé -- entrée boucle RELAIS (6 itérations)
+  [progress] RELAIS 1/6 : ablation layer_26_mha_output_out...
+  [progress] RELAIS 1/6 fait
+  [progress] RELAIS 2/6 : ablation layer_26_mlp_out...
+  [progress] RELAIS 2/6 fait
+  [progress] RELAIS 3/6 : ablation layer_27_mha_output_out...
+  [progress] RELAIS 3/6 fait
+  [progress] RELAIS 4/6 : ablation layer_27_mlp_out...
+  [progress] RELAIS 4/6 fait
+  [progress] RELAIS 5/6 : ablation layer_28_mha_output_out...
+  [progress] RELAIS 5/6 fait
+  [progress] RELAIS 6/6 : ablation layer_28_mlp_out...
+  [progress] RELAIS 6/6 fait
+[progress] avant relais JVP (delete! S_FWD_SYM)
+[progress] règle supprimée -- calcul x_plus/x_minus
+[progress] avant set!+demand! (x_plus)
+[progress] t_plus calculé -- avant set!+demand! (x_minus)
+[progress] t_minus calculé
+[progress] relais JVP terminé -- règle restaurée
+  Exactitude relais : erreur médiane=2.1290e-05  max=8.6434e-01  (q_j^(s) médian=1.5155e-01, 6 branches)
+  [progress] time_pass! ÉLAGUÉ (is_param depuis couche 26) : warmup (2 passes)...
+    [progress] warmup 1/2 fait
+    [progress] warmup 2/2 fait
+    [progress] timing 1/6 fait (941.5 ms)
+    [progress] timing 2/6 fait (579.2 ms)
+    [progress] timing 3/6 fait (657.4 ms)
+    [progress] timing 4/6 fait (959.3 ms)
+    [progress] timing 5/6 fait (1025.5 ms)
+    [progress] timing 6/6 fait (971.5 ms)
+[progress] avant timing relais JVP (delete! S_FWD_SYM à nouveau)
+  [progress] warmup JVP 1/2 fait
+  [progress] warmup JVP 2/2 fait
+  [progress] timing JVP 1/6 fait (233.6 ms)
+  [progress] timing JVP 2/6 fait (290.7 ms)
+  [progress] timing JVP 3/6 fait (191.3 ms)
+  [progress] timing JVP 4/6 fait (190.0 ms)
+  [progress] timing JVP 5/6 fait (186.3 ms)
+  [progress] timing JVP 6/6 fait (247.5 ms)
+[progress] timing relais JVP terminé -- règle restaurée
+  Passe élaguée (is_param depuis couche 26)  : médiane sur 6 = 950.398 ms  (ratio vs pleine = 1.0709, B(t)/B(s)=0.1071)
+  Relais JVP (2 passes forward s->t)         : médiane sur 6 = 212.448 ms
+  Coût DIRECT (mesuré, isolé x compté)  = (B(t)+1)*ms_full                = (6+1)*887.517 = 6212.6 ms
+  Coût RELAIS (mesuré, isolé x compté)  = ms_full + B(t)*ms_pruned + ms_jvp = 887.517 + 6*950.398 + 212.448 = 6802.4 ms
+  SPEEDUP prédit (passes isolées, chronométrées séparément) = 0.913x
+
+============================================================================================
+RETEST layer_26 TERMINÉ SANS BLOCAGE.

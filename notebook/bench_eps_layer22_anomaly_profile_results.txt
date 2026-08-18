@@ -1,0 +1,103 @@
+DIAGNOSTIC ANOMALIE layer_22 -- pourquoi plus élagué (B(t)=14) != plus rapide,
+sur Qwen2.5-1.5B-Instruct réel (modèle entraîné, checkpoint natif).
+Date : 2026-08-18T14:56:23Z
+
+Chargement du checkpoint natif...
+Chargé en 5.7 s
+Prompt : "If a train travels 60 miles in 2 hours, " (n=16 tokens)
+
+============================================================================================
+HYPOTHÈSE (A) -- _compute_needs_bwd : la frontière exclut-elle bien ce qu'elle devrait ?
+  T_LAYER=16 : needs_bwd=true pour 1368/2950 nœuds au total (+ 3 nœuds hors-couche [lm_head/loss/embeddings])
+  Couche needs_bwd=true la plus BASSE = 16 (attendu >= 16) -- frontière correcte, aucune couche gelée ne fuit
+    couche  1 : 0/105 nœuds needs_bwd=true
+    couche  2 : 0/105 nœuds needs_bwd=true
+    couche  3 : 0/105 nœuds needs_bwd=true
+    couche  4 : 0/105 nœuds needs_bwd=true
+    couche  5 : 0/105 nœuds needs_bwd=true
+    couche  6 : 0/105 nœuds needs_bwd=true
+    couche  7 : 0/105 nœuds needs_bwd=true
+    couche  8 : 0/105 nœuds needs_bwd=true
+    couche  9 : 0/105 nœuds needs_bwd=true
+    couche 10 : 0/105 nœuds needs_bwd=true
+    couche 11 : 0/105 nœuds needs_bwd=true
+    couche 12 : 0/105 nœuds needs_bwd=true
+    couche 13 : 0/105 nœuds needs_bwd=true
+    couche 14 : 0/105 nœuds needs_bwd=true
+    couche 15 : 0/105 nœuds needs_bwd=true
+    couche 16 : 105/105 nœuds needs_bwd=true
+    couche 17 : 105/105 nœuds needs_bwd=true
+    couche 18 : 105/105 nœuds needs_bwd=true
+    couche 19 : 105/105 nœuds needs_bwd=true
+    couche 20 : 105/105 nœuds needs_bwd=true
+    couche 21 : 105/105 nœuds needs_bwd=true
+    couche 22 : 105/105 nœuds needs_bwd=true
+    couche 23 : 105/105 nœuds needs_bwd=true
+    couche 24 : 105/105 nœuds needs_bwd=true
+    couche 25 : 105/105 nœuds needs_bwd=true
+    couche 26 : 105/105 nœuds needs_bwd=true
+    couche 27 : 105/105 nœuds needs_bwd=true
+    couche 28 : 105/105 nœuds needs_bwd=true
+  T_LAYER=22 : needs_bwd=true pour 738/2950 nœuds au total (+ 3 nœuds hors-couche [lm_head/loss/embeddings])
+  Couche needs_bwd=true la plus BASSE = 22 (attendu >= 22) -- frontière correcte, aucune couche gelée ne fuit
+    couche  1 : 0/105 nœuds needs_bwd=true
+    couche  2 : 0/105 nœuds needs_bwd=true
+    couche  3 : 0/105 nœuds needs_bwd=true
+    couche  4 : 0/105 nœuds needs_bwd=true
+    couche  5 : 0/105 nœuds needs_bwd=true
+    couche  6 : 0/105 nœuds needs_bwd=true
+    couche  7 : 0/105 nœuds needs_bwd=true
+    couche  8 : 0/105 nœuds needs_bwd=true
+    couche  9 : 0/105 nœuds needs_bwd=true
+    couche 10 : 0/105 nœuds needs_bwd=true
+    couche 11 : 0/105 nœuds needs_bwd=true
+    couche 12 : 0/105 nœuds needs_bwd=true
+    couche 13 : 0/105 nœuds needs_bwd=true
+    couche 14 : 0/105 nœuds needs_bwd=true
+    couche 15 : 0/105 nœuds needs_bwd=true
+    couche 16 : 0/105 nœuds needs_bwd=true
+    couche 17 : 0/105 nœuds needs_bwd=true
+    couche 18 : 0/105 nœuds needs_bwd=true
+    couche 19 : 0/105 nœuds needs_bwd=true
+    couche 20 : 0/105 nœuds needs_bwd=true
+    couche 21 : 0/105 nœuds needs_bwd=true
+    couche 22 : 105/105 nœuds needs_bwd=true
+    couche 23 : 105/105 nœuds needs_bwd=true
+    couche 24 : 105/105 nœuds needs_bwd=true
+    couche 25 : 105/105 nœuds needs_bwd=true
+    couche 26 : 105/105 nœuds needs_bwd=true
+    couche 27 : 105/105 nœuds needs_bwd=true
+    couche 28 : 105/105 nœuds needs_bwd=true
+
+============================================================================================
+HYPOTHÈSE (C) -- effet d'ordre/warm-up GPU (réordonnancement des ancres)
+  layer_22 EN PREMIER (à froid, jamais de backward à layer_16 avant) : médiane sur 6 = 84.581 ms
+    échantillons (ms) : [68.8, 83.8, 73.7, 104.2, 91.3, 85.4]
+  layer_16 EN SECOND (après layer_22)                                : médiane sur 6 = 185.481 ms
+    échantillons (ms) : [125.9, 152.7, 124.4, 218.2, 514.8, 619.3]
+  layer_22 REJOUÉ (ordre original : après layer_16)                  : médiane sur 6 = 144.286 ms
+    échantillons (ms) : [306.9, 175.7, 144.9, 135.6, 130.2, 143.7]
+  => layer_22 CHANGE selon l'ordre (84.6 ms vs 144.3 ms, écart 41.4%) : effet d'ordre/warm-up réel, à creuser.
+
+============================================================================================
+HYPOTHÈSE (B) -- profil par op (temps GPU réel par nœud, GRAD_RULES instrumentées)
+  Temps GPU cumulé par TYPE d'op (moyenne/passe, ms), layer_16 vs layer_22 :
+    op                       layer_16(ms) layer_22(ms)    delta(ms)
+    cross_entropy                   1.119        1.420        0.301
+    swiglu                          1.435        0.807       -0.628
+    add                             1.975        1.186       -0.789
+    softmax                         4.627        3.179       -1.447
+    scale_mask                      4.801        2.776       -2.025
+    rmsnorm                         3.736        1.464       -2.271
+    hcat_heads                      4.911        1.642       -3.269
+    linear                          9.655        4.364       -5.291
+    batched_qk                     12.402        6.505       -5.897
+    batched_pv                     12.366        5.899       -6.467
+    view_cols                      15.674        8.278       -7.396
+    head_view                      20.765        9.523      -11.241
+    rope                           33.095       16.434      -16.661
+    matmul                         49.316       24.374      -24.942
+  TOTAL instrumenté : layer_16=175.877 ms, layer_22=87.855 ms (delta=-88.022 ms)
+
+============================================================================================
+FIN DU DIAGNOSTIC -- voir HYPOTHÈSE (A)/(B)/(C) ci-dessus pour la conclusion par hypothèse.

@@ -1,0 +1,85 @@
+OBJECTIF SÉMANTIQUE POUR L'IDENTITÉ D'ABLATION EXACTE -- tâche du marqueur
+Amorçage de la passe arrière avec dl = logit(v(sigma(k))) - logit(v(k))
+(contraste P3, SANS normalisation), au lieu de l'objectif générique habituel.
+Checkpoint réutilisé tel quel (P1 vérifié ci-dessous, AUCUN réentraînement).
+
+P1 (checkpoint, graphe réencâblé)  : acc_A=1.0000  acc_B=1.0000
+P1 (checkpoint, graphe témoin)     : acc_A=1.0000  acc_B=1.0000
+
+Branches (B=8, ordre en profondeur) : layer_1_mha_output_out, layer_1_mlp_out, layer_2_mha_output_out, layer_2_mlp_out, layer_3_mha_output_out, layer_3_mlp_out, layer_4_mha_output_out, layer_4_mlp_out
+
+══════════════════════════════════════════════════════════════════════════════
+PORTES DE CORRECTION
+══════════════════════════════════════════════════════════════════════════════
+G1  forward bit-identique (réencâblé eps=1 vs témoin sans porte) : OK  (max|diff|=0.000e+00)
+VAL dl_obj (nœud graphe) == delta_logit manuel : graphe=-10.078269  manuel=-10.078269  écart=0.000e+00  OK
+G2  gradient embed_sum bit-identique (eps=1 vs témoin) : OK  (max|diff|=0.000e+00)
+
+✓ Les 3 portes passent -- les q_j ci-dessous sont lisibles.
+
+══════════════════════════════════════════════════════════════════════════════
+q_j PAR PAIRE (objectif dl amorcé sur l'entrée RECEVEUR = lecture correcte attendue,
+site de lecture = gradient à :embed_sum, en amont des 8 branches)
+══════════════════════════════════════════════════════════════════════════════
+
+Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4  ||embed_grad||^2=5.705814e+03
+  #1  layer_1_mha_output_out   q_j = +0.996546
+  #2  layer_2_mlp_out          q_j = +0.575130
+  #3  layer_3_mha_output_out   q_j = +0.326623
+  #4  layer_4_mlp_out          q_j = +0.321153
+  #5  layer_4_mha_output_out   q_j = +0.198806
+  #6  layer_1_mlp_out          q_j = +0.190164
+  #7  layer_3_mlp_out          q_j = +0.120114
+  #8  layer_2_mha_output_out   q_j = +0.061667
+  somme des q_j (diagnostic, pas borné a priori) : +2.790204
+
+Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2  ||embed_grad||^2=1.010377e+04
+  #1  layer_1_mha_output_out   q_j = +0.994625
+  #2  layer_1_mlp_out          q_j = +0.692506
+  #3  layer_4_mlp_out          q_j = +0.564539
+  #4  layer_2_mlp_out          q_j = +0.248087
+  #5  layer_2_mha_output_out   q_j = +0.208872
+  #6  layer_3_mha_output_out   q_j = +0.098118
+  #7  layer_3_mlp_out          q_j = +0.046088
+  #8  layer_4_mha_output_out   q_j = +0.031643
+  somme des q_j (diagnostic, pas borné a priori) : +2.884480
+
+Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8  ||embed_grad||^2=1.625255e+04
+  #1  layer_1_mha_output_out   q_j = +0.996547
+  #2  layer_2_mha_output_out   q_j = +0.751129
+  #3  layer_1_mlp_out          q_j = +0.199659
+  #4  layer_2_mlp_out          q_j = +0.147844
+  #5  layer_3_mlp_out          q_j = +0.076712
+  #6  layer_3_mha_output_out   q_j = +0.039648
+  #7  layer_4_mlp_out          q_j = +0.013338
+  #8  layer_4_mha_output_out   q_j = +0.004198
+  somme des q_j (diagnostic, pas borné a priori) : +2.229075
+
+══════════════════════════════════════════════════════════════════════════════
+AGRÉGAT SUR LES 3 PAIRES
+══════════════════════════════════════════════════════════════════════════════
+  #1  layer_1_mha_output_out    |q_j| moyen = 0.995906   valeurs = [0.9965, 0.9946, 0.9965]
+  #2  layer_1_mlp_out           |q_j| moyen = 0.360776   valeurs = [0.1902, 0.6925, 0.1997]
+  #3  layer_2_mha_output_out    |q_j| moyen = 0.340556   valeurs = [0.0617, 0.2089, 0.7511]
+  #4  layer_2_mlp_out           |q_j| moyen = 0.323687   valeurs = [0.5751, 0.2481, 0.1478]
+  #5  layer_4_mlp_out           |q_j| moyen = 0.299677   valeurs = [0.3212, 0.5645, 0.0133]
+  #6  layer_3_mha_output_out    |q_j| moyen = 0.154797   valeurs = [0.3266, 0.0981, 0.0396]
+  #7  layer_3_mlp_out           |q_j| moyen = 0.080971   valeurs = [0.1201, 0.0461, 0.0767]
+  #8  layer_4_mha_output_out    |q_j| moyen = 0.078216   valeurs = [0.1988, 0.0316, 0.0042]
+
+══════════════════════════════════════════════════════════════════════════════
+COMPARAISON AVEC LE CIRCUIT INDÉPENDANT (P3, marker_task_causal_analysis.log)
+══════════════════════════════════════════════════════════════════════════════
+  Circuit P3 (patching d'activation, consensus sur 3 paires) : layer_1_mlp_out
+  Branche #1 par |q_j| moyen (objectif sémantique, cette expérience) : layer_1_mha_output_out
+  Rang de layer_1_mlp_out dans le classement |q_j| : #2 / 8
+
+=> DÉSACCORD : la branche la plus causale sous l'objectif sémantique NE coïncide PAS
+   avec le circuit P3. C'est un résultat négatif réel, pas un échec d'implémentation
+   (les 3 portes de correction ci-dessus passent) : la méthode d'ablation exacte,
+   amorcée sur ce contraste précis et lue à :embed_sum, met en avant un site DIFFÉRENT
+   du circuit d'activation P3. Les deux méthodes ne mesurent pas rigoureusement la
+   même chose (site de lecture différent, ablation en arrière du gradient contre
+   patching en avant de la valeur), donc le désaccord est informatif sur la LIMITE de
+   la généralisation "objectif sémantique + q_j" -> "circuit d'activation", pas une
+   réfutation de l'un ou l'autre résultat pris isolément.

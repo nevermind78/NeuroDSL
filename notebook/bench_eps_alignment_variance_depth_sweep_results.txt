@@ -1,0 +1,25 @@
+==============================================================================
+sigma_c^2 CONTRE L -- 6 profondeurs, 8 graines chacune (seed=300+s),
+mêmes tirages que le balayage en profondeur déjà publié (Table tab:depth)
+==============================================================================
+
+      L       n     moy c     sigma_c   sigma_c^2        %% pos  kappa_rho^2(méd)
+      4      56   +0.0573      0.1856      0.0344        64.3 %          0.7304
+      8     120   -0.0373      0.2390      0.0571        51.7 %          1.1055
+     16     248   -0.0015      0.2232      0.0498        53.2 %          0.9599
+     32     504   +0.0125      0.2754      0.0758        52.0 %          1.0989
+     64    1016   -0.0027      0.2869      0.0823        50.0 %          1.2462
+    128    2040   -0.0139      0.3514      0.1235        49.5 %          1.2936
+
+sigma_c^2 sur les 6 profondeurs : min 0.0344, médiane 0.0665, max 0.1235
+CV de sigma_c^2 sur les 6 profondeurs : 44.3 %
+
+--- Prédiction par profondeur : kappa_eff^2(L) = kappa_rho^2(L) * (1 - 2*sigma_c^2(L)) ---
+--- comparée à la kappa^2=0.864 fittée GLOBALEMENT sur les 6 profondeurs ---
+  L=4     kappa_eff^2 prédit = 0.6801  (fitté global : 0.8640, écart -21.3 %)
+  L=8     kappa_eff^2 prédit = 0.9792  (fitté global : 0.8640, écart +13.3 %)
+  L=16    kappa_eff^2 prédit = 0.8643  (fitté global : 0.8640, écart +0.0 %)
+  L=32    kappa_eff^2 prédit = 0.9322  (fitté global : 0.8640, écart +7.9 %)
+  L=64    kappa_eff^2 prédit = 1.0411  (fitté global : 0.8640, écart +20.5 %)
+  L=128   kappa_eff^2 prédit = 0.9742  (fitté global : 0.8640, écart +12.8 %)
+

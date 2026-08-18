@@ -1,0 +1,90 @@
+ATTRIBUTION PATCHING (AtP) vs q_j -- comparaison à famille causale égale
+tâche du marqueur. AtP_j = <grad_{a_j}(dl)|_{receveur}, a_j^donneur - a_j^receveur>,
+UNE seule passe arrière par paire (pas B+1). Checkpoint réutilisé tel quel,
+AUCUN réentraînement. Mêmes 3 paires que P3/q_j (graine MersenneTwister(31415)).
+
+P1 (checkpoint) : acc_A=1.0000  acc_B=1.0000
+
+Branches (B=8, ordre en profondeur) : layer_1_mha_output_out, layer_1_mlp_out, layer_2_mha_output_out, layer_2_mlp_out, layer_3_mha_output_out, layer_3_mlp_out, layer_4_mha_output_out, layer_4_mlp_out
+Circuit P3 (cité, patching d'activation, marker_task_causal_analysis.log) : layer_1_mlp_out
+
+══════════════════════════════════════════════════════════════════════════════
+PORTES DE CORRECTION
+══════════════════════════════════════════════════════════════════════════════
+VAL dl_obj (nœud graphe) == delta_logit manuel (paire 1, receveur) : graphe=-10.078269  manuel=-10.078269  écart=0.000e+00  OK
+G_RESET is_param cycle (true pour rétention grad, false avant run donneur) sans corruption : OK  (max|diff|=0.000e+00)
+
+✓ Les 2 portes passent -- les AtP_j ci-dessous sont lisibles.
+
+══════════════════════════════════════════════════════════════════════════════
+AtP_j PAR PAIRE (grad à la sortie de branche, run receveur ; delta = 
+activation donneur - activation receveur, tenseur complet du nœud)
+══════════════════════════════════════════════════════════════════════════════
+
+Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4  dl_donneur=3.225  dl_receveur=-10.078
+  #1  layer_3_mha_output_out   AtP_j = +6.154687   (q_j signé cité = +0.326623)
+  #2  layer_1_mha_output_out   AtP_j = +4.950627   (q_j signé cité = +0.996546)
+  #3  layer_3_mlp_out          AtP_j = +4.949665   (q_j signé cité = +0.120114)
+  #4  layer_1_mlp_out          AtP_j = +4.798631   (q_j signé cité = +0.190164)
+  #5  layer_2_mlp_out          AtP_j = +3.560642   (q_j signé cité = +0.575130)
+  #6  layer_4_mlp_out          AtP_j = +0.997750   (q_j signé cité = +0.321153)
+  #7  layer_4_mha_output_out   AtP_j = +0.750517   (q_j signé cité = +0.198806)
+  #8  layer_2_mha_output_out   AtP_j = -0.020028   (q_j signé cité = +0.061667)
+  Diagnostic Taylor 1er ordre : sum(AtP_j) = +26.142493   vs   dl_donneur - dl_receveur = +13.303018  (écart=12.839475)
+  Spearman(AtP signé, q_j signé cité) pour cette paire : 0.5000
+
+Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2  dl_donneur=11.950  dl_receveur=-14.006
+  #1  layer_2_mha_output_out   AtP_j = +14.521519   (q_j signé cité = +0.208872)
+  #2  layer_1_mlp_out          AtP_j = +11.716759   (q_j signé cité = +0.692506)
+  #3  layer_3_mha_output_out   AtP_j = +8.280249   (q_j signé cité = +0.098118)
+  #4  layer_4_mlp_out          AtP_j = -5.415819   (q_j signé cité = +0.564539)
+  #5  layer_2_mlp_out          AtP_j = -4.661762   (q_j signé cité = +0.248087)
+  #6  layer_1_mha_output_out   AtP_j = -1.367254   (q_j signé cité = +0.994625)
+  #7  layer_4_mha_output_out   AtP_j = +1.358418   (q_j signé cité = +0.031643)
+  #8  layer_3_mlp_out          AtP_j = +0.366178   (q_j signé cité = +0.046088)
+  Diagnostic Taylor 1er ordre : sum(AtP_j) = +24.798288   vs   dl_donneur - dl_receveur = +25.956658  (écart=1.158370)
+  Spearman(AtP signé, q_j signé cité) pour cette paire : -0.2381
+
+Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8  dl_donneur=9.229  dl_receveur=-13.182
+  #1  layer_2_mha_output_out   AtP_j = +7.840359   (q_j signé cité = +0.751129)
+  #2  layer_3_mha_output_out   AtP_j = +6.077730   (q_j signé cité = +0.039648)
+  #3  layer_1_mha_output_out   AtP_j = +5.534739   (q_j signé cité = +0.996547)
+  #4  layer_1_mlp_out          AtP_j = +3.488326   (q_j signé cité = +0.199659)
+  #5  layer_2_mlp_out          AtP_j = +1.748393   (q_j signé cité = +0.147844)
+  #6  layer_3_mlp_out          AtP_j = +0.718729   (q_j signé cité = +0.076712)
+  #7  layer_4_mlp_out          AtP_j = +0.511080   (q_j signé cité = +0.013338)
+  #8  layer_4_mha_output_out   AtP_j = -0.355957   (q_j signé cité = +0.004198)
+  Diagnostic Taylor 1er ordre : sum(AtP_j) = +25.563400   vs   dl_donneur - dl_receveur = +22.410146  (écart=3.153254)
+  Spearman(AtP signé, q_j signé cité) pour cette paire : 0.7143
+
+══════════════════════════════════════════════════════════════════════════════
+AGRÉGAT SUR LES 3 PAIRES
+══════════════════════════════════════════════════════════════════════════════
+  Classement AtP (|AtP_j| moyen)             Classement q_j (cité, |q_j| moyen)
+  #1  layer_2_mha_output_out   7.460635      #1  layer_1_mha_output_out   0.995906
+  #2  layer_3_mha_output_out   6.837555      #2  layer_1_mlp_out          0.360776
+  #3  layer_1_mlp_out          6.667905      #3  layer_2_mha_output_out   0.340556
+  #4  layer_1_mha_output_out   3.950873      #4  layer_2_mlp_out          0.323687
+  #5  layer_2_mlp_out          3.323599      #5  layer_4_mlp_out          0.299677
+  #6  layer_4_mlp_out          2.308217      #6  layer_3_mha_output_out   0.154796
+  #7  layer_3_mlp_out          2.011524      #7  layer_3_mlp_out          0.080971
+  #8  layer_4_mha_output_out   0.821631      #8  layer_4_mha_output_out   0.078216
+
+Spearman(classement AtP agrégé, classement q_j agrégé cité), 8 branches : 0.6190
+
+══════════════════════════════════════════════════════════════════════════════
+VALIDATION DE LA MÉTHODE AtP ELLE-MÊME (sous-vérification, pas supposée)
+══════════════════════════════════════════════════════════════════════════════
+  Branche #1 par |AtP_j| moyen : layer_2_mha_output_out
+  Circuit P3 (indépendant)     : layer_1_mlp_out
+  Rang de layer_1_mlp_out dans le classement AtP : #3 / 8
+  Rang de layer_1_mlp_out dans le classement q_j (rappel) : #2 / 8
+  => AtP NE RETROUVE PAS le circuit P3 en position #1 sur ce banc d'essai.
+
+══════════════════════════════════════════════════════════════════════════════
+VERDICT
+══════════════════════════════════════════════════════════════════════════════
+AtP NE retrouve PAS le circuit P3 en position #1 sur ce banc d'essai précis (méthode
+non validée ici malgré sa garantie théorique de 1er ordre) -- la comparaison à q_j est
+donc à lire avec cette réserve : voir le classement détaillé et la corrélation de rang
+ci-dessus pour juger de l'accord/désaccord AtP vs q_j indépendamment de ce sous-test.

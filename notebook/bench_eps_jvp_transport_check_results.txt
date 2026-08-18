@@ -1,0 +1,52 @@
+VÉRIFICATION PAR DIFFÉRENCE FINIE (JVP) DE L'IDENTITÉ h_s = J_Phi(x_s) g^(s)
+SUR LE MODÈLE ENTRAÎNÉ RÉEL (Qwen2.5-1.5B-Instruct).
+Date : 2026-08-15T13:45:24Z
+
+Chargement du checkpoint natif...
+
+Site peu profond s = layer_1_mha_output_out (site_pos=1, cône entier B=56)
+Site profond     t = layer_13_mha_output_out (site_pos=25, cône B(t)=32)
+Grille eps : 0.01, 0.001, 0.0001
+
+[correctif] nœud forward perturbé  s_fwd = layer_1_res1 (pas layer_1_mha_output_out)
+[correctif] nœud forward lu         t_fwd = layer_13_res1 (pas layer_13_mha_output_out)
+
+Promts traités : 1 (indices If a train travels 6)
+
+============================================================================================
+
+--- prompt 6 (n=16 tokens) : "If a train travels 60 miles in 2 hours, " ---
+  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 4.205668e+03
+  ||g_s||=3.5131e-01 (D_s=24576)  ||g_t||=2.9438e-01 (D=24576)  ||x_s||=4.9437e+01
+  q_j^(s) mesuré directement : médiane=8.1568e-02  max|.|=4.2675e-01
+
+  eps           err médiane        err max eps/||x_s||
+  ------------------------------------------------------
+  1.0e-02        1.0962e-05     1.0020e+00   2.02e-04   ||hs_hat||=1.174e+01  cos(g_t,hs_hat)=0.0357
+  1.0e-03        1.2809e-04     1.0020e+00   2.02e-05   ||hs_hat||=1.175e+01  cos(g_t,hs_hat)=0.0357
+  1.0e-04        1.0718e-03     1.0020e+00   2.02e-06   ||hs_hat||=8.361e+00  cos(g_t,hs_hat)=0.0508
+
+============================================================================================
+RÉSUMÉ AGRÉGÉ SUR TOUS LES PROMPTS
+============================================================================================
+
+eps           err médiane        err max
+----------------------------------------
+1.0e-02        1.0962e-05     1.0020e+00
+1.0e-03        1.2809e-04     1.0020e+00
+1.0e-04        1.0718e-03     1.0020e+00
+
+Ordre empirique de convergence (pente de log10(erreur médiane) vs log10(eps),
+régression linéaire sur toute la grille -- attendu proche de 2 avant plancher flottant) :
+  pente globale (tous points) = -0.995
+  pente locale  1.0e-02 ->  1.0e-03 : -1.068
+  pente locale  1.0e-03 ->  1.0e-04 : -0.923
+
+Si la pente locale est proche de 2 pour eps grand puis s'effondre (voire devient
+négative/instable) pour eps petit, c'est la signature attendue d'une différence
+centrée O(eps^2) qui rencontre son plancher de précision flottante -- PAS un échec
+de l'identité. Si l'erreur au meilleur eps est petite (proche de la précision d'un
+backward Float32, ~1e-3 à 1e-5 relatif) et diminue avec eps avant ce plancher, c'est
+un support numérique NON-TAUTOLOGIQUE de l'identité de transport : h_s a été estimé
+par un chemin FORWARD indépendant qui ne connaît ni q_j^(s) ni q_j^(t), et prédit
+correctement 32 scalaires mesurés par ablation BACKWARD directe, sur le modèle réel.

@@ -1,0 +1,35 @@
+==============================================================================
+SECOND MOMENT DE c_j, L=32, 6 GRAINES (mêmes graines que la Remarque
+rem:alignmentgap : seed = 200+s, s=1..6)
+==============================================================================
+
+--- Garde-fou : reproduction des chiffres déjà publiés ---
+n (branches contournables x graines) : 378  (attendu 378)
+moyenne de c_j                       : 0.0371  (publié : 0.037)
+plage de c_j                         : [-0.6721, 0.7842]  (publié : [-0.672, 0.784])
+% de valeurs positives               : 55.6 %  (publié : 56%)
+
+--- Second moment, non publié jusqu'ici ---
+écart-type de c_j  (sigma_c)          : 0.2992
+variance de c_j    (sigma_c^2)        : 0.0895
+
+--- kappa_rho^2 mesuré directement, sur les 378 points (pas seulement
+    les 6 points médians j in {2,4,8,16,32,64} du script original) ---
+kappa_rho^2 = rho_j^2 * j : moyenne 1.2118, médiane 0.9736, plage [0.1603, 6.6479]
+
+--- Prédiction : kappa_eff^2 = kappa_rho^2 * (1 - 2*sigma_c^2) ---
+(depuis q(rho,c) = rho*c + rho^2*(1-2c^2) + O(rho^3), E[c]~0)
+  kappa_rho^2 = 1 (approximation grossière)  -> kappa_eff^2 prédit = 0.8210  (fitté : 0.8640, écart 5.0 %)
+  kappa_rho^2 = moyenne mesurée sur 378 pts  -> kappa_eff^2 prédit = 0.9948  (fitté : 0.8640, écart 15.1 %)
+  kappa_rho^2 = médiane mesurée sur 378 pts  -> kappa_eff^2 prédit = 0.7993  (fitté : 0.8640, écart 7.5 %)
+
+--- sigma_c^2 qu'il FAUDRAIT pour que la prédiction tombe exactement
+    sur le kappa^2 fitté (0.864), à kappa_rho^2 donné ---
+  kappa_rho^2 = 1                -> sigma_c^2 requis = 0.0680  (mesuré : 0.0895)
+  kappa_rho^2 = moyenne mesurée  -> sigma_c^2 requis = 0.1435  (mesuré : 0.0895)
+  kappa_rho^2 = médiane mesurée  -> sigma_c^2 requis = 0.0563  (mesuré : 0.0895)
+
+--- Corrélation rho_j <-> c_j (l'hypothèse d'indépendance implicite) ---
+corr(rho_j, c_j)          : 0.0726
+corr(rho_j^2*j, c_j)      : 0.0797
+

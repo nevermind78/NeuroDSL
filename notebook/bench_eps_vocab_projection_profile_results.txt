@@ -1,0 +1,47 @@
+PROFIL VOCAB-PROJECTION + LOSS -- coût réel (GPU chronométré) du forward
+ET du backward de lm_head/cross_entropy, isolé du reste du backbone,
+sur Qwen2.5-1.5B-Instruct (modèle entraîné réel).
+Date : 2026-08-18T14:40:40Z
+
+Chargement du checkpoint natif...
+
+lm_head_W (chargé) : shape = (151936, 1536)  ->  vocab_size=151936, hidden_dim=1536
+Règle :lm_head_out = matmul(final_norm_out, lm_head_W ; trans_b=true)
+Nœud juste avant lm_head (lu depuis le graphe) : :final_norm_out
+Prompt : "If a train travels 60 miles in 2 hours, " (n=16 tokens)
+
+============================================================================================
+ÉTAPE 1a -- PROFIL FORWARD (médiane sur 5, +2 warmup, invalidate_all! à chaque tir)
+  Forward backbone seul (jusqu'à :final_norm_out)         : 367.255 ms
+  Forward complet (jusqu'à :ce_loss)                : 335.726 ms
+  => Forward lm_head+loss (soustractif)         : -31.529 ms  (-9.4% du forward complet)
+
+============================================================================================
+ÉTAPE 1b -- BACKWARD ISOLÉ (backbone entièrement gelé, is_param depuis couche 29)
+  AVANT (lm_head_W/tok_E/final_norm_gamma is_param=true, comportement historique) : 608.143 ms
+  APRÈS (is_param=false -- correctif actif, dB jamais calculé)                      : 0.543 ms
+  => coût du GEMM dB (gradient de lm_head_W, [151936,1536]) isolé : 607.600 ms (99.9% du AVANT)
+
+============================================================================================
+ÉTAPE 2/3 -- RE-MESURE DU GAIN prune_frozen (AVANT = comportement historique reproduit sur
+ce même binaire corrigé, avec lm_head_W is_param=true ; APRÈS = correctif + config)
+
+--------------------------------------------------------------------------------------------
+  Scénario : AVANT (is_param(lm_head_W)=true, historique)
+  Passe COMPLÈTE (is_param depuis couche 1)  : médiane sur 6 = 1581.150 ms
+    ANCRE t=layer_16_mha_output_out (B(t)=26)  PORTE élagué==plein : max|diff|=0.000e+00 OK
+    Passe ÉLAGUÉE (is_param depuis couche 16) : médiane sur 6 = 2173.655 ms  (ratio vs pleine = 1.3747)
+    ANCRE t=layer_22_mha_output_out (B(t)=14)  PORTE élagué==plein : max|diff|=0.000e+00 OK
+    Passe ÉLAGUÉE (is_param depuis couche 22) : médiane sur 6 = 2018.469 ms  (ratio vs pleine = 1.2766)
+
+--------------------------------------------------------------------------------------------
+  Scénario : APRÈS (is_param(lm_head_W)=false, correctif+config)
+  Passe COMPLÈTE (is_param depuis couche 1)  : médiane sur 6 = 515.044 ms
+    ANCRE t=layer_16_mha_output_out (B(t)=26)  PORTE élagué==plein : max|diff|=0.000e+00 OK
+    Passe ÉLAGUÉE (is_param depuis couche 16) : médiane sur 6 = 146.602 ms  (ratio vs pleine = 0.2846)
+    ANCRE t=layer_22_mha_output_out (B(t)=14)  PORTE élagué==plein : max|diff|=0.000e+00 OK
+    Passe ÉLAGUÉE (is_param depuis couche 22) : médiane sur 6 = 408.996 ms  (ratio vs pleine = 0.7941)
+
+============================================================================================
+RÉSUMÉ : voir notebook/bench_eps_vocab_projection_profile_results.txt pour le détail
+numérique complet AVANT/APRÈS ci-dessus (ratios ms_pruned/ms_full par ancre).

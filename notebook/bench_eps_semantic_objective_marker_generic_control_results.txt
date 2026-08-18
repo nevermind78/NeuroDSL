@@ -1,0 +1,79 @@
+CONTRÔLE -- OBJECTIF GÉNÉRIQUE (:loss, perte d'entraînement) au site
+:embed_sum, sur le MÊME checkpoint et les MÊMES 3 paires que
+bench_eps_semantic_objective_marker.jl. Aucun réentraînement.
+
+P1 (checkpoint, graphe réencâblé)  : acc_A=1.0000  acc_B=1.0000
+P1 (checkpoint, graphe témoin)     : acc_A=1.0000  acc_B=1.0000
+
+Branches (B=8, ordre en profondeur) : layer_1_mha_output_out, layer_1_mlp_out, layer_2_mha_output_out, layer_2_mlp_out, layer_3_mha_output_out, layer_3_mlp_out, layer_4_mha_output_out, layer_4_mlp_out
+
+══════════════════════════════════════════════════════════════════════════════
+PORTES DE CORRECTION
+══════════════════════════════════════════════════════════════════════════════
+G1  forward bit-identique (réencâblé eps=1 vs témoin sans porte) : OK  (max|diff|=0.000e+00)
+VAL :loss (nœud graphe) == cross-entropy manuelle : graphe=0.000056  manuel=0.000056  écart=3.085e-09  OK
+G2  gradient embed_sum bit-identique (eps=1 vs témoin) : OK  (max|diff|=0.000e+00)
+
+✓ Les 3 portes passent -- les q_j ci-dessous sont lisibles.
+
+══════════════════════════════════════════════════════════════════════════════
+q_j PAR PAIRE (objectif :loss amorcé sur l'entrée RECEVEUR contre le VRAI
+label v(k), site de lecture = gradient à :embed_sum)
+══════════════════════════════════════════════════════════════════════════════
+
+Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4  ||embed_grad||^2=1.474329e-05
+  #1  layer_1_mha_output_out   q_j = +0.996980
+  #2  layer_2_mlp_out          q_j = +0.611493
+  #3  layer_4_mlp_out          q_j = +0.346038
+  #4  layer_3_mha_output_out   q_j = +0.279491
+  #5  layer_1_mlp_out          q_j = +0.197372
+  #6  layer_4_mha_output_out   q_j = +0.178605
+  #7  layer_3_mlp_out          q_j = +0.129299
+  #8  layer_2_mha_output_out   q_j = +0.055908
+  somme des q_j (diagnostic, pas borné a priori) : +2.795186
+
+Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2  ||embed_grad||^2=4.516685e-07
+  #1  layer_1_mha_output_out   q_j = +0.997100
+  #2  layer_1_mlp_out          q_j = +0.759930
+  #3  layer_4_mlp_out          q_j = +0.602848
+  #4  layer_2_mlp_out          q_j = +0.303740
+  #5  layer_3_mlp_out          q_j = +0.170997
+  #6  layer_2_mha_output_out   q_j = +0.060142
+  #7  layer_3_mha_output_out   q_j = +0.046598
+  #8  layer_4_mha_output_out   q_j = +0.014274
+  somme des q_j (diagnostic, pas borné a priori) : +2.955630
+
+Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8  ||embed_grad||^2=8.064872e-08
+  #1  layer_1_mha_output_out   q_j = +0.996992
+  #2  layer_2_mha_output_out   q_j = +0.688956
+  #3  layer_1_mlp_out          q_j = +0.213575
+  #4  layer_2_mlp_out          q_j = +0.151342
+  #5  layer_3_mlp_out          q_j = +0.065891
+  #6  layer_3_mha_output_out   q_j = +0.035354
+  #7  layer_4_mlp_out          q_j = -0.003531
+  #8  layer_4_mha_output_out   q_j = +0.002714
+  somme des q_j (diagnostic, pas borné a priori) : +2.151292
+
+══════════════════════════════════════════════════════════════════════════════
+AGRÉGAT SUR LES 3 PAIRES
+══════════════════════════════════════════════════════════════════════════════
+  #1  layer_1_mha_output_out    |q_j| moyen = 0.997024   valeurs = [0.997, 0.9971, 0.997]
+  #2  layer_1_mlp_out           |q_j| moyen = 0.390292   valeurs = [0.1974, 0.7599, 0.2136]
+  #3  layer_2_mlp_out           |q_j| moyen = 0.355525   valeurs = [0.6115, 0.3037, 0.1513]
+  #4  layer_4_mlp_out           |q_j| moyen = 0.317472   valeurs = [0.346, 0.6028, -0.0035]
+  #5  layer_2_mha_output_out    |q_j| moyen = 0.268335   valeurs = [0.0559, 0.0601, 0.689]
+  #6  layer_3_mlp_out           |q_j| moyen = 0.122062   valeurs = [0.1293, 0.171, 0.0659]
+  #7  layer_3_mha_output_out    |q_j| moyen = 0.120481   valeurs = [0.2795, 0.0466, 0.0354]
+  #8  layer_4_mha_output_out    |q_j| moyen = 0.065198   valeurs = [0.1786, 0.0143, 0.0027]
+
+══════════════════════════════════════════════════════════════════════════════
+COMPARAISON AVEC LE RÉSULTAT SÉMANTIQUE (bench_eps_semantic_objective_marker.jl)
+══════════════════════════════════════════════════════════════════════════════
+  Branche #1 sous l'objectif SÉMANTIQUE (dl, même site) : layer_1_mha_output_out
+  Branche #1 sous l'objectif GÉNÉRIQUE (:loss, ce script) : layer_1_mha_output_out
+
+=> layer_1_mha_output_out DOMINE AUSSI sous l'objectif générique. La
+   domination à :embed_sum est donc INDÉPENDANTE du choix d'objectif
+   (sémantique vs générique) : c'est un effet du SITE de lecture, pas du
+   contenu sémantique de dl. Séparation nette avec le test de site
+   (bench_eps_semantic_objective_marker_readsite_sweep.jl).

@@ -1,0 +1,128 @@
+TEST DE L'ARTEFACT DE PROXIMITÉ -- balayage du site de lecture
+Même objectif dl = logit(v(sigma(k))) - logit(v(k)) (contraste P3, SANS
+normalisation), mêmes 3 paires, même checkpoint (AUCUN réentraînement).
+
+P1 (checkpoint, graphe réencâblé)  : acc_A=1.0000  acc_B=1.0000
+P1 (checkpoint, graphe témoin)     : acc_A=1.0000  acc_B=1.0000
+
+Branches (B=8, ordre en profondeur) : layer_1_mha_output_out, layer_1_mlp_out, layer_2_mha_output_out, layer_2_mlp_out, layer_3_mha_output_out, layer_3_mlp_out, layer_4_mha_output_out, layer_4_mlp_out
+
+Sites de lecture testés, et branche STRUCTURELLEMENT voisine de chacun
+(co-entrée de la MÊME jonction résiduelle que la branche, par construction --
+pas une mesure, une propriété du graphe) :
+  embed_sum      -> voisine attendue : layer_1_mha_output_out
+  layer_1_res1   -> voisine attendue : layer_1_mlp_out
+  layer_2_res1   -> voisine attendue : layer_2_mha_output_out
+
+Rappel de la contrainte structurelle de l'identité q_j : q_j = 0 EXACTEMENT
+pour toute branche EN AMONT du site lu (porte P2 du script Qwen). Donc :
+  à :embed_sum       : les 8 branches sont mesurables (aucune en amont).
+  à :layer_1_res1    : layer_1_mha_output_out est EXCLUE (q=0 exact).
+  à :layer_2_res1    : layer_1_mha_output_out ET layer_1_mlp_out (circuit P3)
+                       sont EXCLUES (q=0 exact) -- prédiction vérifiable.
+
+══════════════════════════════════════════════════════════════════════════════
+PORTES DE CORRECTION
+══════════════════════════════════════════════════════════════════════════════
+G1  forward bit-identique (réencâblé eps=1 vs témoin sans porte) : OK  (max|diff|=0.000e+00)
+VAL dl_obj (nœud graphe) == delta_logit manuel : graphe=-10.078269  manuel=-10.078269  écart=0.000e+00  OK
+G2[embed_sum     ] gradient bit-identique (eps=1 vs témoin) : OK  (max|diff|=0.000e+00)
+G2[layer_1_res1  ] gradient bit-identique (eps=1 vs témoin) : OK  (max|diff|=0.000e+00)
+G2[layer_2_res1  ] gradient bit-identique (eps=1 vs témoin) : OK  (max|diff|=0.000e+00)
+
+✓ Toutes les portes passent -- les q_j ci-dessous sont lisibles.
+
+Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4
+  -- site = embed_sum  (||grad||^2=5.7058e+03) --
+    #1  layer_1_mha_output_out   q_j = +0.996546
+    #2  layer_2_mlp_out          q_j = +0.575130
+    #3  layer_3_mha_output_out   q_j = +0.326623
+  -- site = layer_1_res1  (||grad||^2=7.1511e+00) --
+    #1  layer_1_mlp_out          q_j = +0.356039
+    #2  layer_2_mlp_out          q_j = +0.336342
+    #3  layer_3_mha_output_out   q_j = +0.269504
+  -- site = layer_2_res1  (||grad||^2=2.4071e+00) --
+    #1  layer_2_mlp_out          q_j = +0.352958
+    #2  layer_3_mha_output_out   q_j = +0.291706
+    #3  layer_4_mlp_out          q_j = +0.212204
+
+Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2
+  -- site = embed_sum  (||grad||^2=1.0104e+04) --
+    #1  layer_1_mha_output_out   q_j = +0.994625
+    #2  layer_1_mlp_out          q_j = +0.692506
+    #3  layer_4_mlp_out          q_j = +0.564539
+  -- site = layer_1_res1  (||grad||^2=2.3554e+01) --
+    #1  layer_1_mlp_out          q_j = +0.582488
+    #2  layer_2_mha_output_out   q_j = +0.389999
+    #3  layer_4_mlp_out          q_j = +0.288486
+  -- site = layer_2_res1  (||grad||^2=2.3829e+00) --
+    #1  layer_4_mlp_out          q_j = +0.294161
+    #2  layer_3_mha_output_out   q_j = +0.208750
+    #3  layer_2_mlp_out          q_j = +0.088903
+
+Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8
+  -- site = embed_sum  (||grad||^2=1.6253e+04) --
+    #1  layer_1_mha_output_out   q_j = +0.996547
+    #2  layer_2_mha_output_out   q_j = +0.751129
+    #3  layer_1_mlp_out          q_j = +0.199659
+  -- site = layer_1_res1  (||grad||^2=2.2863e+01) --
+    #1  layer_2_mha_output_out   q_j = +0.876611
+    #2  layer_1_mlp_out          q_j = +0.264823
+    #3  layer_2_mlp_out          q_j = +0.099816
+  -- site = layer_2_res1  (||grad||^2=1.9049e+00) --
+    #1  layer_3_mha_output_out   q_j = +0.207049
+    #2  layer_2_mlp_out          q_j = +0.179644
+    #3  layer_3_mlp_out          q_j = +0.173107
+
+══════════════════════════════════════════════════════════════════════════════
+AGRÉGAT SUR LES 3 PAIRES, PAR SITE DE LECTURE
+══════════════════════════════════════════════════════════════════════════════
+
+── site = embed_sum  (voisine structurelle attendue : layer_1_mha_output_out) ──
+  #1  layer_1_mha_output_out    |q_j| moyen = 0.995906   valeurs = [0.9965, 0.9946, 0.9965]  
+  #2  layer_1_mlp_out           |q_j| moyen = 0.360776   valeurs = [0.1902, 0.6925, 0.1997]  
+  #3  layer_2_mha_output_out    |q_j| moyen = 0.340556   valeurs = [0.0617, 0.2089, 0.7511]  
+  #4  layer_2_mlp_out           |q_j| moyen = 0.323687   valeurs = [0.5751, 0.2481, 0.1478]  
+  #5  layer_4_mlp_out           |q_j| moyen = 0.299677   valeurs = [0.3212, 0.5645, 0.0133]  
+  #6  layer_3_mha_output_out    |q_j| moyen = 0.154797   valeurs = [0.3266, 0.0981, 0.0396]  
+  #7  layer_3_mlp_out           |q_j| moyen = 0.080971   valeurs = [0.1201, 0.0461, 0.0767]  
+  #8  layer_4_mha_output_out    |q_j| moyen = 0.078216   valeurs = [0.1988, 0.0316, 0.0042]  
+
+  Branche #1 mesurée : layer_1_mha_output_out  --  voisine structurelle prédite : layer_1_mha_output_out  --  COÏNCIDENCE
+  Circuit P3 (layer_1_mlp_out) : rang #2/8, |q_j| moyen = 0.360776
+
+── site = layer_1_res1  (voisine structurelle attendue : layer_1_mlp_out) ──
+  #1  layer_2_mha_output_out    |q_j| moyen = 0.497751   valeurs = [0.2266, 0.39, 0.8766]  
+  #2  layer_1_mlp_out           |q_j| moyen = 0.401117   valeurs = [0.356, 0.5825, 0.2648]  
+  #3  layer_4_mlp_out           |q_j| moyen = 0.190885   valeurs = [0.245, 0.2885, -0.0391]  
+  #4  layer_2_mlp_out           |q_j| moyen = 0.187591   valeurs = [0.3363, 0.1266, 0.0998]  
+  #5  layer_3_mha_output_out    |q_j| moyen = 0.176365   valeurs = [0.2695, 0.2361, 0.0235]  
+  #6  layer_4_mha_output_out    |q_j| moyen = 0.060744   valeurs = [0.1274, 0.0462, -0.0087]  
+  #7  layer_3_mlp_out           |q_j| moyen = 0.055286   valeurs = [0.1111, 0.0326, 0.0222]  
+  #8  layer_1_mha_output_out    |q_j| moyen = 0.000000   valeurs = [0.0, 0.0, 0.0]  (EN AMONT -- devrait être ~0)
+
+  Branche #1 mesurée : layer_2_mha_output_out  --  voisine structurelle prédite : layer_1_mlp_out  --  PAS DE COÏNCIDENCE
+  Circuit P3 (layer_1_mlp_out) : rang #2/8, |q_j| moyen = 0.401117
+
+── site = layer_2_res1  (voisine structurelle attendue : layer_2_mha_output_out) ──
+  #1  layer_3_mha_output_out    |q_j| moyen = 0.235835   valeurs = [0.2917, 0.2088, 0.207]  
+  #2  layer_4_mlp_out           |q_j| moyen = 0.220804   valeurs = [0.2122, 0.2942, 0.156]  
+  #3  layer_2_mlp_out           |q_j| moyen = 0.207168   valeurs = [0.353, 0.0889, 0.1796]  
+  #4  layer_3_mlp_out           |q_j| moyen = 0.105021   valeurs = [0.1017, 0.0403, 0.1731]  
+  #5  layer_4_mha_output_out    |q_j| moyen = 0.068691   valeurs = [0.1279, 0.0571, 0.0211]  
+  #6  layer_1_mha_output_out    |q_j| moyen = 0.000000   valeurs = [0.0, 0.0, 0.0]  (EN AMONT -- devrait être ~0)
+  #7  layer_1_mlp_out           |q_j| moyen = 0.000000   valeurs = [0.0, 0.0, 0.0]  (EN AMONT -- devrait être ~0)
+  #8  layer_2_mha_output_out    |q_j| moyen = 0.000000   valeurs = [0.0, 0.0, 0.0]  
+
+  Branche #1 mesurée : layer_3_mha_output_out  --  voisine structurelle prédite : layer_2_mha_output_out  --  PAS DE COÏNCIDENCE
+  Circuit P3 (layer_1_mlp_out) : rang #7/8, |q_j| moyen = 0.000000
+
+══════════════════════════════════════════════════════════════════════════════
+VERDICT
+══════════════════════════════════════════════════════════════════════════════
+  :embed_sum    -> #1 = layer_1_mha_output_out   (voisine attendue layer_1_mha_output_out)   COÏNCIDE
+  :layer_1_res1 -> #1 = layer_2_mha_output_out   (voisine attendue layer_1_mlp_out)   NON
+  :layer_2_res1 -> #1 = layer_3_mha_output_out   (voisine attendue layer_2_mha_output_out)   NON
+
+=> La branche #1 mesurée ne coïncide PAS systématiquement avec la voisine
+   structurelle prédite -- la domination n'est PAS purement positionnelle.

@@ -1,0 +1,59 @@
+CERTIFICAT DE 2e ORDRE POUR AtP -- tâche du marqueur
+AtP_j = terme d'ordre 1 (1 passe arrière/paire, 8 branches à la fois).
+correction_j = terme de courbure LOCALE estimé à partir d'UN point
+supplémentaire à eps=0.5 SEUL (jamais eps=1 pendant le calcul du correctif).
+vrai_j = effet RÉEL du patch complet (eps=1), mesuré ensuite pour vérification.
+Checkpoint réutilisé tel quel, AUCUN réentraînement. Mêmes 3 paires que P3/q_j/AtP.
+
+P1 (checkpoint) : acc_A=1.0000  acc_B=1.0000
+
+Branches (B=8, ordre en profondeur) : layer_1_mha_output_out, layer_1_mlp_out, layer_2_mha_output_out, layer_2_mlp_out, layer_3_mha_output_out, layer_3_mlp_out, layer_4_mha_output_out, layer_4_mlp_out
+Circuit P3 (cité) : layer_1_mlp_out
+
+Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4  dl_donneur=3.225  dl_receveur=-10.078
+  layer_1_mha_output_out   AtP=+4.9506  correction=+23.5272  AtP+corr=+28.4778  vrai=+13.3052  |err_brut|=8.3546  |err_corrigé|=15.1726  N'AMÉLIORE PAS
+  layer_1_mlp_out          AtP=+4.7986  correction=+10.6839  AtP+corr=+15.4826  vrai=+11.6170  |err_brut|=6.8183  |err_corrigé|=3.8656  AMÉLIORE
+  layer_2_mlp_out          AtP=+3.5606  correction=+2.8066  AtP+corr=+6.3672  vrai=+6.7618  |err_brut|=3.2012  |err_corrigé|=0.3946  AMÉLIORE
+  layer_3_mha_output_out   AtP=+6.1547  correction=+0.0929  AtP+corr=+6.2476  vrai=+6.2511  |err_brut|=0.0964  |err_corrigé|=0.0035  AMÉLIORE
+  layer_3_mlp_out          AtP=+4.9497  correction=+0.5925  AtP+corr=+5.5421  vrai=+5.5929  |err_brut|=0.6433  |err_corrigé|=0.0508  AMÉLIORE
+  layer_4_mlp_out          AtP=+0.9978  correction=-0.0000  AtP+corr=+0.9977  vrai=+0.9977  |err_brut|=0.0000  |err_corrigé|=0.0000  N'AMÉLIORE PAS
+  layer_4_mha_output_out   AtP=+0.7505  correction=-0.0040  AtP+corr=+0.7465  vrai=+0.7466  |err_brut|=0.0039  |err_corrigé|=0.0001  AMÉLIORE
+  layer_2_mha_output_out   AtP=-0.0200  correction=-0.0085  AtP+corr=-0.0286  vrai=-0.0270  |err_brut|=0.0069  |err_corrigé|=0.0016  AMÉLIORE
+
+Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2  dl_donneur=11.950  dl_receveur=-14.006
+  layer_1_mha_output_out   AtP=-1.3673  correction=+39.4603  AtP+corr=+38.0931  vrai=+25.9579  |err_brut|=27.3252  |err_corrigé|=12.1352  AMÉLIORE
+  layer_1_mlp_out          AtP=+11.7168  correction=+18.6269  AtP+corr=+30.3437  vrai=+25.9060  |err_brut|=14.1892  |err_corrigé|=4.4377  AMÉLIORE
+  layer_2_mha_output_out   AtP=+14.5215  correction=-1.8986  AtP+corr=+12.6229  vrai=+12.7376  |err_brut|=1.7839  |err_corrigé|=0.1147  AMÉLIORE
+  layer_3_mha_output_out   AtP=+8.2802  correction=-0.5655  AtP+corr=+7.7147  vrai=+7.6908  |err_brut|=0.5894  |err_corrigé|=0.0239  AMÉLIORE
+  layer_4_mlp_out          AtP=-5.4158  correction=-0.0000  AtP+corr=-5.4158  vrai=-5.4158  |err_brut|=0.0000  |err_corrigé|=0.0000  N'AMÉLIORE PAS
+  layer_2_mlp_out          AtP=-4.6618  correction=+0.6438  AtP+corr=-4.0180  vrai=-3.7983  |err_brut|=0.8634  |err_corrigé|=0.2196  AMÉLIORE
+  layer_4_mha_output_out   AtP=+1.3584  correction=-0.0532  AtP+corr=+1.3053  vrai=+1.3055  |err_brut|=0.0529  |err_corrigé|=0.0002  AMÉLIORE
+  layer_3_mlp_out          AtP=+0.3662  correction=-0.0162  AtP+corr=+0.3500  vrai=+0.3493  |err_brut|=0.0169  |err_corrigé|=0.0007  AMÉLIORE
+
+Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8  dl_donneur=9.229  dl_receveur=-13.182
+  layer_1_mha_output_out   AtP=+5.5347  correction=+67.1168  AtP+corr=+72.6515  vrai=+22.7102  |err_brut|=17.1754  |err_corrigé|=49.9413  N'AMÉLIORE PAS
+  layer_1_mlp_out          AtP=+3.4883  correction=+31.6315  AtP+corr=+35.1198  vrai=+19.9868  |err_brut|=16.4984  |err_corrigé|=15.1331  AMÉLIORE
+  layer_2_mha_output_out   AtP=+7.8404  correction=+7.7098  AtP+corr=+15.5501  vrai=+13.8826  |err_brut|=6.0422  |err_corrigé|=1.6676  AMÉLIORE
+  layer_3_mha_output_out   AtP=+6.0777  correction=+0.2241  AtP+corr=+6.3018  vrai=+6.3765  |err_brut|=0.2988  |err_corrigé|=0.0747  AMÉLIORE
+  layer_2_mlp_out          AtP=+1.7484  correction=+0.1981  AtP+corr=+1.9465  vrai=+1.9506  |err_brut|=0.2022  |err_corrigé|=0.0041  AMÉLIORE
+  layer_3_mlp_out          AtP=+0.7187  correction=-0.0006  AtP+corr=+0.7181  vrai=+0.7182  |err_brut|=0.0005  |err_corrigé|=0.0001  AMÉLIORE
+  layer_4_mlp_out          AtP=+0.5111  correction=+0.0000  AtP+corr=+0.5111  vrai=+0.5111  |err_brut|=0.0000  |err_corrigé|=0.0000  AMÉLIORE
+  layer_4_mha_output_out   AtP=-0.3560  correction=-0.0006  AtP+corr=-0.3566  vrai=-0.3566  |err_brut|=0.0006  |err_corrigé|=0.0000  AMÉLIORE
+
+══════════════════════════════════════════════════════════════════════════════
+AGRÉGAT SUR LES 3 PAIRES × 8 BRANCHES (24 mesures)
+══════════════════════════════════════════════════════════════════════════════
+  Médiane |err_brut|   (AtP seul)              : 0.2988
+  Médiane |err_corrigé| (AtP + courbure locale) : 0.0239
+  Moyenne |err_brut|                            : 4.3402
+  Moyenne |err_corrigé|                         : 4.3017
+  Cas où le correctif AMÉLIORE la prédiction     : 20 / 24
+  Ratio erreur moyenne corrigée / brute          : 0.9911  (< 1 = correctif utile)
+
+══════════════════════════════════════════════════════════════════════════════
+VERDICT
+══════════════════════════════════════════════════════════════════════════════
+Le correctif aide partiellement mais n'élimine pas la majorité de l'erreur :
+la courbure varie sensiblement entre eps=0.5 et eps=1, donc une sonde locale
+sous-estime le reste réel sur le grand pas donneur/receveur -- cohérent avec
+l'hypothèse que le segment traverse plusieurs régions non-linéaires distinctes.

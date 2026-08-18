@@ -1,0 +1,31 @@
+VÉRIFICATION EXACTE : IDENTITÉ DE TRANSPORT SUR LE MODÈLE ENTRAÎNÉ RÉEL
+(Qwen2.5-1.5B-Instruct) -- pas la version synthétique déjà publiée.
+Date : 2026-08-15T02:26:25Z
+
+Chargement du checkpoint natif...
+
+Site peu profond s = layer_1_mha_output_out (site_pos=1, cône entier B=56)
+Site profond     t = layer_23_mha_output_out (site_pos=45, cône B(t)=12)
+
+Promts traités : 4 (indices If a train travels 6 | It was a bright cold | Q: What is the large | The capital of the c)
+
+------------------------------------------------------------------------------
+Par prompt : résidu de l'ajustement moindres carrés de u_{s,t}
+------------------------------------------------------------------------------
+
+prompt  6 (n=16): B(t)=12  D=24576  ||d||=9.6033e-01  ||résidu||=2.576e-15  résidu relatif=2.683e-15  max|résidu|=1.332e-15
+prompt 12 (n=14): B(t)=12  D=21504  ||d||=1.1173e+00  ||résidu||=2.458e-15  résidu relatif=2.200e-15  max|résidu|=1.943e-15
+prompt 17 (n=14): B(t)=12  D=21504  ||d||=1.0504e+00  ||résidu||=4.227e-15  résidu relatif=4.025e-15  max|résidu|=3.331e-15
+prompt  5 (n=13): B(t)=12  D=19968  ||d||=1.0220e+00  ||résidu||=2.905e-15  résidu relatif=2.842e-15  max|résidu|=2.887e-15
+
+==============================================================================
+RÉSUMÉ
+==============================================================================
+
+résidu relatif ||Bu-d||/||d|| sur 4 prompts : min 2.200e-15  médian 2.763e-15  max 4.025e-15
+
+Si ce résidu est à la précision machine (~1e-6 à 1e-12 en Float32/Float64
+mixte), l'identité de transport est vérifiée EXACTEMENT sur le modèle
+entraîné réel, pas seulement en synthétique : un seul vecteur u_{s,t}
+explique la totalité de la dépendance au site, pour cette paire de sites,
+sur données de production.

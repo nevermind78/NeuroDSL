@@ -1,0 +1,70 @@
+VERIFICATION INDEPENDANTE ET FRAICHE -- VERITE TERRAIN PAR ENUMERATION
+Instance synthetique NEUVE, graine et taille differentes de celle de
+bench_eps_depth_synthetic.jl. Verite terrain PAR BRANCHE (pas seulement
+agregee), obtenue par un chemin de calcul independant de l'identite
+d'ablation. Double precision, bibliotheque standard uniquement.
+Date : 2026-08-15
+
+==============================================================================
+Instance : D=24, B=16 (Mcone=13 dont 1 obligatoire + 12 contournables, Bup=3)
+2^16 = 65536 sous-ensembles enumeres exhaustivement. Temps total : 2.75 s
+==============================================================================
+
+Recoupement interne  G(1) = somme_S a_S (sur les 2^16 sous-ensembles)  : ecart relatif 1.532e-14
+
+--- (1) Thm. thm:ablation : q_j (B+1 evaluations) contre q_j de verite
+        terrain (enumeration combinatoire, chemin de calcul independant)
+    ecart max sur les 16 coefficients : 7.994e-15
+    n_bar par ablation      : -0.567699997149
+    n_bar par verite terrain: -0.567699997149   ecart 6.217e-15
+
+--- (2) Thm. thm:twoscalar : q_j = q(rho_j,c_j) contre q_j de verite terrain
+    ecart max (verite terrain vs deux scalaires) : 1.621e-14
+    ecart max (ablation vs deux scalaires)        : 1.066e-14
+
+--- (3) Cor. cor:self : branche obligatoire (j=1), q_{j0} = 1 exact
+    q_1 verite terrain = 0.999999999999996   ecart = 3.664e-15
+    q_1 ablation       = 1.000000000000000   ecart = 0.000e+00
+
+--- (4) Cor. cor:upstream : branches hors cone (j = Mcone+1..B), q_j = 0 exact
+    ecart max, verite terrain : 0.000e+00  sur 3 branche(s)
+    ecart max, ablation       : 0.000e+00  sur 3 branche(s)
+
+--- (5) Cor. cor:sign : sign(q_j) = sign(rho_j + c_j)  --  Cor. cor:envelope :
+        enveloppe exacte en rho seul et seuil q_j > 1/2 <=> rho_j > 1
+        (teste sur les 12 branches du cone contournable, j=2..13,
+         hors la branche obligatoire et les branches hors cone)
+    loi de signe   : 0 violation(s) sur 12 coefficients
+    enveloppe      : 0 violation(s) sur 12 coefficients
+    seuil q > 1/2 <=> rho > 1 : 0 violation(s) sur 12 coefficients
+
+    branches avec rho_j > 1 dans cette instance  : 2 / 12
+    branches avec q_j < 0 dans cette instance     : 5 / 12
+
+--- Cas engineeres, verification en forme close ---
+    branches a grande norme (indices [13, 12]) : rho attendu > 1
+      j=13 : rho_j = 1.0507  c_j = -0.983833  q_j = +1.921793
+      j=12 : rho_j = 1.2053  c_j = -0.971483  q_j = +2.541312
+
+    branches reflexion -lambda v v'/(v'v) : point extreme EXACT c_j=-1,
+    q_j predit = -lambda/(1-lambda) en forme close (Cor. cor:envelope)
+      j=10 : lambda=0.85  rho_j=0.850000 (ecart 1.11e-16)  c_j=-1.000000 (ecart a -1 : 0.00e+00)  q_j=-5.66666667  q_predit=-5.66666667  ecart=6.217e-15
+      j=11 : lambda=0.40  rho_j=0.400000 (ecart 2.22e-16)  c_j=-1.000000 (ecart a -1 : 0.00e+00)  q_j=-0.66666667  q_predit=-0.66666667  ecart=5.551e-16
+
+==============================================================================
+RESUME DES ECARTS MAXIMAUX
+==============================================================================
+  recoupement interne G(1)=somme a_S                         : 1.532e-14
+  ablation vs verite terrain (par branche)                   : 7.994e-15
+  n_bar ablation vs n_bar verite terrain                     : 6.217e-15
+  deux scalaires vs verite terrain                           : 1.621e-14
+  deux scalaires vs ablation                                 : 1.066e-14
+  branche obligatoire q_j0=1 (verite terrain / ablation)     : 3.664e-15 / 0.000e+00
+  branches hors cone q_j=0 (verite terrain / ablation)       : 0.000e+00 / 0.000e+00
+  loi de signe                                                : 0 violation(s)
+  enveloppe exacte                                            : 0 violation(s)
+  seuil q>1/2 <=> rho>1                                       : 0 violation(s)
+
+=> Toutes les identites verifiees tiennent a la precision machine sur
+   cette instance fraiche et independante, y compris dans le regime
+   rho_j > 1 et pour des coefficients q_j negatifs.

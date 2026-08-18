@@ -1,0 +1,170 @@
+BORNE ANALYTIQUE (COMPOSITIONNELLE) SUR sup|phi'''(eps)| -- PAS D'ÉCHANTILLONNAGE DE phi
+Cible : layer_1_mha_output_out, paire 2 (le pire cas de bench_eps_atp_path_integral_certified_marker.jl)
+P1 (checkpoint) : acc_A=1.0000  acc_B=1.0000
+
+════════════════════════════════════════════════════════════════════════════════════════════
+PARTIE 1 -- ARCHITECTURE RÉELLE DU CHEMIN CAUSAL
+════════════════════════════════════════════════════════════════════════════════════════════
+LlamaModel : n_layers=4, dim=64, n_heads=4, d_head=16, hidden_dim=128, batched_attn=true
+Normalisation : RMSNorm (PAS LayerNorm -- pas de soustraction de moyenne), eps=1e-6, gamma appris.
+Activation MLP : SwiGLU = SiLU(gate) ⊙ up  (SiLU(x)=x*sigmoid(x)), gate=xn2@W1^T, up=xn2@W3^T.
+Attention : softmax ligne par ligne sur scores Q.K^T/sqrt(d_head) + masque causal (constant, indép. de eps).
+Chemin de layer_1_mha_output_out (couche 1) à final_logits :
+  layer_1_mha_output_out --[add résiduel]--> layer_1_res1
+    --[RMSNorm(layer_1_norm2_gamma)]--> layer_1_norm2_out
+    --[2×Linear W1,W3 (exactes) -> SiLU⊙up -> Linear W2 (exacte) -> add résiduel]--> layer_1_out
+  layer_1_out --[bloc LlamaBlock complet : RMSNorm,MHA(4 têtes,softmax,4×Linear),
+                 add, RMSNorm, SwiGLU-MLP, add]--> layer_2_out --(idem)--> layer_3_out
+                 --(idem)--> layer_4_out
+  layer_4_out --[Linear lm_head (exacte)]--> logits --[sélection dernière position (exacte)]-->
+    final_logits --[fonctionnelle linéaire e_vsk-e_vk (exacte)]--> phi(eps)
+Donc : 3 blocs LlamaBlock COMPLETS (2, 3, 4) + le résidu-MLP de la couche 1 + lm_head + sélection.
+3 SOURCES DE NON-LINÉARITÉ RÉELLES SEULEMENT : RMSNorm, softmax, SiLU(dans SwiGLU). Tout le reste
+(Linear/matmul, add résiduel, scale_mask, sélection, concat de têtes) est EXACTEMENT linéaire :
+dérivées d'ordre >=2 nulles, AUCUNE approximation nécessaire pour ces opérations.
+
+════════════════════════════════════════════════════════════════════════════════════════════
+PARTIE 2a -- COURBURE D'UNE SEULE NON-LINÉARITÉ (calcul direct + vérification)
+════════════════════════════════════════════════════════════════════════════════════════════
+SiLU'''(x) forme fermée dérivée à la main -- écart max vs différence finie (h=1e-3, x∈[-5,5]) : 1.77e-06
+(écart de l'ordre de h^2 attendu pour une différence finie d'ordre 3 -- confirme la formule)
+sup_{x∈R}|SiLU'''(x)| (recherche fine x∈[-60,60], pas 5e-4) = 0.308182  (atteint à x=-1.0320)
+C'est une CONSTANTE UNIVERSELLE (indépendante du réseau) -- borne globale légitime pour SiLU seul.
+
+RMSNorm(x)_j = gamma_j * x_j / r(x),  r(x)=sqrt(mean(x^2)+eps).
+Jacobien : d y_j/d x_k = gamma_j*[delta_jk/r - x_j x_k/(nc*r^3)].
+Preuve : ||x||^2/nc <= r(x)^2 (car eps>=0) => la matrice (1/r)(I - xx^T/(nc r^2)) a une norme
+d'opérateur <= (1/r)*(1 + ||x||^2/(nc r^2)) <= 2/r. Donc EXACTEMENT (pas une borne relâchée -- une
+inégalité triangulaire propre) :  ||J_RMSNorm(x)||_op <= 2*max_j|gamma_j| / r(x).
+Ordres 2 et 3 : PAS de forme fermée aussi simple à main levée sans risque d'erreur d'algèbre --
+utilisation de l'homogénéité de degré 0 EXACTE de RMSNorm (au terme eps~1e-6 près, négligeable ici
+car mean(x^2) est d'ordre 1 dans ce réseau -- eps 6 ordres de grandeur plus petit) : D^k y(x)[v,..,v]
+= r(x)^{-k} * D^k y(u)[v,..,v] où u=x/r(x) est de rayon unité (rms(u)=1). La 'constante angulaire'
+D^k y(u) est cherchée NUMÉRIQUEMENT (dense, sur la fonction FERMÉE connue, pas sur le réseau) sur
+la sphère unité -- voir ci-dessous, avec le nombre d'échantillons déclaré (certification numérique,
+pas une preuve exhaustive du sup global, mais fonction lisse sur domaine compact).
+
+Constantes angulaires RMSNorm (gamma=1, rayon unité, nc=64, 6000 échantillons (u,v,w) aléatoires,
+  différences finies h=1e-3) :  C2=0.0605   C3=0.0240
+(bornes NUMÉRIQUEMENT CERTIFIÉES sur une fonction connue en forme fermée -- pas le réseau --
+sur un domaine compact ; pas une borne prouvée analytiquement à la main pour ces 2 ordres.)
+
+
+════════════════════════════════════════════════════════════════════════════════════════════
+PARTIE 2b -- PROPAGATION D'INTERVALLE (RÉELLE, dense, sur le segment exact)
+════════════════════════════════════════════════════════════════════════════════════════════
+Motivation : la borne RMSNorm ci-dessus (L1<=2*max|gamma|/r(x)) est INFINIE si r(x) peut approcher 0
+(pire cas n'importe où dans R^dim). Sur un VRAI segment d'un réseau entraîné traitant de vrais
+tokens, r(x) reste loin de 0 -- mais ce n'est PAS garanti a priori, il faut le VÉRIFIER sur ce
+segment précis. On propage donc la plage RÉELLE (min/max observés) de chaque quantité pertinente
+par échantillonnage dense (65 points, PAS seulement les 8 points milieux du script précédent) --
+passages AVANT SEULS (aucune rétropropagation), donc peu coûteux.
+
+Paire 2 : vrai effet (référence, cité du script précédent) : IG_8=+22.9859, vrai=+25.9579,
+  |err_IG_8|=2.9720 (K=8, règle du point milieu) -- C'EST LE NOMBRE À COMPARER À LA BORNE FINALE.
+
+  r_min observé (65 pts, segment réel) pour layer_1_norm2        : 0.7060
+  r_min observé (65 pts, segment réel) pour layer_2_norm1        : 1.1311
+  r_min observé (65 pts, segment réel) pour layer_2_norm2        : 1.5065
+  r_min observé (65 pts, segment réel) pour layer_3_norm1        : 1.5177
+  r_min observé (65 pts, segment réel) pour layer_3_norm2        : 1.9825
+  r_min observé (65 pts, segment réel) pour layer_4_norm1        : 2.0041
+  r_min observé (65 pts, segment réel) pour layer_4_norm2        : 2.0970
+
+Plage de scores d'attention (post scale+masque causal, entrées finies seulement, sur le segment) :
+  [-21.300, 20.424]  (65 points x 3 couches x 4 têtes)
+Plage de gate (entrée SiLU dans SwiGLU) sur le segment : [-4.618, 5.191]
+
+Constantes softmax restreintes à la plage de score réelle (8000 échantillons, seq_len=8) :
+  L1=0.2655 (référence classique : <=0.25)   L2=0.1001   L3=0.1234
+SiLU restreint à la plage de gate réelle [-4.618,5.191] : L1=1.0998 L2=0.5000 L3=0.3082
+
+════════════════════════════════════════════════════════════════════════════════════════════
+PARTIE 2c/3 -- COMPOSITION : PROPAGATION DE (||x||,||x'||,||x''||,||x'''||)
+════════════════════════════════════════════════════════════════════════════════════════════
+Règles utilisées à chaque étape (toutes des inégalités VALIDES, documentées) :
+  Linéaire (matmul/W)  : n_k <= ||W||_2 * n_k(entrée)          [EXACT via svdvals des poids ENTRAÎNÉS]
+  Addition (résidu)    : n_k <= n_k(a) + n_k(b)                 [inégalité triangulaire]
+  Composition F(u(eps)) [RMSNorm, softmax -- Faà di Bruno, normes agrégées] :
+    n1' <= L1*n1 ; n2' <= L2*n1^2 + L1*n2 ; n3' <= L3*n1^3 + 3*L2*n1*n2 + L1*n3
+  Produit élément par élément (SwiGLU = SiLU(gate)⊙up -- Leibniz + Cauchy-Schwarz) :
+    h_n1<=F_n1*u0+F0*u_n1 ; h_n2<=F_n2*u0+2F_n1*u_n1+F0*u_n2 ;
+    h_n3<=F_n3*u0+3F_n2*u_n1+3F_n1*u_n2+F0*u_n3
+  Forme bilinéaire (Q.K^T, P.V -- Leibniz + Cauchy-Schwarz, même schéma que le produit ci-dessus)
+  Concat de têtes : n_k <= somme des n_k par tête [triangulaire, plus relâché que sqrt(somme carrés)]
+
+État initial (branche layer_1_mha_output_out) : n0~31.819  n1=||Delta||=18.3170  n2=0  n3=0 (exact, affine en eps)
+
+  branche (b)                                                            n1'=  1.8317e+01  n2''=    0.0000e+00  n3'''=      0.0000e+00
+  layer_1_res1 (add résiduel, x fixe)                                    n1'=  1.8317e+01  n2''=    0.0000e+00  n3'''=      0.0000e+00
+  layer_1_norm2_out (RMSNorm, L1=2.943 L2=0.126 L3=0.071, r_min=0.706)   n1'=  5.3913e+01  n2''=    4.2319e+01  n3'''=      4.3573e+02
+  layer_1_gate (Linear W1, ||W1||=1.873)                                 n1'=  1.0097e+02  n2''=    7.9259e+01  n3'''=      8.1608e+02
+  layer_1_up (Linear W3, ||W3||=1.634)                                   n1'=  8.8118e+01  n2''=    6.9169e+01  n3'''=      7.1218e+02
+  layer_1_swiglu (SiLU⊙up, L1=1.1 L2=0.5 L3=0.308)                       n1'=  3.1034e+03  n2''=    1.4362e+05  n3'''=      9.2739e+06
+  layer_1_mlp_out (Linear W2, ||W2||=1.71)                               n1'=  5.3078e+03  n2''=    2.4564e+05  n3'''=      1.5861e+07
+  layer_1_out (add résiduel)                                             n1'=  5.3617e+03  n2''=    2.4568e+05  n3'''=      1.5862e+07
+  layer_2_norm1_out (RMSNorm, L1=2.0 L2=0.054 L3=0.019, r_min=1.131)     n1'=  1.0726e+04  n2''=    2.0296e+06  n3'''=      3.1365e+09
+  layer_2_mha scores (Q.K^T/sqrt(d), bilinéaire, Leibniz+Cauchy-Schwarz) n1'=  8.7878e+05  n2''=    5.6767e+08  n3'''=      4.8483e+11
+  layer_2_mha softmax (L1=0.266 L2=0.1 L3=0.123)                         n1'=  2.3335e+05  n2''=    7.7471e+10  n3'''=      8.3864e+16
+  layer_2_mha P.V (bilinéaire, Leibniz+Cauchy-Schwarz)                   n1'=  9.1696e+06  n2''=    3.0192e+12  n3'''=      3.2635e+18
+  layer_2_mha_output_out (Linear Wo, ||Wo||=1.622)                       n1'=  5.9491e+07  n2''=    1.9588e+13  n3'''=      2.1173e+19
+  layer_2_res1 (add résiduel MHA)                                        n1'=  5.9497e+07  n2''=    1.9588e+13  n3'''=      2.1173e+19
+  layer_2_norm2_out (RMSNorm, L1=1.4 L2=0.028 L3=0.007, r_min=1.507)     n1'=  8.3315e+07  n2''=    1.2697e+14  n3'''=      1.6879e+21
+  layer_2_gate (Linear W1, ||W1||=2.073)                                 n1'=  1.7269e+08  n2''=    2.6318e+14  n3'''=      3.4986e+21
+  layer_2_up (Linear W3, ||W3||=2.018)                                   n1'=  1.6816e+08  n2''=    2.5628e+14  n3'''=      3.4069e+21
+  layer_2_swiglu (SiLU⊙up, L1=1.1 L2=0.5 L3=0.308)                       n1'=  5.5467e+09  n2''=    4.3976e+17  n3'''=      4.8715e+25
+  layer_2_mlp_out (Linear W2, ||W2||=2.078)                              n1'=  1.1528e+10  n2''=    9.1399e+17  n3'''=      1.0125e+26
+  layer_2_out (add résiduel MLP)                                         n1'=  1.1588e+10  n2''=    9.1401e+17  n3'''=      1.0125e+26
+  layer_3_norm1_out (RMSNorm, L1=1.567 L2=0.031 L3=0.008, r_min=1.518)   n1'=  1.8161e+10  n2''=    5.6275e+18  n3'''=      1.3862e+28
+  layer_3_mha scores (Q.K^T/sqrt(d), bilinéaire, Leibniz+Cauchy-Schwarz) n1'=  1.8275e+12  n2''=    2.0074e+21  n3'''=      2.7345e+30
+  layer_3_mha softmax (L1=0.266 L2=0.1 L3=0.123)                         n1'=  4.8527e+11  n2''=    3.3491e+23  n3'''=      7.5394e+35
+  layer_3_mha P.V (bilinéaire, Leibniz+Cauchy-Schwarz)                   n1'=  1.5959e+13  n2''=    1.0939e+25  n3'''=      2.4595e+37
+  layer_3_mha_output_out (Linear Wo, ||Wo||=1.36)                        n1'=  8.6800e+13  n2''=    5.9495e+25  n3'''=      1.3377e+38
+  layer_3_res1 (add résiduel MHA)                                        n1'=  8.6812e+13  n2''=    5.9495e+25  n3'''=      1.3377e+38
+  layer_3_norm2_out (RMSNorm, L1=1.076 L2=0.016 L3=0.003, r_min=1.983)   n1'=  9.3429e+13  n2''=    1.8780e+26  n3'''=      2.5491e+39
+  layer_3_gate (Linear W1, ||W1||=2.179)                                 n1'=  2.0361e+14  n2''=    4.0926e+26  n3'''=      5.5552e+39
+  layer_3_up (Linear W3, ||W3||=1.663)                                   n1'=  1.5537e+14  n2''=    3.1231e+26  n3'''=      4.2392e+39
+  layer_3_swiglu (SiLU⊙up, L1=1.1 L2=0.5 L3=0.308)                       n1'=  5.6338e+15  n2''=    5.2828e+29  n3'''=      6.9075e+43
+  layer_3_mlp_out (Linear W2, ||W2||=1.706)                              n1'=  9.6114e+15  n2''=    9.0125e+29  n3'''=      1.1784e+44
+  layer_3_out (add résiduel MLP)                                         n1'=  9.6982e+15  n2''=    9.0131e+29  n3'''=      1.1784e+44
+  layer_4_norm1_out (RMSNorm, L1=1.026 L2=0.015 L3=0.003, r_min=2.004)   n1'=  9.9514e+15  n2''=    2.3817e+30  n3'''=      3.3246e+45
+  layer_4_mha scores (Q.K^T/sqrt(d), bilinéaire, Leibniz+Cauchy-Schwarz) n1'=  7.0248e+17  n2''=    4.9673e+32  n3'''=      4.7062e+47
+  layer_4_mha softmax (L1=0.266 L2=0.1 L3=0.123)                         n1'=  1.8654e+17  n2''=    4.9540e+34  n3'''=      4.2866e+52
+  layer_4_mha P.V (bilinéaire, Leibniz+Cauchy-Schwarz)                   n1'=  4.8777e+18  n2''=    1.2818e+36  n3'''=      1.1070e+54
+  layer_4_mha_output_out (Linear Wo, ||Wo||=1.092)                       n1'=  2.1315e+19  n2''=    5.6014e+36  n3'''=      4.8376e+54
+  layer_4_res1 (add résiduel MHA)                                        n1'=  2.1325e+19  n2''=    5.6014e+36  n3'''=      4.8376e+54
+  layer_4_norm2_out (RMSNorm, L1=0.995 L2=0.014 L3=0.003, r_min=2.097)   n1'=  2.1217e+19  n2''=    1.2101e+37  n3'''=      3.6299e+55
+  layer_4_gate (Linear W1, ||W1||=1.935)                                 n1'=  4.1045e+19  n2''=    2.3409e+37  n3'''=      7.0221e+55
+  layer_4_up (Linear W3, ||W3||=1.862)                                   n1'=  3.9509e+19  n2''=    2.2533e+37  n3'''=      6.7593e+55
+  layer_4_swiglu (SiLU⊙up, L1=1.1 L2=0.5 L3=0.308)                       n1'=  1.3659e+21  n2''=    2.6035e+40  n3'''=      6.9407e+59
+  layer_4_mlp_out (Linear W2, ||W2||=1.672)                              n1'=  2.2844e+21  n2''=    4.3541e+40  n3'''=      1.1608e+60
+  layer_4_out (add résiduel MLP)                                         n1'=  2.3057e+21  n2''=    4.3546e+40  n3'''=      1.1608e+60
+  lm_head_out (Linear, ||W||=1.312)                                      n1'=  3.0259e+21  n2''=    5.7148e+40  n3'''=      1.5234e+60
+  final_logits (sélection dernière position, ||.||=1, exact)             n1'=  3.0259e+21  n2''=    5.7148e+40  n3'''=      1.5234e+60
+  phi(eps) = dl_logit_diff (fonctionnelle linéaire, ||v||=sqrt(2), exact) n1'=  4.2793e+21  n2''=    8.0819e+40  n3'''=      2.1544e+60
+
+════════════════════════════════════════════════════════════════════════════════════════════
+PARTIE 3 -- BORNE FINALE vs ERREUR RÉELLE
+════════════════════════════════════════════════════════════════════════════════════════════
+sup|phi'''(eps)| <= 2.154352e+60   (borne compositionnelle, interval-propagation-based, ci-dessus)
+Borne d'erreur IG_8 correspondante : sup|phi'''|/(24*K^2) = 2.154352e+60 / 1536 = 1402572836654511826622322512058046036452517445039713943552.000000
+
+Erreur RÉELLE mesurée (référence, script précédent) |err_IG_8| = 2.9720
+Borne PROXY empirique M3/(24K^2) (script précédent, 6 pts intérieurs)  = 3.1717
+Borne ANALYTIQUE (ce script, compositionnelle, sans échantillonner phi) = 1402572836654511826622322512058046036452517445039713943552.000000
+
+Ratio borne_analytique / erreur_réelle  = 4.719e+56
+Ratio borne_analytique / borne_proxy_M3 = 4.422e+56
+
+════════════════════════════════════════════════════════════════════════════════════════════
+VERDICT
+════════════════════════════════════════════════════════════════════════════════════════════
+La borne analytique compositionnelle est FINIE (grâce à la propagation d'intervalle réelle,
+sans laquelle RMSNorm seul la rendrait infinie) mais TRÈS LÂCHE : plusieurs ordres de grandeur
+au-dessus de l'erreur réelle. Correcte (valide, aucune violation), mais économiquement inutile
+comme certificat pratique -- confirme l'issue attendue pour une composition de plusieurs
+couches softmax+RMSNorm+SwiGLU par inégalités successives (dégradation multiplicative typique).
+
+Décomposition de la dégradation (voir tableau détaillé ci-dessus) : identifier à quelle étape
+n3 explose donne l'origine dominante de la perte de rigueur (composition Faà-di-Bruno cubique en
+n1, normes d'opérateur des poids réels, ou relâchements bilinéaires Q.K^T/P.V).

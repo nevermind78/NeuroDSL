@@ -1,0 +1,36 @@
+RELAIS JVP -- COÛT RÉEL (GPU chronométré) : ablation directe au site peu
+profond s VS ablation élaguée (prune_frozen) au site profond t + relais
+JVP (Corollaire jvp), sur le modèle entraîné réel (Qwen2.5-1.5B-Instruct).
+Date : 2026-08-18T13:30:24Z
+
+Chargement du checkpoint natif...
+
+Feuilles paramètres trouvées : 28 couches, 12..12 feuilles/couche
+Prompt : "If a train travels 60 miles in 2 hours, " (n=16 tokens)
+
+Passe backward COMPLÈTE (is_param depuis couche 1, réseau entier, prune_frozen=true) :
+  médiane sur 8 = 973.715 ms
+
+============================================================================================
+ANCRE t = layer_16_mha_output_out (pos=31, B(t)=26)   vs   s = layer_1_mha_output_out (B(s)=56)
+  PORTE  g^(t) élagué == g^(t) plein réseau : max|diff| = 0.000e+00 OK
+  Exactitude relais : erreur médiane=1.6083e-05  max=1.0683e+00  (q_j^(s) médian=1.4469e-01, 26 branches)
+  Passe élaguée (is_param depuis couche 16)  : médiane sur 8 = 959.111 ms  (ratio vs pleine = 0.9850, B(t)/B(s)=0.4643)
+  Relais JVP (2 passes forward s->t)         : médiane sur 8 = 199.118 ms
+  Coût DIRECT (mesuré, isolé x compté)  = (B(t)+1)*ms_full                = (26+1)*973.715 = 26290.3 ms
+  Coût RELAIS (mesuré, isolé x compté)  = ms_full + B(t)*ms_pruned + ms_jvp = 973.715 + 26*959.111 + 199.118 = 26109.7 ms
+  SPEEDUP prédit (passes isolées, chronométrées séparément, amorti sur CETTE seule ancre) = 1.007x
+
+============================================================================================
+ANCRE t = layer_22_mha_output_out (pos=43, B(t)=14)   vs   s = layer_1_mha_output_out (B(s)=56)
+  PORTE  g^(t) élagué == g^(t) plein réseau : max|diff| = 0.000e+00 OK
+  Exactitude relais : erreur médiane=1.7494e-05  max=9.6429e-01  (q_j^(s) médian=1.5155e-01, 14 branches)
+  Passe élaguée (is_param depuis couche 22)  : médiane sur 8 = 793.696 ms  (ratio vs pleine = 0.8151, B(t)/B(s)=0.2500)
+  Relais JVP (2 passes forward s->t)         : médiane sur 8 = 189.392 ms
+  Coût DIRECT (mesuré, isolé x compté)  = (B(t)+1)*ms_full                = (14+1)*973.715 = 14605.7 ms
+  Coût RELAIS (mesuré, isolé x compté)  = ms_full + B(t)*ms_pruned + ms_jvp = 973.715 + 14*793.696 + 189.392 = 12274.8 ms
+  SPEEDUP prédit (passes isolées, chronométrées séparément, amorti sur CETTE seule ancre) = 1.190x
+
+============================================================================================
+ANCRE t = layer_26_mha_output_out (pos=51, B(t)=6)   vs   s = layer_1_mha_output_out (B(s)=56)
+  PORTE  g^(t) élagué == g^(t) plein réseau : max|diff| = 0.000e+00 OK
