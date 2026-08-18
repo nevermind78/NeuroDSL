@@ -493,6 +493,19 @@ une seule ligne/position (`out[j:j,:]` -- voir `position_patch_cache`) quand
 la sortie entière noierait le signal d'un effet localisé à une seule position
 dans une longue séquence.
 
+`round1_candidates` (défaut `nothing`, comportement inchangé) : si fourni,
+restreint UNIQUEMENT le balayage du round 1 à ce sous-ensemble de
+`candidates` (ex. un filtre `Δ_j` bon marché, voir
+`notebook/bench_eps_round1_only_prefilter_check.jl`) -- tous les rounds
+suivants continuent de balayer `remaining` en entier, sans aucune
+restriction. `remaining` lui-même n'est jamais réduit par ce paramètre : les
+candidats écartés du round 1 redeviennent éligibles dès le round 2. Ajouté
+comme paramètre additif pur pour éviter de dupliquer la boucle gloutonne
+dans du code appelant -- une duplication risquerait de recréer le bug de
+"patch effacé silencieusement" corrigé le 2026-07-10 (voir note ci-dessous),
+puisque `selected` ne peut pas être ré-injecté correctement entre deux
+appels séparés à cette fonction.
+
 Bug corrigé le 2026-07-10 (trouvé par analyse du code, confirmé par test
 avant correction) : la mesure "par-dessus les sites déjà retenus" ne
 réappliquait jamais leurs patches après le patch du candidat -- si le
@@ -512,17 +525,20 @@ retenu reste effectivement patché pendant toute mesure ultérieure.
 function greedy_patch_search!(g::NeuroGraph, output_sym::Symbol, candidates,
                                clean_cache, corrupted_cache, clean_output, corrupted_output;
                                max_sites::Int=length(candidates), namespace::Symbol=g.active_ns,
-                               metric::Union{Nothing,Function}=nothing)
+                               metric::Union{Nothing,Function}=nothing,
+                               round1_candidates=nothing)
     selected = Symbol[]
     remaining = collect(candidates)
     trajectory = NamedTuple[]
     best_so_far = 0.0
     selected_cone_union = Set{Symbol}()
 
-    for _ in 1:max_sites
+    for round_idx in 1:max_sites
         best_site = nothing
         best_recovery = best_so_far
-        for cand in remaining
+        sweep_set = (round_idx == 1 && round1_candidates !== nothing) ?
+            filter(s -> s in round1_candidates, remaining) : remaining
+        for cand in sweep_set
             cand_cone = _downstream_nodes(g, cand, namespace)
             # Épingle le candidat ET tous les sites déjà retenus, ensemble,
             # dans l'ordre topologique -- garantit que la mesure qui suit
