@@ -1,3 +1,10 @@
 CALIBRATION -- forward-pass ms vs window length, Qwen2.5-1.5B-Instruct, real GPU.
 Date : 2026-08-20T05:54:35Z
 VRAM before checkpoint load : 1321 MiB, 16384 MiB, 14853 MiB
+Held-out corpus tokens available : 14977
+Checkpoint loaded in 9.81 s
+VRAM after checkpoint load : 8272 MiB, 16384 MiB, 7902 MiB
+Confirmed logits symbol :lm_head_out present in loaded graph.
+
+================================================================================
+FORWARD-ONLY timing (median of 5, +2 warmup), by window length
