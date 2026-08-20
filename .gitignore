@@ -166,11 +166,11 @@ notebook/*.pdf
 !notebook/GPT2.ipynb
 
 # Guides de reproduction
-#!docs/*.md
+!docs/*.md
 
 # ── Gros artefacts générés, retirés du suivi le 2026-08-08 ─────────────────
 # Aucun n'est nécessaire pour rejouer une expérience : tous se régénèrent, et
 # ensemble ils pesaient 83 des 127 Mo suivis.
-docs/*.html
+#docs/*.html
 notebook/p4_export/*.bin
 *.bak
