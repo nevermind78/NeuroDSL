@@ -1,6 +1,6 @@
 VÉRIFICATION PAR DIFFÉRENCE FINIE (JVP) DE L'IDENTITÉ h_s = J_Phi(x_s) g^(s)
 SUR LE MODÈLE ENTRAÎNÉ RÉEL (Qwen2.5-1.5B-Instruct).
-Date : 2026-08-15T13:45:24Z
+Date : 2026-08-18T16:20:36Z
 
 Chargement du checkpoint natif...
 
@@ -11,20 +11,76 @@ Grille eps : 0.01, 0.001, 0.0001
 [correctif] nœud forward perturbé  s_fwd = layer_1_res1 (pas layer_1_mha_output_out)
 [correctif] nœud forward lu         t_fwd = layer_13_res1 (pas layer_13_mha_output_out)
 
-Promts traités : 1 (indices If a train travels 6)
+Promts traités : 6 (indices The capital of Franc | SELECT name FROM use | Question: Who wrote  | The capital of the c | The capital of the c | It was a bright cold)
 
 ============================================================================================
 
---- prompt 6 (n=16 tokens) : "If a train travels 60 miles in 2 hours, " ---
-  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 4.205668e+03
-  ||g_s||=3.5131e-01 (D_s=24576)  ||g_t||=2.9438e-01 (D=24576)  ||x_s||=4.9437e+01
-  q_j^(s) mesuré directement : médiane=8.1568e-02  max|.|=4.2675e-01
+--- prompt 1 (n=5 tokens) : "The capital of France is" ---
+  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 6.092306e+03
+  ||g_s||=1.1485e+00 (D_s=7680)  ||g_t||=2.9760e-01 (D=7680)  ||x_s||=2.8190e+01
+  q_j^(s) mesuré directement : médiane=3.0972e-02  max|.|=4.6938e-01
 
   eps           err médiane        err max eps/||x_s||
   ------------------------------------------------------
-  1.0e-02        1.0962e-05     1.0020e+00   2.02e-04   ||hs_hat||=1.174e+01  cos(g_t,hs_hat)=0.0357
-  1.0e-03        1.2809e-04     1.0020e+00   2.02e-05   ||hs_hat||=1.175e+01  cos(g_t,hs_hat)=0.0357
-  1.0e-04        1.0718e-03     1.0020e+00   2.02e-06   ||hs_hat||=8.361e+00  cos(g_t,hs_hat)=0.0508
+  1.0e-02        2.2473e-05     9.8913e-01   3.55e-04   ||hs_hat||=3.415e+01  cos(g_t,hs_hat)=0.1297
+  1.0e-03        3.6243e-05     9.8913e-01   3.55e-05   ||hs_hat||=3.413e+01  cos(g_t,hs_hat)=0.1299
+  1.0e-04        6.1073e-04     9.8913e-01   3.55e-06   ||hs_hat||=3.455e+01  cos(g_t,hs_hat)=0.1284
+
+--- prompt 11 (n=7 tokens) : "SELECT name FROM users WHERE id =" ---
+  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 3.827576e+03
+  ||g_s||=1.1902e+00 (D_s=10752)  ||g_t||=2.9648e-01 (D=10752)  ||x_s||=3.6312e+01
+  q_j^(s) mesuré directement : médiane=2.3294e-02  max|.|=1.8359e-01
+
+  eps           err médiane        err max eps/||x_s||
+  ------------------------------------------------------
+  1.0e-02        5.2830e-06     9.8480e-01   2.75e-04   ||hs_hat||=7.685e+02  cos(g_t,hs_hat)=0.0062
+  1.0e-03        4.1474e-05     9.8480e-01   2.75e-05   ||hs_hat||=7.696e+02  cos(g_t,hs_hat)=0.0062
+  1.0e-04        3.6317e-04     9.8480e-01   2.75e-06   ||hs_hat||=7.646e+02  cos(g_t,hs_hat)=0.0063
+
+--- prompt 18 (n=9 tokens) : "Question: Who wrote Hamlet?
+Answer:" ---
+  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 4.418872e+03
+  ||g_s||=1.5068e+00 (D_s=13824)  ||g_t||=6.2771e-01 (D=13824)  ||x_s||=3.8879e+01
+  q_j^(s) mesuré directement : médiane=4.0843e-02  max|.|=9.0524e-01
+
+  eps           err médiane        err max eps/||x_s||
+  ------------------------------------------------------
+  1.0e-02        6.3459e-06     1.0261e+00   2.57e-04   ||hs_hat||=3.003e+01  cos(g_t,hs_hat)=0.1204
+  1.0e-03        1.0633e-04     1.0261e+00   2.57e-05   ||hs_hat||=3.009e+01  cos(g_t,hs_hat)=0.1202
+  1.0e-04        7.1479e-04     1.0261e+00   2.57e-06   ||hs_hat||=3.027e+01  cos(g_t,hs_hat)=0.1190
+
+--- prompt 4 (n=11 tokens) : "The capital of the country famous for ra" ---
+  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 1.099017e+04
+  ||g_s||=6.3649e-01 (D_s=16896)  ||g_t||=2.0304e-01 (D=16896)  ||x_s||=4.1722e+01
+  q_j^(s) mesuré directement : médiane=3.9466e-02  max|.|=2.8415e-01
+
+  eps           err médiane        err max eps/||x_s||
+  ------------------------------------------------------
+  1.0e-02        9.0711e-06     1.0077e+00   2.40e-04   ||hs_hat||=8.639e+01  cos(g_t,hs_hat)=0.0231
+  1.0e-03        3.9414e-05     1.0077e+00   2.40e-05   ||hs_hat||=8.572e+01  cos(g_t,hs_hat)=0.0233
+  1.0e-04        6.3232e-04     1.0077e+00   2.40e-06   ||hs_hat||=8.011e+01  cos(g_t,hs_hat)=0.0247
+
+--- prompt 5 (n=13 tokens) : "The capital of the country where the Eif" ---
+  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 2.912794e+03
+  ||g_s||=4.6257e-01 (D_s=19968)  ||g_t||=1.3919e-01 (D=19968)  ||x_s||=4.3746e+01
+  q_j^(s) mesuré directement : médiane=4.4793e-02  max|.|=4.0537e-01
+
+  eps           err médiane        err max eps/||x_s||
+  ------------------------------------------------------
+  1.0e-02        1.1829e-05     9.6600e-01   2.29e-04   ||hs_hat||=1.781e+01  cos(g_t,hs_hat)=0.0863
+  1.0e-03        5.0049e-05     9.6600e-01   2.29e-05   ||hs_hat||=1.787e+01  cos(g_t,hs_hat)=0.0861
+  1.0e-04        4.4979e-04     9.6600e-01   2.29e-06   ||hs_hat||=1.869e+01  cos(g_t,hs_hat)=0.0821
+
+--- prompt 12 (n=14 tokens) : "It was a bright cold day in April, and t" ---
+  [vérif] ||Phi(x_s+bruit)-Phi(x_s)|| après correctif (doit être >> 0) = 5.286651e+03
+  ||g_s||=8.9770e-01 (D_s=21504)  ||g_t||=3.5269e-01 (D=21504)  ||x_s||=4.6441e+01
+  q_j^(s) mesuré directement : médiane=1.0289e-01  max|.|=5.1002e-01
+
+  eps           err médiane        err max eps/||x_s||
+  ------------------------------------------------------
+  1.0e-02        1.1147e-05     9.8885e-01   2.15e-04   ||hs_hat||=9.878e+01  cos(g_t,hs_hat)=0.0231
+  1.0e-03        8.4198e-05     9.8885e-01   2.15e-05   ||hs_hat||=9.926e+01  cos(g_t,hs_hat)=0.0230
+  1.0e-04        8.3581e-04     9.8885e-01   2.15e-06   ||hs_hat||=9.718e+01  cos(g_t,hs_hat)=0.0236
 
 ============================================================================================
 RÉSUMÉ AGRÉGÉ SUR TOUS LES PROMPTS
@@ -32,15 +88,15 @@ RÉSUMÉ AGRÉGÉ SUR TOUS LES PROMPTS
 
 eps           err médiane        err max
 ----------------------------------------
-1.0e-02        1.0962e-05     1.0020e+00
-1.0e-03        1.2809e-04     1.0020e+00
-1.0e-04        1.0718e-03     1.0020e+00
+1.0e-02        1.0109e-05     1.0261e+00
+1.0e-03        4.5762e-05     1.0261e+00
+1.0e-04        6.2153e-04     1.0261e+00
 
 Ordre empirique de convergence (pente de log10(erreur médiane) vs log10(eps),
 régression linéaire sur toute la grille -- attendu proche de 2 avant plancher flottant) :
-  pente globale (tous points) = -0.995
-  pente locale  1.0e-02 ->  1.0e-03 : -1.068
-  pente locale  1.0e-03 ->  1.0e-04 : -0.923
+  pente globale (tous points) = -0.894
+  pente locale  1.0e-02 ->  1.0e-03 : -0.656
+  pente locale  1.0e-03 ->  1.0e-04 : -1.133
 
 Si la pente locale est proche de 2 pour eps grand puis s'effondre (voire devient
 négative/instable) pour eps petit, c'est la signature attendue d'une différence

@@ -169,8 +169,13 @@ open(OUT, "w") do io
     emit(@sprintf("\n[correctif] nœud forward perturbé  s_fwd = %s (pas %s)", S_FWD_SYM, S_SYM))
     emit(@sprintf("[correctif] nœud forward lu         t_fwd = %s (pas %s)", T_FWD_SYM, T_SYM))
 
-    order = sortperm([length(p["token_ids"]) for p in prompts]; rev=true)
-    to_process = order[1:min(N_PROMPTS, length(order))]
+    explicit_idxs = get(ENV, "JVP_PROMPT_IDXS", "")
+    if !isempty(explicit_idxs)
+        to_process = parse.(Int, split(explicit_idxs, ","))
+    else
+        order = sortperm([length(p["token_ids"]) for p in prompts]; rev=true)
+        to_process = order[1:min(N_PROMPTS, length(order))]
+    end
 
     emit(@sprintf("\nPromts traités : %d (indices %s)", length(to_process),
                   join([prompts[k]["prompt"][1:min(20,end)] for k in to_process], " | ")))

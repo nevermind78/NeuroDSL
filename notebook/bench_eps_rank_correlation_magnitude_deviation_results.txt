@@ -1,0 +1,37 @@
+CORRELATION DE RANG : |q_j| (magnitude au site s=1) vs |q_j^(s)-q_j^(t)| (deviation cross-site)
+Site de reference s : site_pos=1 (layer_1_mha_output_out, cone plein)
+Sites profonds t testes : site_pos in [8, 13, 16, 21, 25, 33, 45, 55]
+Prompts : 22 (tous ceux du CSV)
+============================================================================================
+
+Total (prompt, paire de sites) exploitables : 154
+
+--- Spearman(magnitude, deviation ABSOLUE |q^s-q^t|) ---
+  min=-0.126  q25=0.308  median=0.430  q75=0.542  max=0.858  moyenne=0.429  std=0.180
+
+--- Spearman(magnitude, deviation SYMETRIQUE NORMALISEE) ---
+  min=-0.895  q25=-0.592  median=-0.506  q75=-0.365  max=0.357  moyenne=-0.476  std=0.200
+
+Detail par paire de sites (site_pos_t), moyenne +/- std sur les 22 prompts :
+   t_pos   n_branches_cone(t)    rho_raw (moy+/-std)   rho_norm (moy+/-std)
+       8                   49      0.510 +/- 0.176       -0.455 +/- 0.126  
+      13                   44      0.426 +/- 0.141       -0.524 +/- 0.139  
+      16                   41      0.484 +/- 0.169       -0.460 +/- 0.142  
+      21                   36      0.413 +/- 0.153       -0.514 +/- 0.164  
+      25                   32      0.362 +/- 0.152       -0.521 +/- 0.155  
+      33                   24      0.395 +/- 0.184       -0.487 +/- 0.193  
+      45                   12      0.414 +/- 0.224       -0.368 +/- 0.345  
+
+============================================================================================
+INTERPRETATION
+============================================================================================
+Mediane observee : rho_raw=0.430, rho_norm=-0.506.
+Estimation conversationnelle prealable : 0.80-0.91.
+-> La correlation mesuree est PLUS FAIBLE que l'estimation conversationnelle :
+   l'hypothese ne tient pas aussi fort que ce qui avait ete avance a la louche.
+Rappel : rho_raw n'est pas normalise -- une branche de grande magnitude a mecaniquement
+plus de marge pour deriver en valeur absolue (deviation bornee par la magnitude elle-meme
+aux sites profonds ou q change de signe). rho_norm controle partiellement cet artefact
+d'echelle ; l'ecart entre les deux mesure la part de la correlation due au seul effet
+d'echelle plutot qu'a une vraie instabilite relative de rang plus grande pour les grandes
+branches.

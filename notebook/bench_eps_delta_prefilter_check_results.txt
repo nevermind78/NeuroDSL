@@ -1,0 +1,49 @@
+Checkpoint : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\marker_ckpt\marker_task  (existant : true)
+sigma = [3, 5, 7, 6, 2, 1, 8, 4]
+Séquence exemple : ([6, 7, 5, 4, 4, 2, 9, 4], [7, 5, 4, 4, 2, 9, 4, 2], :A, 4, 2)
+======================================================================
+Config : V=8 N_PAIRS=3 | 1 pas d'optimiseur x batch 2 | lr=0.001
+Temps d'entraînement : 19.9 s
+  loss moyenne (position finale) des pas 1-1 : 2.748489737510681
+P1 -- acc_A = 0.11290322580645161   acc_B = 0.1261682242990654
+Seuil requis (P1) : les deux >= 0.95
+Chargement du checkpoint : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\marker_ckpt\marker_task
+P1 (gate, checkpoint) : acc_A = 1.0   acc_B = 1.0
+Candidats (20) : [:layer_1_mha_ao_h1, :layer_1_mha_ao_h2, :layer_1_mha_ao_h3, :layer_1_mha_ao_h4, :layer_1_mlp_out, :layer_2_mha_ao_h1, :layer_2_mha_ao_h2, :layer_2_mha_ao_h3, :layer_2_mha_ao_h4, :layer_2_mlp_out, :layer_3_mha_ao_h1, :layer_3_mha_ao_h2, :layer_3_mha_ao_h3, :layer_3_mha_ao_h4, :layer_3_mlp_out, :layer_4_mha_ao_h1, :layer_4_mha_ao_h2, :layer_4_mha_ao_h3, :layer_4_mha_ao_h4, :layer_4_mlp_out]
+
+  Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4
+    dl_donneur = 3.225   dl_receveur = -10.078
+    Δ_j classés (desc.) : [("layer_2_mlp_out", 15.341), ("layer_3_mlp_out", 14.218), ("layer_1_mlp_out", 12.944), ("layer_3_mha_ao_h3", 8.063), ("layer_4_mlp_out", 7.646), ("layer_1_mha_ao_h4", 7.45), ("layer_3_mha_ao_h2", 5.622), ("layer_3_mha_ao_h4", 5.505), ("layer_2_mha_ao_h4", 5.482), ("layer_1_mha_ao_h2", 4.685), ("layer_3_mha_ao_h1", 4.12), ("layer_2_mha_ao_h3", 4.059), ("layer_1_mha_ao_h1", 3.574), ("layer_4_mha_ao_h4", 2.431), ("layer_2_mha_ao_h2", 2.265), ("layer_4_mha_ao_h3", 2.25), ("layer_4_mha_ao_h1", 1.268), ("layer_1_mha_ao_h3", 1.041), ("layer_2_mha_ao_h1", 0.916), ("layer_4_mha_ao_h2", 0.399)]
+    Rang de layer_1_mlp_out par Δ_j : 3 / 20
+    Greedy : [("layer_1_mlp_out", 0.873), ("layer_2_mlp_out", 0.967), ("layer_1_mha_ao_h1", 0.995), ("layer_3_mlp_out", 1.014), ("layer_4_mlp_out", 1.036), ("layer_3_mha_ao_h2", 1.038)]
+    Après backward_prune! : [:layer_1_mlp_out, :layer_3_mlp_out, :layer_3_mha_ao_h2]  (élagués : [:layer_2_mlp_out, :layer_1_mha_ao_h1, :layer_4_mlp_out])
+
+  Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2
+    dl_donneur = 11.95   dl_receveur = -14.006
+    Δ_j classés (desc.) : [("layer_1_mlp_out", 26.533), ("layer_2_mha_ao_h4", 10.894), ("layer_2_mlp_out", 9.98), ("layer_1_mha_ao_h4", 9.272), ("layer_2_mha_ao_h2", 8.13), ("layer_3_mha_ao_h2", 7.567), ("layer_4_mlp_out", 7.531), ("layer_2_mha_ao_h1", 7.404), ("layer_3_mha_ao_h3", 7.366), ("layer_1_mha_ao_h2", 7.031), ("layer_3_mha_ao_h4", 5.72), ("layer_3_mha_ao_h1", 5.287), ("layer_2_mha_ao_h3", 4.436), ("layer_1_mha_ao_h1", 3.517), ("layer_4_mha_ao_h3", 3.226), ("layer_4_mha_ao_h4", 3.047), ("layer_3_mlp_out", 2.202), ("layer_1_mha_ao_h3", 2.055), ("layer_4_mha_ao_h1", 2.014), ("layer_4_mha_ao_h2", 1.306)]
+    Rang de layer_1_mlp_out par Δ_j : 1 / 20
+    Greedy : [("layer_1_mlp_out", 0.998), ("layer_1_mha_ao_h1", 1.031), ("layer_3_mha_ao_h1", 1.038), ("layer_1_mha_ao_h4", 1.041), ("layer_2_mha_ao_h4", 1.043), ("layer_3_mha_ao_h2", 1.044)]
+    Après backward_prune! : [:layer_1_mlp_out]  (élagués : [:layer_1_mha_ao_h1, :layer_3_mha_ao_h1, :layer_1_mha_ao_h4, :layer_2_mha_ao_h4, :layer_3_mha_ao_h2])
+
+  Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8
+    dl_donneur = 9.229   dl_receveur = -13.182
+    Δ_j classés (desc.) : [("layer_2_mha_ao_h2", 13.425), ("layer_1_mlp_out", 12.416), ("layer_3_mha_ao_h3", 9.983), ("layer_2_mha_ao_h3", 8.993), ("layer_3_mha_ao_h2", 8.744), ("layer_1_mha_ao_h4", 8.127), ("layer_3_mlp_out", 7.684), ("layer_4_mlp_out", 6.235), ("layer_1_mha_ao_h2", 5.763), ("layer_2_mha_ao_h1", 5.727), ("layer_2_mlp_out", 5.605), ("layer_3_mha_ao_h4", 4.25), ("layer_3_mha_ao_h1", 3.385), ("layer_4_mha_ao_h3", 2.998), ("layer_1_mha_ao_h1", 2.438), ("layer_4_mha_ao_h1", 2.374), ("layer_4_mha_ao_h4", 2.239), ("layer_1_mha_ao_h3", 1.372), ("layer_2_mha_ao_h4", 1.338), ("layer_4_mha_ao_h2", 1.226)]
+    Rang de layer_1_mlp_out par Δ_j : 2 / 20
+    Greedy : [("layer_1_mlp_out", 0.892), ("layer_1_mha_ao_h4", 0.948), ("layer_1_mha_ao_h2", 1.004), ("layer_1_mha_ao_h3", 1.01), ("layer_2_mha_ao_h2", 1.012), ("layer_3_mha_ao_h4", 1.014)]
+    Après backward_prune! : [:layer_1_mha_ao_h4, :layer_1_mha_ao_h2]  (élagués : [:layer_1_mlp_out, :layer_1_mha_ao_h3, :layer_2_mha_ao_h2, :layer_3_mha_ao_h4])
+
+══════════════════════════════════════════════════════════════════════
+BILAN
+  Sites JAMAIS sélectionnés par aucun round d'aucune des 3 paires (7/20) : [:layer_2_mha_ao_h1, :layer_2_mha_ao_h3, :layer_3_mha_ao_h3, :layer_4_mha_ao_h1, :layer_4_mha_ao_h2, :layer_4_mha_ao_h3, :layer_4_mha_ao_h4]
+  Paire k=1 : seuil sûr Δ >= 3.574 -> 7/20 candidats filtrables sans risque, économie = 42/105 évaluations forward (round-par-round, phase greedy).
+    ⚠ FAUX-NÉGATIF POSSIBLE : layer_1_mha_ao_h1 sélectionné avec Δ_j=3.574 < médiane 4.12
+  Paire k=2 : seuil sûr Δ >= 3.517 -> 6/20 candidats filtrables sans risque, économie = 36/105 évaluations forward (round-par-round, phase greedy).
+    ⚠ FAUX-NÉGATIF POSSIBLE : layer_1_mha_ao_h1 sélectionné avec Δ_j=3.517 < médiane 5.72
+    ⚠ FAUX-NÉGATIF POSSIBLE : layer_3_mha_ao_h1 sélectionné avec Δ_j=5.287 < médiane 5.72
+  Paire k=7 : seuil sûr Δ >= 1.372 -> 2/20 candidats filtrables sans risque, économie = 12/105 évaluations forward (round-par-round, phase greedy).
+    ⚠ FAUX-NÉGATIF POSSIBLE : layer_1_mha_ao_h3 sélectionné avec Δ_j=1.372 < médiane 5.605
+    ⚠ FAUX-NÉGATIF POSSIBLE : layer_3_mha_ao_h4 sélectionné avec Δ_j=4.25 < médiane 5.605
+
+  TOTAL (3 paires, phase greedy seule) : 90 / 315 évaluations économisées (28.6%).
+  Faux-négatif détecté sur les données réelles : OUI
+══════════════════════════════════════════════════════════════════════

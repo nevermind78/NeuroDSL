@@ -1,0 +1,68 @@
+Checkpoint : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\marker_ckpt\marker_task  (existant : true)
+sigma = [3, 5, 7, 6, 2, 1, 8, 4]
+Séquence exemple : ([6, 7, 5, 4, 4, 2, 9, 4], [7, 5, 4, 4, 2, 9, 4, 2], :A, 4, 2)
+======================================================================
+Config : V=8 N_PAIRS=3 | 1 pas d'optimiseur x batch 2 | lr=0.001
+Temps d'entraînement : 19.6 s
+  loss moyenne (position finale) des pas 1-1 : 2.7611814737319946
+P1 -- acc_A = 0.03763440860215054   acc_B = 0.04672897196261682
+Seuil requis (P1) : les deux >= 0.95
+Chargement du checkpoint : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\marker_ckpt\marker_task
+P1 (gate, checkpoint) : acc_A = 1.0   acc_B = 1.0
+Candidats (20) : [:layer_1_mha_ao_h1, :layer_1_mha_ao_h2, :layer_1_mha_ao_h3, :layer_1_mha_ao_h4, :layer_1_mlp_out, :layer_2_mha_ao_h1, :layer_2_mha_ao_h2, :layer_2_mha_ao_h3, :layer_2_mha_ao_h4, :layer_2_mlp_out, :layer_3_mha_ao_h1, :layer_3_mha_ao_h2, :layer_3_mha_ao_h3, :layer_3_mha_ao_h4, :layer_3_mlp_out, :layer_4_mha_ao_h1, :layer_4_mha_ao_h2, :layer_4_mha_ao_h3, :layer_4_mha_ao_h4, :layer_4_mlp_out]
+
+  Paire 1 : k=1 sigma(k)=3 v(k)=8 v(sigma(k))=4
+    [BASELINE] Greedy : [("layer_1_mlp_out", 0.873), ("layer_2_mlp_out", 0.967), ("layer_1_mha_ao_h1", 0.995), ("layer_3_mlp_out", 1.014), ("layer_4_mlp_out", 1.036), ("layer_3_mha_ao_h2", 1.038)]
+    [BASELINE] Évaluations forward (phase greedy) : 105
+    [BASELINE] Après backward_prune! : [:layer_1_mlp_out, :layer_3_mlp_out, :layer_3_mha_ao_h2]  (élagués : [:layer_2_mlp_out, :layer_1_mha_ao_h1, :layer_4_mlp_out])
+    Site retenu au round 1 (baseline) : layer_1_mlp_out, Δ_j = 12.944
+
+  Paire 2 : k=2 sigma(k)=5 v(k)=7 v(sigma(k))=2
+    [BASELINE] Greedy : [("layer_1_mlp_out", 0.998), ("layer_1_mha_ao_h1", 1.031), ("layer_3_mha_ao_h1", 1.038), ("layer_1_mha_ao_h4", 1.041), ("layer_2_mha_ao_h4", 1.043), ("layer_3_mha_ao_h2", 1.044)]
+    [BASELINE] Évaluations forward (phase greedy) : 105
+    [BASELINE] Après backward_prune! : [:layer_1_mlp_out]  (élagués : [:layer_1_mha_ao_h1, :layer_3_mha_ao_h1, :layer_1_mha_ao_h4, :layer_2_mha_ao_h4, :layer_3_mha_ao_h2])
+    Site retenu au round 1 (baseline) : layer_1_mlp_out, Δ_j = 26.533
+
+  Paire 3 : k=7 sigma(k)=8 v(k)=6 v(sigma(k))=8
+    [BASELINE] Greedy : [("layer_1_mlp_out", 0.892), ("layer_1_mha_ao_h4", 0.948), ("layer_1_mha_ao_h2", 1.004), ("layer_1_mha_ao_h3", 1.01), ("layer_2_mha_ao_h2", 1.012), ("layer_3_mha_ao_h4", 1.014)]
+    [BASELINE] Évaluations forward (phase greedy) : 105
+    [BASELINE] Après backward_prune! : [:layer_1_mha_ao_h4, :layer_1_mha_ao_h2]  (élagués : [:layer_1_mlp_out, :layer_1_mha_ao_h3, :layer_2_mha_ao_h2, :layer_3_mha_ao_h4])
+    Site retenu au round 1 (baseline) : layer_1_mlp_out, Δ_j = 12.416
+
+══════════════════════════════════════════════════════════════════════
+SEUIL ROUND-1-SEUL
+  Paire 1 (k=1) : site round 1 = layer_1_mlp_out  Δ_j = 12.944
+  Paire 2 (k=2) : site round 1 = layer_1_mlp_out  Δ_j = 26.533
+  Paire 3 (k=7) : site round 1 = layer_1_mlp_out  Δ_j = 12.416
+  Seuil global sûr round-1-seul (min des 3) = 12.416
+══════════════════════════════════════════════════════════════════════
+
+Rejeu avec filtre round-1-seul (seuil = 12.416) ...
+
+  Paire 1 : k=1 -- round1_candidates = 3/20 (filtre appliqué UNIQUEMENT au round 1)
+    [FILTRÉ]   Greedy : [("layer_1_mlp_out", 0.873), ("layer_2_mlp_out", 0.967), ("layer_1_mha_ao_h1", 0.995), ("layer_3_mlp_out", 1.014), ("layer_4_mlp_out", 1.036), ("layer_3_mha_ao_h2", 1.038)]
+    [FILTRÉ]   Évaluations forward (phase greedy) : 88
+    [FILTRÉ]   Après backward_prune! : [:layer_1_mlp_out, :layer_3_mlp_out, :layer_3_mha_ao_h2]  (élagués : [:layer_2_mlp_out, :layer_1_mha_ao_h1, :layer_4_mlp_out])
+    Identique à la baseline ? selected: true   remaining (circuit final) : true
+    Économie (phase greedy) : 17/105 évaluations (16.2%).
+
+  Paire 2 : k=2 -- round1_candidates = 1/20 (filtre appliqué UNIQUEMENT au round 1)
+    [FILTRÉ]   Greedy : [("layer_1_mlp_out", 0.998), ("layer_1_mha_ao_h1", 1.031), ("layer_3_mha_ao_h1", 1.038), ("layer_1_mha_ao_h4", 1.041), ("layer_2_mha_ao_h4", 1.043), ("layer_3_mha_ao_h2", 1.044)]
+    [FILTRÉ]   Évaluations forward (phase greedy) : 86
+    [FILTRÉ]   Après backward_prune! : [:layer_1_mlp_out]  (élagués : [:layer_1_mha_ao_h1, :layer_3_mha_ao_h1, :layer_1_mha_ao_h4, :layer_2_mha_ao_h4, :layer_3_mha_ao_h2])
+    Identique à la baseline ? selected: true   remaining (circuit final) : true
+    Économie (phase greedy) : 19/105 évaluations (18.1%).
+
+  Paire 3 : k=7 -- round1_candidates = 2/20 (filtre appliqué UNIQUEMENT au round 1)
+    [FILTRÉ]   Greedy : [("layer_1_mlp_out", 0.892), ("layer_1_mha_ao_h4", 0.948), ("layer_1_mha_ao_h2", 1.004), ("layer_1_mha_ao_h3", 1.01), ("layer_2_mha_ao_h2", 1.012), ("layer_3_mha_ao_h4", 1.014)]
+    [FILTRÉ]   Évaluations forward (phase greedy) : 87
+    [FILTRÉ]   Après backward_prune! : [:layer_1_mha_ao_h4, :layer_1_mha_ao_h2]  (élagués : [:layer_1_mlp_out, :layer_1_mha_ao_h3, :layer_2_mha_ao_h2, :layer_3_mha_ao_h4])
+    Identique à la baseline ? selected: true   remaining (circuit final) : true
+    Économie (phase greedy) : 18/105 évaluations (17.1%).
+
+══════════════════════════════════════════════════════════════════════
+BILAN FINAL
+  Circuit final identique à la baseline sur les 3 paires : OUI
+  TOTAL économies (round-1-seul, phase greedy) : 54 / 315 (17.1%).
+  Rappel -- seuil global naïf (script précédent, protège tous les rounds) : 42/315 (13.3%).
+══════════════════════════════════════════════════════════════════════

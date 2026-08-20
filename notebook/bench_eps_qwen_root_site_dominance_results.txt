@@ -1,0 +1,18 @@
+DOMINANCE AU SITE RACINE (:tok_out) -- Qwen2.5-1.5B-Instruct, modèle réel
+Réplique le protocole embed_sum du marker task (is_param=true sur le nœud
+littéral, q_j = 1 - <g0,gbase>/||gbase||^2, ablation eps in {0,1} par branche).
+Date : 2026-08-18T18:12:58Z
+
+Chargement du checkpoint natif...
+Chargé en 11.0s.
+Vérification structurelle : layer_1_res1 = add(tok_out, layer_1_mha_output_out)  attendu add(tok_out, layer_1_mha_output_out)  OK
+Branches : B=56 (28 couches x 2)
+
+══════════════════════════════════════════════════════════════════════════════
+PORTES DE CORRECTION (prompt de gabarit)
+══════════════════════════════════════════════════════════════════════════════
+G1 forward bit-identique (réencâblé eps=1 vs gabarit)      : OK  (max|diff|=0.000e+00)
+G2 gradient à :tok_out bit-identique (eps=1 vs gabarit)     : OK  (max|diff|=0.000e+00)
+G3 ablation branche#1 change le gradient (sanity, doit être >>0) : OK  (max|diff|=2.991e+00)
+
+✓ Toutes les portes passent -- les q_j ci-dessous sont lisibles.
