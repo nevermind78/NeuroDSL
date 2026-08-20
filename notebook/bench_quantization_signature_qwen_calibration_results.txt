@@ -8,3 +8,5 @@ Confirmed logits symbol :lm_head_out present in loaded graph.
 
 ================================================================================
 FORWARD-ONLY timing (median of 5, +2 warmup), by window length
+  W= 256 tokens : median =  1892.61 ms   samples(ms) = [1378.6, 2272.8, 2108.3, 1856.2, 1892.6]   [VRAM: 8272 MiB, 16384 MiB, 7902 MiB]
+  W= 512 tokens : median =  1871.91 ms   samples(ms) = [1706.4, 2183.0, 1894.0, 1871.9, 1856.8]   [VRAM: 10289 MiB, 16384 MiB, 5885 MiB]
