@@ -1,0 +1,82 @@
+Module de croissance chargé. Prêt pour le pilote (voir growth_jalon0_pilot.jl).
+
+======================================================================
+>>> Entraînement L1_seed1 (20000 pas)
+======================================================================
+  entraînement : 205.7s   val_loss(64 fenêtres) = 1.7422   (référence campagne, seed1 = 1.7346)
+  extraction perte par position : 1.6s, 111360 positions (mean=1.7632, std=1.7395)
+  [RAW]      ΔBIC=-52280.82  D=1.827  w=(0.285,0.715)  mu=(0.1965,2.3891)  fires=false
+  [RESIDUAL] ΔBIC=-18032.37  D=1.242  w=(0.902,0.098)  mu=(-0.2408,2.2242)  fires=false   (coef: intercept=-0.2623, freq=0.6723, log_pos=-0.0494)
+
+======================================================================
+>>> Entraînement L1_seed2 (20000 pas)
+======================================================================
+  entraînement : 225.2s   val_loss(64 fenêtres) = 1.7250   (référence campagne, seed1 = 1.7346)
+  extraction perte par position : 1.7s, 111360 positions (mean=1.7332, std=1.6582)
+  [RAW]      ΔBIC=-48605.77  D=1.835  w=(0.234,0.766)  mu=(0.1363,2.2214)  fires=false
+  [RESIDUAL] ΔBIC=-13675.50  D=1.147  w=(0.914,0.086)  mu=(-0.1891,2.0139)  fires=false   (coef: intercept=-0.3246, freq=0.6767, log_pos=-0.0454)
+
+======================================================================
+>>> Entraînement L4_seed1 (20000 pas)
+======================================================================
+  entraînement : 571.6s   val_loss(64 fenêtres) = 1.6760   (référence campagne, seed1 = 1.6867)
+  extraction perte par position : 4.1s, 111360 positions (mean=1.7029, std=1.9156)
+  [RAW]      ΔBIC=-75793.37  D=1.573  w=(0.233,0.767)  mu=(0.0577,2.2021)  fires=false
+  [RESIDUAL] ΔBIC=-30456.93  D=1.340  w=(0.931,0.069)  mu=(-0.2350,3.1763)  fires=false   (coef: intercept=-0.4809, freq=0.7232, log_pos=-0.0519)
+
+======================================================================
+>>> Entraînement L4_seed2 (20000 pas)
+======================================================================
+  entraînement : 572.9s   val_loss(64 fenêtres) = 1.6264   (référence campagne, seed1 = 1.6867)
+  extraction perte par position : 3.8s, 111360 positions (mean=1.6368, std=1.7226)
+  [RAW]      ΔBIC=-75348.46  D=1.700  w=(0.224,0.776)  mu=(0.0503,2.0938)  fires=false
+  [RESIDUAL] ΔBIC=-17605.39  D=1.228  w=(0.894,0.106)  mu=(-0.2482,2.0904)  fires=false   (coef: intercept=-0.4762, freq=0.7015, log_pos=-0.0516)
+
+======================================================================
+>>> Entraînement L16_seed1 (10000 pas)
+======================================================================
+  entraînement : 960.1s   val_loss(64 fenêtres) = 1.6844   (référence campagne, seed1 = 1.7194)
+  extraction perte par position : 13.0s, 111360 positions (mean=1.7165, std=1.6800)
+  [RAW]      ΔBIC=-56306.33  D=1.807  w=(0.223,0.777)  mu=(0.0955,2.1824)  fires=false
+  [RESIDUAL] ΔBIC=-14383.36  D=1.224  w=(0.863,0.137)  mu=(-0.2866,1.8028)  fires=false   (coef: intercept=-0.2756, freq=0.6843, log_pos=-0.0654)
+
+======================================================================
+>>> Entraînement L16_seed2 (10000 pas)
+======================================================================
+  entraînement : 971.5s   val_loss(64 fenêtres) = 1.6933   (référence campagne, seed1 = 1.7194)
+  extraction perte par position : 13.9s, 111360 positions (mean=1.7165, std=1.6431)
+  [RAW]      ΔBIC=-56454.70  D=1.845  w=(0.211,0.789)  mu=(0.0826,2.1537)  fires=false
+  [RESIDUAL] ΔBIC=-11612.92  D=1.224  w=(0.844,0.156)  mu=(-0.3049,1.6434)  fires=false   (coef: intercept=-0.2602, freq=0.6670, log_pos=-0.0561)
+
+Entraînement + extraction total : 60.9 min
+
+======================================================================
+Étape secondaire : comparaison inter-profondeurs (graduation, §6)
+======================================================================
+  seed 1, L=1  : poids composante haute-perte = 0.7145, |ensemble| = 75541
+  seed 1, L=4  : poids composante haute-perte = 0.7672, |ensemble| = 83546
+  seed 1, L=16 : poids composante haute-perte = 0.7767, |ensemble| = 83955
+  seed 1, L=1 vs L=4 : Jaccard=0.8257   Jaccard_null(indépendance)=0.5872   > baseline
+  seed 1, L=1 vs L=16 : Jaccard=0.8135   Jaccard_null(indépendance)=0.5928   > baseline
+  seed 1, L=4 vs L=16 : Jaccard=0.8550   Jaccard_null(indépendance)=0.6286   > baseline
+  seed 1 : poids haute-perte [0.7145, 0.7672, 0.7767]  (profondeurs [1, 4, 16], ordre croissant)  -> monotone décroissant=false
+  seed 2, L=1  : poids composante haute-perte = 0.7658, |ensemble| = 82060
+  seed 2, L=4  : poids composante haute-perte = 0.7763, |ensemble| = 84745
+  seed 2, L=16 : poids composante haute-perte = 0.7889, |ensemble| = 85593
+  seed 2, L=1 vs L=4 : Jaccard=0.8646   Jaccard_null(indépendance)=0.6274   > baseline
+  seed 2, L=1 vs L=16 : Jaccard=0.8476   Jaccard_null(indépendance)=0.6356   > baseline
+  seed 2, L=4 vs L=16 : Jaccard=0.8631   Jaccard_null(indépendance)=0.6428   > baseline
+  seed 2 : poids haute-perte [0.7658, 0.7763, 0.7889]  (profondeurs [1, 4, 16], ordre croissant)  -> monotone décroissant=false
+
+======================================================================
+VERDICT PRÉ-ENREGISTRÉ (§7 de quantization_signature_preregistration.md)
+======================================================================
+Profondeurs où le test brut (RAW) tire : Int64[] (0/3)
+Survit au contrôle fréquence+position (RESIDUAL tire aux mêmes profondeurs) : true
+Poids haute-perte décroissant avec la profondeur, dans toutes les graines : false
+Recouvrement de graduation (L=1 vs L=16) au-dessus du hasard, dans toutes les graines : true
+
+>>> REFUTATION : aucune structure multimodale détectée à AUCUNE des 3 profondeurs sur la perte brute.
+
+Résultats détaillés -> notebook/bench_quantization_signature_check_results.json
+(voir aussi notebook/bench_quantization_signature_check_results.txt pour le log complet)
