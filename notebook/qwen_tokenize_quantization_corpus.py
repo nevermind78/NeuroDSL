@@ -121,9 +121,21 @@ with io.open(CORPUS_F, encoding="utf-8") as f:
     corpus_text = f.read()
 corpus_ids = encode(corpus_text)
 print("\nHeld-out corpus: %d chars -> %d BPE tokens" % (len(corpus_text), len(corpus_ids)))
+
+# Per-token metadata used by the BPE-specific confound control (see
+# quantization_signature_qwen_preregistration.md section on the BPE confound
+# control): the RAW BYTE LENGTH of each token's underlying piece. Since the
+# GPT-2/Qwen byte-to-unicode map (B2U) is a bijection from bytes to single
+# printable characters, the length (in Python characters) of the vocab piece
+# string equals exactly the number of raw UTF-8 bytes that piece represents --
+# no decoding needed beyond len().
+id_to_piece = {v: k for k, v in vocab.items()}
+corpus_nbytes = [len(id_to_piece[i]) for i in corpus_ids]
+
 with io.open(os.path.join(HERE, "quantization_signature_qwen_corpus_tokens.json"), "w",
              encoding="utf-8") as f:
-    json.dump({"token_ids": corpus_ids, "n_tokens": len(corpus_ids), "n_chars": len(corpus_text)}, f)
+    json.dump({"token_ids": corpus_ids, "token_nbytes": corpus_nbytes,
+               "n_tokens": len(corpus_ids), "n_chars": len(corpus_text)}, f)
 
 # ─── Tokenize the frequency-reference corpus (TinyShakespeare) ──────────────
 with io.open(FREQREF_F, encoding="utf-8") as f:
