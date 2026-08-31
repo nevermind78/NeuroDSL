@@ -47,7 +47,26 @@ module Backend
         return nothing
     end
 
+    """
+        reclaim!(dev)
+
+    Rend au driver CUDA les blocs actuellement en cache dans le pool mémoire
+    (`CUDA.reclaim()`) -- no-op sur CPU. Séparé de `free!` : `free!` libère
+    UN tableau précis vers le pool (réutilisable immédiatement par une
+    prochaine allocation Julia/CUDA.jl), `reclaim!` rend au DRIVER la mémoire
+    déjà rendue au pool mais pas encore réclamée (visible dans `nvidia-smi`).
+    Même patron que le nettoyage périodique déjà appliqué manuellement dans
+    `notebook/load_qwen2.jl` (`GC.gc(); CUDA.reclaim()` toutes les quelques
+    couches) -- ici pour un appel générique depuis `src/` sans `using CUDA`
+    direct hors du sous-module `Backend`.
+    """
+    reclaim!(::CPUDevice) = nothing
+    function reclaim!(::CUDADevice)
+        CUDA_AVAILABLE && CUDA.reclaim()
+        return nothing
+    end
+
     export CPUDevice, CUDADevice, active_device,
            zeros32, ones32, rand32, randn32,
-           to_device, to_cpu, device_of, free!
+           to_device, to_cpu, device_of, free!, reclaim!
 end

@@ -1,0 +1,155 @@
+Module de croissance chargé. Prêt pour le pilote (voir growth_jalon0_pilot.jl).
+
+============================================================
+>>> f1_8_n125482_seed1 (L=6, corpus=125482 chars)
+============================================================
+f1_8_n125482_seed1 : val finale=4.5945, temps=690.1s
+
+============================================================
+>>> f1_8_n125482_seed2 (L=6, corpus=125482 chars)
+============================================================
+f1_8_n125482_seed2 : val finale=4.8438, temps=637.7s
+
+============================================================
+>>> f1_8_n125482_seed3 (L=6, corpus=125482 chars)
+============================================================
+f1_8_n125482_seed3 : val finale=3.8449, temps=669.9s
+
+============================================================
+>>> f1_8_n125482_seed4 (L=6, corpus=125482 chars)
+============================================================
+f1_8_n125482_seed4 : val finale=4.4585, temps=2214.8s
+
+============================================================
+>>> f1_4_n250964_seed1 (L=6, corpus=250964 chars)
+============================================================
+f1_4_n250964_seed1 : val finale=2.6549, temps=7584.9s
+
+============================================================
+>>> f1_4_n250964_seed2 (L=6, corpus=250964 chars)
+============================================================
+f1_4_n250964_seed2 : val finale=2.4843, temps=2310.6s
+
+============================================================
+>>> f1_4_n250964_seed3 (L=6, corpus=250964 chars)
+============================================================
+f1_4_n250964_seed3 : val finale=2.3173, temps=2314.1s
+
+============================================================
+>>> f1_4_n250964_seed4 (L=6, corpus=250964 chars)
+============================================================
+f1_4_n250964_seed4 : val finale=2.5190, temps=2318.0s
+
+============================================================
+>>> f1_2_n501927_seed1 (L=6, corpus=501927 chars)
+============================================================
+f1_2_n501927_seed1 : val finale=1.9850, temps=2324.2s
+
+============================================================
+>>> f1_2_n501927_seed2 (L=6, corpus=501927 chars)
+============================================================
+f1_2_n501927_seed2 : val finale=1.9863, temps=2330.0s
+
+============================================================
+>>> f1_2_n501927_seed3 (L=6, corpus=501927 chars)
+============================================================
+f1_2_n501927_seed3 : val finale=2.0261, temps=2308.0s
+
+============================================================
+>>> f1_2_n501927_seed4 (L=6, corpus=501927 chars)
+============================================================
+f1_2_n501927_seed4 : val finale=2.0700, temps=2326.9s
+
+============================================================
+>>> f1_1_n1003854_seed1 (L=6, corpus=1003854 chars)
+============================================================
+f1_1_n1003854_seed1 : val finale=1.6231, temps=2016.6s
+
+============================================================
+>>> f1_1_n1003854_seed2 (L=6, corpus=1003854 chars)
+============================================================
+f1_1_n1003854_seed2 : val finale=1.6230, temps=1882.8s
+
+============================================================
+>>> f1_1_n1003854_seed3 (L=6, corpus=1003854 chars)
+============================================================
+f1_1_n1003854_seed3 : val finale=1.6330, temps=1844.4s
+
+============================================================
+>>> f1_1_n1003854_seed4 (L=6, corpus=1003854 chars)
+============================================================
+f1_1_n1003854_seed4 : val finale=1.6348, temps=1849.6s
+
+
+Temps total (cette invocation) : 593.7 min (9.90 h)
+Runs bruts ecrits -> C:\Users\Nevermind\Desktop\NeuroDSL\notebook\bench_corpus_size_zipf_check_raw.json
+
+======================================================================
+ANALYSE : campagne complete (24 runs). Fit + bootstrap.
+======================================================================
+
+--- Etape 1a : a(D) via extrapolation a+b/(n+n0) (methode ORIGINALE, sanity check grand D uniquement) ---
+D=31370    (f=1//32) : a_extrap=7.4317 ± 0.0752 (naive)  b=-22706.0  n_points=320
+D=62741    (f=1//16) : a_extrap=6.0609 ± 0.0956 (naive)  b=-18051.6  n_points=320
+D=125482   (f=1//8) : a_extrap=3.4726 ± 0.0620 (naive)  b=-5659.6  n_points=320
+D=250964   (f=1//4) : a_extrap=2.1597 ± 0.0157 (naive)  b=1175.1  n_points=320
+D=501927   (f=1//2) : a_extrap=1.8234 ± 0.0065 (naive)  b=2725.1  n_points=320
+D=1003854  (f=1//1) : a_extrap=1.4202 ± 0.0049 (naive)  b=4386.0  n_points=320
+
+--- Etape 1b : a(D) via minimum de courbe lissee (methode PRIMAIRE, amendement) ---
+D=31370    (f=1//32) : a_min_lisse=2.5206   (vs a_extrap=7.4317, ecart=4.9111)
+D=62741    (f=1//16) : a_min_lisse=2.4169   (vs a_extrap=6.0609, ecart=3.6440)
+D=125482   (f=1//8) : a_min_lisse=2.2288   (vs a_extrap=3.4726, ecart=1.2438)
+D=250964   (f=1//4) : a_min_lisse=2.1214   (vs a_extrap=2.1597, ecart=0.0383)
+D=501927   (f=1//2) : a_min_lisse=1.9693   (vs a_extrap=1.8234, ecart=0.1459)
+D=1003854  (f=1//1) : a_min_lisse=1.6337   (vs a_extrap=1.4202, ecart=0.2134)
+
+--- SE honnete par point (bootstrap en grappes de graines, 1000 tirages, methode primaire) ---
+D=31370    : a_min_lisse=2.5206  SE_bootstrap=0.0155
+D=62741    : a_min_lisse=2.4169  SE_bootstrap=0.0238
+D=125482   : a_min_lisse=2.2288  SE_bootstrap=0.0229
+D=250964   : a_min_lisse=2.1214  SE_bootstrap=0.0243
+D=501927   : a_min_lisse=1.9693  SE_bootstrap=0.0036
+D=1003854  : a_min_lisse=1.6337  SE_bootstrap=0.0026
+
+======================================================================
+Etape 2 : fit primaire a(D) = A0 + A1*ln(D)
+======================================================================
+A0=6.0415  A1=-0.3166   =>   c_D_hat = -A1 = 0.3166
+Comparaison a c (axe profondeur) : 0.104 (fit 16 profondeurs), 0.133±0.012 (fit joint), 0.083 (campagne contrainte 9 profondeurs) -- bande [0.08,0.13]
+IC95% bootstrap de c_D_hat : [0.3099, 0.3235]
+
+Verdict PRIMAIRE (c_D vs c, universalite inter-axes) :
+  -> CONTREDIT : IC95% de c_D_hat exclut meme la bande elargie [0.04,0.20].
+
+======================================================================
+Etape 3 : fit secondaire a(D) = A0 + A1*ln(D) + A2*(ln D)^2  (exploratoire)
+======================================================================
+A0=-6.4743  A1=1.6967  A2=-0.0803
+epsilon_hat = 2*A2/(-A1_lineaire) = -0.5074
+AIC (lineaire, 2 params) = 34.692
+AIC (quadratique, 3 params) = 20.883
+ΔAIC (quad - lineaire) = -13.809  (favorable si < -6)
+
+--- Leave-one-out (retrait d'un point de corpus) ---
+sans D=31370    : ΔAIC=-11.384  ✓
+sans D=62741    : ΔAIC=-11.405  ✓
+sans D=125482   : ΔAIC=-16.008  ✓
+sans D=250964   : ΔAIC=-12.169  ✓
+sans D=501927   : ΔAIC=-8.324  ✓
+sans D=1003854  : ΔAIC=1.783  ✗ ECHEC
+
+--- Bootstrap en grappes (1000 tirages) : selection, signe(A2), epsilon_hat ---
+Fraction de tirages selectionnant le modele quadratique (ΔAIC<-6) : 100.0%  (requis >=90%)
+Fraction de tirages avec signe(A2)>0                              : 0.0%  (requis >=95%)
+IC95% bootstrap de epsilon_hat                                   : [-0.5399, -0.4737]
+Bande de coherence attendue : [0, 0.15] (autour du point faible ~0.076 de l'axe profondeur)
+
+Verdict SECONDAIRE (epsilon via courbure) :
+  Critere S1 (selection robuste du modele quadratique) : ECHOUE
+  Critere S2 (signe(A2)>0 stable >=95%)                 : ECHOUE
+  Critere S3 (IC95% epsilon recoupe [0,0.15])           : ECHOUE
+  -> INCONCLUSIF : modele quadratique pas assez robuste pour interpreter epsilon_hat.
+     (epsilon_hat nominal = -0.5074 -- NE PAS CITER comme mesure fiable)
+
+Ecrit -> notebook/bench_corpus_size_zipf_check_results.json

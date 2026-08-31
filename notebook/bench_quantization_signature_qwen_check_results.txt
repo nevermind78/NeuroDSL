@@ -1,0 +1,38 @@
+REAL-SCALE quantization-signature test, Qwen2.5-1.5B-Instruct (real trained weights).
+Pre-registration: notebook/quantization_signature_qwen_preregistration.md
+Date : 2026-08-20T13:26:06Z
+VRAM before checkpoint load : 1525 MiB, 16384 MiB, 14649 MiB
+Held-out corpus: 14977 BPE tokens (notebook/quantization_signature_qwen_corpus_full.txt)
+Checkpoint loaded in 11.05 s
+VRAM after checkpoint load : 8476 MiB, 16384 MiB, 7698 MiB
+Window length : 512 tokens -> 29 non-overlapping windows -> 14848 per-position loss samples
+  window 1/29 done   (VRAM: 10044 MiB, 16384 MiB, 6130 MiB)
+  window 2/29 done   (VRAM: 10876 MiB, 16384 MiB, 5298 MiB)
+  window 4/29 done   (VRAM: 9970 MiB, 16384 MiB, 6204 MiB)
+  window 6/29 done   (VRAM: 10844 MiB, 16384 MiB, 5330 MiB)
+  window 8/29 done   (VRAM: 9970 MiB, 16384 MiB, 6204 MiB)
+  window 10/29 done   (VRAM: 10844 MiB, 16384 MiB, 5330 MiB)
+  window 12/29 done   (VRAM: 9970 MiB, 16384 MiB, 6204 MiB)
+  window 14/29 done   (VRAM: 10844 MiB, 16384 MiB, 5330 MiB)
+  window 16/29 done   (VRAM: 9970 MiB, 16384 MiB, 6204 MiB)
+  window 18/29 done   (VRAM: 10844 MiB, 16384 MiB, 5330 MiB)
+  window 20/29 done   (VRAM: 9999 MiB, 16384 MiB, 6175 MiB)
+  window 22/29 done   (VRAM: 10861 MiB, 16384 MiB, 5313 MiB)
+  window 24/29 done   (VRAM: 9987 MiB, 16384 MiB, 6187 MiB)
+  window 26/29 done   (VRAM: 10861 MiB, 16384 MiB, 5313 MiB)
+  window 28/29 done   (VRAM: 9999 MiB, 16384 MiB, 6175 MiB)
+  window 29/29 done   (VRAM: 10861 MiB, 16384 MiB, 5313 MiB)
+
+Extraction complete: 111.4s, 14848 positions, mean=2.7107 std=2.6341
+
+[RAW] n=14848  ΔBIC=-6619.380  D=1.8988  w=(0.4147,0.5853)  mu=(0.6560,4.1667)  s=(0.5680,2.5523)  fires=false
+[RESIDUAL-primary] ΔBIC=-2266.138  D=1.5589  w=(0.6117,0.3883)  fires=false   coef(intercept,log_id,nbytes,log_pos)=[1.70706, 0.31336, 0.16278, -0.38952]
+[RESIDUAL-secondary/TinyShakespeare-freq, descriptive only] ΔBIC=-1950.742  D=1.5133  w=(0.6583,0.3417)  fires=false   coef=[2.08468, 0.21852, 0.1798, -0.38887]
+
+======================================================================
+VERDICT (§7 of quantization_signature_qwen_preregistration.md)
+======================================================================
+
+>>> REPLICATES THE REFUTATION : no multimodal signature on raw per-token loss (ΔBIC=-6619.38, D=1.899), same qualitative result as the toy character-level test.
+
+Écrit : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\bench_quantization_signature_qwen_check_results.json

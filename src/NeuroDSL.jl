@@ -36,7 +36,7 @@ export NeuroGraph, GraphNode, GraphRule, CtxStore
 export NeurAtom, Datom, Quantom, is_backpropable
 export set!, node, addrule!, demand!, params
 export activate!, namespaces, graph_summary
-export topo_order!, zero_grads!, invalidate_all!, copy_params_to_namespace!
+export topo_order!, zero_grads!, invalidate_all!, copy_params_to_namespace!, alias_tied_param!
 export backward_graph!, accum_grad!, GRAD_RULES, register_op!, CUSTOM_SHAPE_RULES
 export rmsnorm_fwd!, rmsnorm_bwd!, swiglu_fwd!, swiglu_bwd!
 export softmax_fwd!, softmax_bwd!, cross_entropy_loss, cross_entropy_grad

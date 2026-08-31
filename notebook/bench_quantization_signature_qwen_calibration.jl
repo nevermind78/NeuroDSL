@@ -89,12 +89,23 @@ open(OUT, "w") do io
     emit(@sprintf("FORWARD-ONLY timing (median of %d, +%d warmup), by window length", N_TIMING, N_WARMUP))
     results = Dict{Int,Float64}()
     for W in WINDOW_LENGTHS
+        # Reclaim BEFORE each window-length block: repeated invalidate_all!+demand!
+        # cycles (varying shapes across 256/512/1024) accumulate orphaned GPU
+        # buffers that Julia's CPU-driven GC does not collect promptly on its own
+        # (the same gotcha guarded against elsewhere in this repo's bench_*.jl
+        # scripts) -- left unmanaged, this script's own footprint balloons well
+        # past what a single forward pass actually needs, eating into the shared
+        # GPU's headroom for no real reason. Reclaiming here (outside the timed
+        # loop, so it never contaminates a ms measurement) keeps this script's
+        # footprint close to its real working set throughout the run.
+        GC.gc(); NeuroDSL.Backend.CUDA_AVAILABLE && CUDA.reclaim()
         vram_pre = vram_line()
         med, ts = time_forward_window!(W)
         results[W] = med
-        emit(@sprintf("  W=%4d tokens : median = %8.2f ms   samples(ms) = %s   [VRAM: %s]",
+        emit(@sprintf("  W=%4d tokens : median = %8.2f ms   samples(ms) = %s   [VRAM before: %s]",
                       W, med, string(round.(ts, digits=1)), vram_pre))
     end
+    GC.gc(); NeuroDSL.Backend.CUDA_AVAILABLE && CUDA.reclaim()
 
     emit("\n" * "="^80)
     emit("Scaling check (ms per token, and ratio vs linear-from-W=256 prediction):")

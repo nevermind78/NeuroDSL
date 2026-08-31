@@ -162,6 +162,30 @@ end
 
 Reconstruit le namespace `ns` de `g` depuis `"<path_prefix>.json"`/`.bin`.
 Erreur si `ns` existe déjà et contient des nœuds, sauf `overwrite=true`.
+
+`overwrite=true` sur un namespace DÉJÀ REMPLI (ex. graphe construit avec des
+poids ALÉATOIRES juste avant, patron standard `notebook/qwen2.ipynb` : on
+construit d'abord la structure via les constructeurs de couches --
+`Embedding`/`LlamaModel`/`LayerNorm`/`Linear` -- puis on écrase les valeurs
+avec les vrais poids ici) LIBÈRE explicitement (`Backend.free!`) chaque
+ancien tableau GPU AVANT de recréer les nœuds, plutôt que de compter sur le
+GC pour les récupérer à un moment non spécifié. Sans ça (mesuré,
+`notebook/diag_tied_embedding_alias_before_run.log`) : `empty!(g.nodes[ns])`
+seul rend les anciens `GraphNode`/`CuArray` orphelins mais NE les libère PAS
+-- les anciens (poids aléatoires, ~6.8 Go pour Qwen2.5-1.5B) et les nouveaux
+(poids réels chargés ci-dessous, un par un via `set!`) coexistent en VRAM le
+temps que le GC Julia daigne passer, ce qui n'arrive pas forcément avant que
+la boucle ait fini d'allouer -- un pic transitoire mesuré à 9076 Mo
+(`pool_high_watermark`) contre 6779 Mo une fois les deux `GC.gc(true)` de
+`quiesce()` passés : ~2.3 Go gaspillés à chaque `load_graph!(...;
+overwrite=true)` sur un namespace non vide, exactement la même classe de bug
+que celle documentée dans `notebook/load_qwen2.jl` (lignes 110-124) pour son
+propre chemin de chargement couche-par-couche -- ce correctif couvre le
+chemin `load_graph!` lui-même, pas seulement le script de conversion
+ponctuel. `Set{UInt}` d'`objectid` pour ne libérer qu'une fois un tableau
+partagé par plusieurs symboles (ex. `:tok_E`/`:lm_head_W` après
+`alias_tied_param!`) -- `CUDA.unsafe_free!` deux fois sur le même `CuArray`
+n'est PAS supposé sûr par défaut ici, on ne teste pas la limite.
 """
 function load_graph!(g::NeuroGraph, ns::Symbol, path_prefix::AbstractString; overwrite::Bool=false)
     if haskey(g.nodes, ns) && !isempty(g.nodes[ns]) && !overwrite
@@ -180,6 +204,18 @@ function load_graph!(g::NeuroGraph, ns::Symbol, path_prefix::AbstractString; ove
     end
 
     _ensure_namespace!(g, ns)
+    if haskey(g.nodes, ns) && !isempty(g.nodes[ns])
+        freed = Set{UInt}()
+        for (_, nd) in g.nodes[ns]
+            for arr in (nd.value, nd.gradient)
+                arr === nothing && continue
+                oid = objectid(arr)
+                oid in freed && continue
+                push!(freed, oid)
+                Backend.free!(g.device, arr)
+            end
+        end
+    end
     empty!(g.nodes[ns]); empty!(g.rules[ns])
     g._topo_cache[ns] = nothing
     g._consumers_cache[ns] = nothing

@@ -1,12 +1,24 @@
 CALIBRATION -- forward-pass ms vs window length, Qwen2.5-1.5B-Instruct, real GPU.
-Date : 2026-08-20T05:54:35Z
-VRAM before checkpoint load : 1321 MiB, 16384 MiB, 14853 MiB
+Date : 2026-08-20T06:11:21Z
+VRAM before checkpoint load : 1267 MiB, 16384 MiB, 14907 MiB
 Held-out corpus tokens available : 14977
-Checkpoint loaded in 9.81 s
-VRAM after checkpoint load : 8272 MiB, 16384 MiB, 7902 MiB
+Checkpoint loaded in 5.45 s
+VRAM after checkpoint load : 8218 MiB, 16384 MiB, 7956 MiB
 Confirmed logits symbol :lm_head_out present in loaded graph.
 
 ================================================================================
 FORWARD-ONLY timing (median of 5, +2 warmup), by window length
-  W= 256 tokens : median =  1892.61 ms   samples(ms) = [1378.6, 2272.8, 2108.3, 1856.2, 1892.6]   [VRAM: 8272 MiB, 16384 MiB, 7902 MiB]
-  W= 512 tokens : median =  1871.91 ms   samples(ms) = [1706.4, 2183.0, 1894.0, 1871.9, 1856.8]   [VRAM: 10289 MiB, 16384 MiB, 5885 MiB]
+  W= 256 tokens : median =  2152.00 ms   samples(ms) = [875.5, 2090.0, 2334.1, 2152.0, 2346.6]   [VRAM before: 8218 MiB, 16384 MiB, 7956 MiB]
+  W= 512 tokens : median =  2465.11 ms   samples(ms) = [2747.7, 1808.0, 2465.1, 2393.9, 2612.6]   [VRAM before: 10192 MiB, 16384 MiB, 5982 MiB]
+  W=1024 tokens : median = 330889.24 ms   samples(ms) = [304817.8, 317524.8, 362612.0, 381038.8, 330889.2]   [VRAM before: 13180 MiB, 16384 MiB, 2994 MiB]
+
+================================================================================
+Scaling check (ms per token, and ratio vs linear-from-W=256 prediction):
+  W= 256 :  2152.00 ms  (8.4062 ms/token)   linear-from-W=256 prediction =  2152.00 ms   actual/linear = 1.000x
+  W= 512 :  2465.11 ms  (4.8147 ms/token)   linear-from-W=256 prediction =  4303.99 ms   actual/linear = 0.573x
+  W=1024 : 330889.24 ms  (323.1340 ms/token)   linear-from-W=256 prediction =  8607.98 ms   actual/linear = 38.440x
+
+VRAM after calibration : 15729 MiB, 16384 MiB, 445 MiB
+
+Done. See notebook/quantization_signature_qwen_preregistration.md for how these numbers
+are used to size the real run's window length and token budget.

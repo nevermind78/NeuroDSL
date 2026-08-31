@@ -60,6 +60,8 @@ end
 # @testset — utilisé par runtests.jl
 # ─────────────────────────────────────────────────────────────────────────────
 @testset "Backward — gradient checks (tol=1e-3, eps=1e-4)" begin
+    using Random
+    Random.seed!(1234)
     dev = NeuroDSL.Backend.CPUDevice()
 
     @testset ":rmsnorm" begin
@@ -192,6 +194,8 @@ end
 # doivent être identiques (élagage activé ou non) sur toutes les topologies.
 # ─────────────────────────────────────────────────────────────────────────────
 @testset "Backward pruning (prune_frozen)" begin
+    using Random
+    Random.seed!(1234)
     dev = NeuroDSL.Backend.CPUDevice()
     D = 4
 

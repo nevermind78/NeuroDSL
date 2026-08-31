@@ -1,0 +1,1420 @@
+Rc files read (in order):
+  NONE
+Latexmk: This is Latexmk, John Collins, 9 March 2026. Version 4.88.
+No existing .aux file, so I'll make a simple one, and require run of *latex.
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Category 'other':
+  Rerun of 'pdflatex' forced or previously required:
+    Reason or flag: 'Initial setup'
+
+------------
+Run number 1 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "conditional_collapse_theory.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(conditional_collapse_theory.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/placeins\placeins.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (conditional_collapse_theory.aux)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+
+LaTeX Warning: Citation `vig2020' on page 1 undefined on input line 83.
+
+
+LaTeX Warning: Citation `meng2022' on page 1 undefined on input line 83.
+
+
+LaTeX Warning: Citation `wang2023' on page 1 undefined on input line 83.
+
+
+LaTeX Warning: Citation `arditi2024' on page 1 undefined on input line 85.
+
+
+LaTeX Warning: Citation `geiger2021' on page 1 undefined on input line 88.
+
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+
+LaTeX Warning: Citation `mcgrath2023' on page 2 undefined on input line 94.
+
+
+LaTeX Warning: Citation `elhage2022' on page 2 undefined on input line 100.
+
+
+LaTeX Warning: Reference `sec:model' on page 2 undefined on input line 104.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 2 undefined on input line 117.
+
+
+LaTeX Warning: Reference `sec:dissociation' on page 2 undefined on input line 1
+27.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 2 undefined on input line 13
+8.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 2 undefined on input line 15
+0.
+
+[2]
+
+LaTeX Warning: Reference `sec:experiments' on page 3 undefined on input line 16
+1.
+
+
+LaTeX Warning: Reference `sec:robust' on page 3 undefined on input line 174.
+
+
+LaTeX Warning: Reference `sec:second-task' on page 3 undefined on input line 18
+1.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 3 undefined on input line 18
+8.
+
+
+LaTeX Warning: Reference `sec:discussion' on page 3 undefined on input line 195
+.
+
+
+LaTeX Warning: Citation `vig2020' on page 3 undefined on input line 206.
+
+
+LaTeX Warning: Citation `meng2022' on page 3 undefined on input line 207.
+
+
+LaTeX Warning: Citation `wang2023' on page 3 undefined on input line 208.
+
+
+LaTeX Warning: Citation `goldowsky2023' on page 3 undefined on input line 209.
+
+
+LaTeX Warning: Citation `conmy2023' on page 3 undefined on input line 210.
+
+
+LaTeX Warning: Citation `zhang2024' on page 3 undefined on input line 212.
+
+
+LaTeX Warning: Citation `geiger2021' on page 3 undefined on input line 214.
+
+
+LaTeX Warning: Citation `geiger2024' on page 3 undefined on input line 216.
+
+
+LaTeX Warning: Reference `sec:model' on page 3 undefined on input line 218.
+
+
+LaTeX Warning: Citation `geiger2021' on page 3 undefined on input line 219.
+
+
+LaTeX Warning: Citation `arditi2024' on page 3 undefined on input line 225.
+
+
+LaTeX Warning: Citation `elhage2021' on page 3 undefined on input line 227.
+
+[3]
+
+LaTeX Warning: Citation `makelov2024' on page 4 undefined on input line 237.
+
+
+LaTeX Warning: Citation `mcgrath2023' on page 4 undefined on input line 240.
+
+
+LaTeX Warning: Citation `elhage2022' on page 4 undefined on input line 241.
+
+
+LaTeX Warning: Reference `thm:dissociation' on page 4 undefined on input line 2
+45.
+
+
+LaTeX Warning: Reference `cor:sufficiency' on page 4 undefined on input line 24
+7.
+
+
+LaTeX Warning: Citation `vaidyanathan2026mediators' on page 4 undefined on inpu
+t line 253.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 4 undefined on input line 26
+0.
+
+
+LaTeX Warning: Citation `gong2026coablation' on page 4 undefined on input line 
+264.
+
+
+LaTeX Warning: Citation `guo2026sobol' on page 4 undefined on input line 267.
+
+
+LaTeX Warning: Reference `thm:dissociation' on page 4 undefined on input line 2
+70.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 4 undefined on input line 277.
+
+
+LaTeX Warning: Reference `cor:sufficiency' on page 4 undefined on input line 28
+0.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 4 undefined on input line 28
+3.
+
+[4]
+
+LaTeX Warning: Reference `rem:bridge' on page 5 undefined on input line 312.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 5 undefined on input line 31
+3.
+
+
+LaTeX Warning: Reference `sec:model' on page 5 undefined on input line 321.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 5 undefined on input line 323.
+
+
+LaTeX Warning: Reference `sec:dissociation' on page 5 undefined on input line 3
+23.
+
+
+LaTeX Warning: Reference `rem:bridge' on page 5 undefined on input line 326.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 5 undefined on input line 329.
+
+
+LaTeX Warning: Reference `sec:model' on page 5 undefined on input line 338.
+
+
+LaTeX Warning: Reference `cor:sufficiency' on page 5 undefined on input line 33
+9.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 5 undefined on input line 36
+8.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 5 undefined on input line 36
+8.
+
+[5]
+
+LaTeX Warning: Reference `sec:collapse' on page 6 undefined on input line 382.
+
+
+LaTeX Warning: Reference `sec:dissociation' on page 6 undefined on input line 3
+82.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 6 undefined on input line 402.
+
+
+LaTeX Warning: Reference `eq:ablation' on page 6 undefined on input line 418.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 6 undefined on input line 42
+0.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 6 undefined on input line 43
+1.
+
+[6]
+
+LaTeX Warning: Reference `eq:ablation' on page 7 undefined on input line 469.
+
+
+LaTeX Warning: Reference `ass:additivity' on page 7 undefined on input line 473
+.
+
+
+LaTeX Warning: Reference `ass:stable' on page 7 undefined on input line 473.
+
+
+LaTeX Warning: Reference `eq:ablation' on page 7 undefined on input line 475.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 7 undefined on input line 476.
+
+
+LaTeX Warning: Reference `ass:lowrank' on page 7 undefined on input line 476.
+
+
+LaTeX Warning: Reference `sec:deletion' on page 7 undefined on input line 480.
+
+
+LaTeX Warning: Reference `sec:model' on page 7 undefined on input line 491.
+
+
+LaTeX Warning: Reference `ass:additivity' on page 7 undefined on input line 535
+.
+
+
+LaTeX Warning: Reference `ass:stable' on page 7 undefined on input line 535.
+
+
+LaTeX Warning: Reference `eq:ablation' on page 7 undefined on input line 537.
+
+[7]
+
+LaTeX Warning: Reference `thm:collapse' on page 8 undefined on input line 618.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 8 undefined on input line 626.
+
+
+LaTeX Warning: Reference `cor:invariance' on page 8 undefined on input line 633
+.
+
+
+LaTeX Warning: Reference `ass:readout' on page 8 undefined on input line 634.
+
+
+LaTeX Warning: Reference `ass:readout' on page 8 undefined on input line 640.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 8 undefined on input line 64
+1.
+
+
+LaTeX Warning: Reference `cor:robustinvariance' on page 8 undefined on input li
+ne 644.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 8 undefined on input line 64
+5.
+
+[8]
+
+LaTeX Warning: Reference `thm:collapse' on page 9 undefined on input line 652.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 9 undefined on input line 681.
+
+
+LaTeX Warning: Reference `cor:purity' on page 9 undefined on input line 681.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 9 undefined on input line 683.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 9 undefined on input line 688.
+
+
+LaTeX Warning: Reference `eq:robust' on page 9 undefined on input line 691.
+
+
+LaTeX Warning: Reference `eq:robust' on page 9 undefined on input line 696.
+
+
+LaTeX Warning: Reference `cor:purity' on page 9 undefined on input line 703.
+
+
+LaTeX Warning: Reference `eq:robust' on page 9 undefined on input line 719.
+
+
+LaTeX Warning: Reference `prop:robust' on page 9 undefined on input line 723.
+
+
+LaTeX Warning: Reference `cor:robustinvariance' on page 9 undefined on input li
+ne 728.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 9 undefined on input line 73
+3.
+
+
+LaTeX Warning: Reference `prop:robust' on page 9 undefined on input line 735.
+
+[9]
+
+LaTeX Warning: Reference `sec:model' on page 10 undefined on input line 746.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 10 undefined on input line 746.
+
+
+
+LaTeX Warning: Reference `def:patch' on page 10 undefined on input line 785.
+
+
+LaTeX Warning: Reference `ass:readout' on page 10 undefined on input line 786.
+
+
+LaTeX Warning: Reference `lem:flip' on page 10 undefined on input line 787.
+
+
+LaTeX Warning: Reference `cor:sufficiency' on page 10 undefined on input line 8
+15.
+
+[10]
+
+LaTeX Warning: Reference `sec:experiments' on page 11 undefined on input line 8
+30.
+
+
+LaTeX Warning: Reference `thm:dissociation' on page 11 undefined on input line 
+834.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 11 undefined on input line 846.
+
+
+
+LaTeX Warning: Reference `sec:dissociation' on page 11 undefined on input line 
+846.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 11 undefined on input line 864.
+
+
+
+LaTeX Warning: Reference `rem:bridge' on page 11 undefined on input line 870.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 11 undefined on input line 874.
+
+
+
+LaTeX Warning: Reference `sec:model' on page 11 undefined on input line 883.
+
+
+LaTeX Warning: Reference `sec:dissociation' on page 11 undefined on input line 
+883.
+
+[11]
+
+LaTeX Warning: Reference `lem:jacobian' on page 12 undefined on input line 925.
+
+
+
+LaTeX Warning: Reference `thm:interaction' on page 12 undefined on input line 9
+50.
+
+
+LaTeX Warning: Reference `ass:lowrank' on page 12 undefined on input line 953.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 12 undefined on input line 9
+55.
+
+
+LaTeX Warning: Reference `prop:readout' on page 12 undefined on input line 959.
+
+
+
+LaTeX Warning: Reference `thm:interaction' on page 12 undefined on input line 9
+64.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 12 undefined on input line 969
+.
+
+[12]
+
+LaTeX Warning: Reference `prop:patchedit' on page 13 undefined on input line 10
+00.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 13 undefined on input line 1
+005.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 13 undefined on input line 1
+012.
+
+
+LaTeX Warning: Reference `rem:propagation' on page 13 undefined on input line 1
+013.
+
+
+LaTeX Warning: Reference `rem:bridge' on page 13 undefined on input line 1021.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 13 undefined on input line 1023
+.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 13 undefined on input line 1
+025.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 13 undefined on input line 1
+030.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 13 undefined on input line 103
+4.
+
+
+LaTeX Warning: Reference `lem:flip' on page 13 undefined on input line 1035.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 13 undefined on input line 1035
+.
+
+
+LaTeX Warning: Reference `ass:additivity' on page 13 undefined on input line 10
+42.
+
+
+LaTeX Warning: Reference `ass:stable' on page 13 undefined on input line 1042.
+
+
+LaTeX Warning: Reference `eq:ablation' on page 13 undefined on input line 1045.
+
+
+
+LaTeX Warning: Reference `eq:ablation' on page 13 undefined on input line 1048.
+
+
+
+LaTeX Warning: Reference `thm:interaction' on page 13 undefined on input line 1
+061.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 13 undefined on input line 106
+7.
+
+
+LaTeX Warning: Reference `prop:readout' on page 13 undefined on input line 1067
+.
+
+
+LaTeX Warning: Reference `cor:invariance' on page 13 undefined on input line 10
+68.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 13 undefined on input line 1069
+.
+
+
+LaTeX Warning: Reference `prop:readout' on page 13 undefined on input line 1080
+.
+
+
+LaTeX Warning: Reference `rem:propagation' on page 13 undefined on input line 1
+083.
+
+[13]
+
+LaTeX Warning: Reference `lem:jacobian' on page 14 undefined on input line 1102
+.
+
+
+LaTeX Warning: Reference `sec:collapse' on page 14 undefined on input line 1126
+.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 14 undefined on input line 1
+126.
+
+
+LaTeX Warning: Reference `sec:model' on page 14 undefined on input line 1145.
+
+
+LaTeX Warning: Reference `def:pair' on page 14 undefined on input line 1146.
+
+[14]
+
+LaTeX Warning: Reference `sec:model' on page 15 undefined on input line 1160.
+
+
+LaTeX Warning: Citation `elhage2022' on page 15 undefined on input line 1163.
+
+
+LaTeX Warning: Citation `mcgrath2023' on page 15 undefined on input line 1163.
+
+
+LaTeX Warning: Reference `rem:bridge' on page 15 undefined on input line 1167.
+
+
+LaTeX Warning: Reference `eq:ablation' on page 15 undefined on input line 1168.
+
+
+
+LaTeX Warning: Reference `thm:collapse' on page 15 undefined on input line 1205
+.
+
+
+LaTeX Warning: Reference `fig:seed44' on page 15 undefined on input line 1205.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 15 undefined on input line 1205
+.
+
+
+LaTeX Warning: Reference `fig:seed44' on page 15 undefined on input line 1205.
+
+
+LaTeX Warning: Reference `tab:results' on page 15 undefined on input line 1209.
+
+
+
+LaTeX Warning: Reference `thm:collapse' on page 15 undefined on input line 1209
+.
+
+
+LaTeX Warning: Reference `cor:invariance' on page 15 undefined on input line 12
+19.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 15 undefined on input line 122
+2.
+
+
+LaTeX Warning: Reference `prop:readout' on page 15 undefined on input line 1223
+.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 15 undefined on input line 1
+224.
+
+
+LaTeX Warning: Reference `cor:invariance' on page 15 undefined on input line 12
+43.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 15 undefined on input line 1
+243.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 15 undefined on input line 124
+3.
+
+
+LaTeX Warning: Reference `cor:invariance' on page 15 undefined on input line 12
+43.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 15 undefined on input line 1
+243.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 15 undefined on input line 124
+3.
+
+
+LaTeX Warning: Reference `thm:dissociation' on page 15 undefined on input line 
+1248.
+
+
+LaTeX Warning: Reference `rem:redundancy' on page 15 undefined on input line 12
+53.
+
+[15]
+
+LaTeX Warning: Reference `thm:collapse' on page 16 undefined on input line 1263
+.
+
+
+LaTeX Warning: Reference `prop:robust' on page 16 undefined on input line 1266.
+
+
+
+LaTeX Warning: Reference `eq:robust' on page 16 undefined on input line 1270.
+
+
+LaTeX Warning: Reference `prop:robust' on page 16 undefined on input line 1288.
+
+
+
+LaTeX Warning: Reference `fig:seed44' on page 16 undefined on input line 1295.
+
+
+LaTeX Warning: Reference `cor:robustinvariance' on page 16 undefined on input l
+ine 1299.
+
+[16 <./figures/fig_marker_seed44_polarity.pdf>]
+
+LaTeX Warning: Reference `thm:collapse' on page 17 undefined on input line 1303
+.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 17 undefined on input line 130
+9.
+
+
+LaTeX Warning: Reference `prop:readout' on page 17 undefined on input line 1310
+.
+
+
+LaTeX Warning: Reference `ass:stable' on page 17 undefined on input line 1317.
+
+
+LaTeX Warning: Reference `prop:readout' on page 17 undefined on input line 1319
+.
+
+
+LaTeX Warning: Reference `prop:patchedit' on page 17 undefined on input line 13
+23.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 17 undefined on input line 132
+7.
+
+
+LaTeX Warning: Reference `fig:interaction' on page 17 undefined on input line 1
+330.
+
+[17]
+
+LaTeX Warning: Reference `fig:interaction' on page 18 undefined on input line 1
+373.
+
+[18 <./figures/fig_marker_interaction_oos.pdf>]
+
+LaTeX Warning: Reference `thm:interaction' on page 19 undefined on input line 1
+426.
+
+
+LaTeX Warning: Reference `sec:model' on page 19 undefined on input line 1430.
+
+
+LaTeX Warning: Reference `sec:dissociation' on page 19 undefined on input line 
+1430.
+
+
+LaTeX Warning: Reference `prop:patchedit' on page 19 undefined on input line 14
+40.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 19 undefined on input line 144
+1.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 19 undefined on input line 1
+473.
+
+
+LaTeX Warning: Reference `app:repro' on page 19 undefined on input line 1480.
+
+[19]
+
+LaTeX Warning: Reference `sec:experiments' on page 20 undefined on input line 1
+507.
+
+
+LaTeX Warning: Reference `prop:patchedit' on page 20 undefined on input line 15
+07.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 20 undefined on input line 1
+517.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 20 undefined on input line 1
+527.
+
+
+LaTeX Warning: Reference `fig:seed44' on page 20 undefined on input line 1533.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 20 undefined on input line 1
+540.
+
+
+LaTeX Warning: Reference `cor:invariance' on page 20 undefined on input line 15
+41.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 20 undefined on input line 1
+556.
+
+[20]
+
+LaTeX Warning: Reference `lem:flip' on page 21 undefined on input line 1565.
+
+
+LaTeX Warning: Reference `thm:collapse' on page 21 undefined on input line 1565
+.
+
+
+LaTeX Warning: Reference `thm:dissociation' on page 21 undefined on input line 
+1566.
+
+
+LaTeX Warning: Reference `ass:readout' on page 21 undefined on input line 1567.
+
+
+
+LaTeX Warning: Reference `sec:model' on page 21 undefined on input line 1568.
+
+
+LaTeX Warning: Reference `prop:robust' on page 21 undefined on input line 1572.
+
+
+
+LaTeX Warning: Reference `sec:experiments' on page 21 undefined on input line 1
+576.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 21 undefined on input line 1
+579.
+
+
+LaTeX Warning: Reference `cor:exactness' on page 21 undefined on input line 158
+2.
+
+
+LaTeX Warning: Reference `prop:readout' on page 21 undefined on input line 1584
+.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 21 undefined on input line 1
+596.
+
+
+LaTeX Warning: Reference `cor:invariance' on page 21 undefined on input line 16
+04.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 21 undefined on input line 1
+608.
+
+
+LaTeX Warning: Reference `rem:propagation' on page 21 undefined on input line 1
+609.
+
+
+LaTeX Warning: Reference `sec:model' on page 21 undefined on input line 1615.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 21 undefined on input line 1
+617.
+
+
+LaTeX Warning: Reference `sec:model' on page 21 undefined on input line 1621.
+
+
+LaTeX Warning: Reference `sec:interaction' on page 21 undefined on input line 1
+621.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 21 undefined on input line 1
+627.
+
+[21]
+
+LaTeX Warning: Reference `sec:collapse' on page 22 undefined on input line 1645
+.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 22 undefined on input line 1
+675.
+
+
+LaTeX Warning: Reference `ass:readout' on page 22 undefined on input line 1693.
+
+
+
+LaTeX Warning: Reference `sec:second-task' on page 22 undefined on input line 1
+704.
+
+[22]
+
+LaTeX Warning: Reference `sec:experiments' on page 23 undefined on input line 1
+716.
+
+
+LaTeX Warning: Reference `eq:ablation' on page 23 undefined on input line 1729.
+
+
+
+LaTeX Warning: Reference `rem:bridge' on page 23 undefined on input line 1730.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 23 undefined on input line 1
+733.
+
+
+LaTeX Warning: Reference `sec:second-task' on page 23 undefined on input line 1
+749.
+
+[23]
+
+LaTeX Warning: Reference `thm:interaction' on page 24 undefined on input line 1
+770.
+
+
+LaTeX Warning: Reference `prop:patchedit' on page 24 undefined on input line 17
+72.
+
+
+LaTeX Warning: Reference `prop:robust' on page 24 undefined on input line 1776.
+
+
+
+LaTeX Warning: Reference `sec:experiments' on page 24 undefined on input line 1
+778.
+
+
+LaTeX Warning: Reference `sec:second-task' on page 24 undefined on input line 1
+790.
+
+[24] [25] (conditional_collapse_theory.aux)
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package rerunfilecheck Warning: File `conditional_collapse_theory.out' has chan
+ged.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+ ) <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\
+tcrm1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/
+ec/dpi600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour
+/jknappen/ec/dpi600\ecbx1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts
+/pk/ljfour/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\Mi
+KTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppDat
+a\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Neverm
+ind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Us
+ers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1000.
+pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600
+\ecrm1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen
+/ec/dpi600\ecbx1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfou
+r/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\font
+s/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\M
+iKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppDat
+a/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/Nev
+ermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb>
+<C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/c
+m/cmmi7.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/publi
+c/amsfonts/cm/cmmi8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts
+/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/Nevermind/AppData/Local/Programs/
+MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/Nevermind/AppData/Loca
+l/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr7.pfb><C:/Users/Nevermind/A
+ppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/
+Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.p
+fb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfont
+s/cm/cmsy6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/pu
+blic/amsfonts/cm/cmsy8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fo
+nts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on conditional_collapse_theory.pdf (25 pages, 503661 bytes).
+Transcript written on conditional_collapse_theory.log.
+Latexmk: Getting log file 'conditional_collapse_theory.log'
+Latexmk: Examining 'conditional_collapse_theory.fls'
+Latexmk: Examining 'conditional_collapse_theory.log'
+Latexmk: References changed.
+Latexmk: References changed.
+Latexmk: Log file says output to 'conditional_collapse_theory.pdf'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  conditional_collapse_theory.aux
+  conditional_collapse_theory.out
+
+------------
+Run number 2 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "conditional_collapse_theory.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(conditional_collapse_theory.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/placeins\placeins.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (conditional_collapse_theory.aux) (conditional_collapse_theory.out
+) (conditional_collapse_theory.out)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+[2] [3] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14] [15] [16 <./figures/fi
+g_marker_seed44_polarity.pdf>] [17] [18 <./figures/fig_marker_interaction_oos.p
+df>] [19] [20] [21] [22] [23] [24] [25] (conditional_collapse_theory.aux) ) <C:
+\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\tcrm10
+95.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi
+600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknap
+pen/ec/dpi600\ecbx1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/lj
+four/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\f
+onts/pk/ljfour/jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppData\Loca
+l\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Nevermind\Ap
+pData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\Ne
+vermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1000.pk> <C
+:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1
+000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dp
+i600\ecbx1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jkna
+ppen/ec/dpi600\ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/l
+jfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\
+fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppData/Loca
+l/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/Nevermind
+/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Us
+ers/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi
+7.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsf
+onts/cm/cmmi8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1
+/public/amsfonts/cm/cmr10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX
+/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/Nevermind/AppData/Local/Prog
+rams/MiKTeX/fonts/type1/public/amsfonts/cm/cmr7.pfb><C:/Users/Nevermind/AppData
+/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/Neverm
+ind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:
+/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/c
+msy6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/a
+msfonts/cm/cmsy8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/ty
+pe1/public/amsfonts/symbols/msbm10.pfb>
+Output written on conditional_collapse_theory.pdf (25 pages, 550871 bytes).
+Transcript written on conditional_collapse_theory.log.
+Latexmk: Getting log file 'conditional_collapse_theory.log'
+Latexmk: Examining 'conditional_collapse_theory.fls'
+Latexmk: Examining 'conditional_collapse_theory.log'
+Latexmk: Log file says output to 'conditional_collapse_theory.pdf'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  conditional_collapse_theory.aux
+
+------------
+Run number 3 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "conditional_collapse_theory.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(conditional_collapse_theory.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/placeins\placeins.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (conditional_collapse_theory.aux) (conditional_collapse_theory.out
+) (conditional_collapse_theory.out)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+[2] [3] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14] [15] [16 <./figures/fi
+g_marker_seed44_polarity.pdf>] [17] [18 <./figures/fig_marker_interaction_oos.p
+df>] [19] [20] [21] [22] [23] [24] [25] (conditional_collapse_theory.aux) ) <C:
+\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\tcrm10
+95.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi
+600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknap
+pen/ec/dpi600\ecbx1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/lj
+four/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\f
+onts/pk/ljfour/jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppData\Loca
+l\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Nevermind\Ap
+pData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\Ne
+vermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1000.pk> <C
+:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1
+000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dp
+i600\ecbx1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jkna
+ppen/ec/dpi600\ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/l
+jfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\
+fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppData/Loca
+l/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/Nevermind
+/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Us
+ers/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi
+7.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsf
+onts/cm/cmmi8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1
+/public/amsfonts/cm/cmr10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX
+/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/Nevermind/AppData/Local/Prog
+rams/MiKTeX/fonts/type1/public/amsfonts/cm/cmr7.pfb><C:/Users/Nevermind/AppData
+/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/Neverm
+ind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:
+/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/c
+msy6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/a
+msfonts/cm/cmsy8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/ty
+pe1/public/amsfonts/symbols/msbm10.pfb>
+Output written on conditional_collapse_theory.pdf (25 pages, 550871 bytes).
+Transcript written on conditional_collapse_theory.log.
+Latexmk: Getting log file 'conditional_collapse_theory.log'
+Latexmk: Examining 'conditional_collapse_theory.fls'
+Latexmk: Examining 'conditional_collapse_theory.log'
+Latexmk: Log file says output to 'conditional_collapse_theory.pdf'
+Latexmk: All targets (conditional_collapse_theory.pdf) are up-to-date
+

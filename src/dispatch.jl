@@ -598,16 +598,33 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
         return output_buffer
 
     elseif op == :embedding
+        # CORRECTIF PERF 2026-08-31 (trouvé en creusant "attention ≈8x MLP,
+        # kernel-launch-count driven" à la demande explicite de l'utilisateur
+        # -- voir notebook/diag_decode_op_breakdown.jl et
+        # notebook/diag_embedding_gpu_gather_check.jl) : l'ancienne
+        # implémentation faisait `E_cpu = Array(E)` -- un aller-retour GPU->CPU
+        # de la table d'embedding ENTIÈRE (890 Mo pour Qwen2.5-1.5B,
+        # vocab=151936 x dim=1536) À CHAQUE APPEL, y compris pour un lookup
+        # d'UN SEUL token (le nœud `:dec_tok_emb` du décodage incrémental,
+        # appelé une fois PAR TOKEN GÉNÉRÉ). Mesuré : ~220ms sur ce chemin,
+        # alors que ce qui semblait être "le coût de l'attention" dans le
+        # profilage précédent (`diag_kv_cache_growth_and_profile.jl`,
+        # seg_attn≈213ms/pas) était en réalité en bonne partie CE transfert,
+        # mal attribué à l'attention parce que l'embedding du nouveau token
+        # est calculé comme ancêtre du premier checkpoint de la couche 1.
+        # `view(E, idx_cpu, :)` reste sur le device de `E` (CPU comme CUDA) et
+        # déclenche un vrai gather GPU natif sur CUDA (kernel GPUArrays, testé
+        # SANS "scalar indexing disallowed" et vérifié bit-identique à
+        # l'ancien chemin dans diag_embedding_gpu_gather_check.jl) au lieu
+        # d'un memcpy device->host de toute la table -- mesuré 0.021ms contre
+        # 220ms (~10 600x), résultat NUMÉRIQUEMENT IDENTIQUE (`isapprox`
+        # vérifié). `idx_cpu` reste un petit `Vector{Int}` côté hôte (sa
+        # taille est `n_batch`, jamais `vocab_size`) -- aucun changement du
+        # comportement `ctx_store`/backward, qui continuent de lire `:idx`
+        # exactement comme avant.
         E, idx_raw = inputs[1], inputs[2]
         idx_cpu = Int.(vec(Array(idx_raw)))
-        n_batch = length(idx_cpu)
-        d_emb = size(E, 2)
-        E_cpu = Array(E)
-        out_cpu = Array(output_buffer)
-        for (i, row) in enumerate(idx_cpu)
-            out_cpu[i, :] .= E_cpu[row, :]
-        end
-        output_buffer .= Backend.to_device(dev, out_cpu)
+        output_buffer .= view(E, idx_cpu, :)
         if ctx_store !== nothing
             _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
                 :idx => idx_cpu, :E_size => size(E)))

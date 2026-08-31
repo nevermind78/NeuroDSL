@@ -97,7 +97,33 @@ function kv_cache_append!(dev, output_buffer, inputs, attrs, out_sym, out_node, 
     # la version de CUDA.jl). `copy()` reste sur le même device que
     # `output_buffer` dans les deux cas (CPU comme CUDA) -- toujours copie
     # réelle, jamais un alias, même garde-fou qu'avant.
+    #
+    # CORRECTIF MÉMOIRE 2026-08-31 (fuite multi-tours, trouvée en instrumentant
+    # une VRAIE conversation à 4 tours dans notebook/qwen2.ipynb -- voir
+    # notebook/diag_multiturn_vram_growth.jl) : `hist` (l'ANCIEN
+    # `aux_data[:history]`, déjà copié dans `output_buffer` ci-dessus, donc
+    # plus référencé par personne d'autre) était jusqu'ici simplement remplacé
+    # par la ligne suivante, sans `Backend.free!` -- contrairement à `.value`
+    # (`execute_rule!`, src/dispatch.jl:243-258), qui LUI est explicitement
+    # libéré de façon SYNCHRONE avant réallocation, précisément pour éviter
+    # d'attendre un passage du GC Julia qui "peut ne jamais arriver au milieu
+    # d'une boucle chaude" (citation du commentaire de `Backend.free!`,
+    # src/backend.jl -- exactement le cas ici : une réponse de ~200-300
+    # tokens appelle ce nœud, pour CHAQUE tête K/V de CHAQUE couche
+    # (`2 * n_layers * n_kv_heads` nœuds), une fois PAR TOKEN GÉNÉRÉ, sans
+    # qu'aucun `GC.gc()` n'ait lieu entre deux tokens ni entre deux tours de
+    # `chat(...)`). Mesuré : cette fuite (`aux_data[:history]` abandonné à
+    # chaque pas, jamais rendu au pool CUDA avant le prochain passage
+    # -- éventuel -- du GC) explique la quasi-totalité du saut de VRAM observé
+    # par l'utilisateur (~8.5 Go -> ~13.3 Go) sur une conversation réelle à
+    # 4 tours dont les tours 3-4 génèrent ~200-300 tokens chacun. Le même
+    # patron existe dans `prime_kv_cache_from_prefix!` (src/layers.jl),
+    # appelé une fois par tour plutôt qu'une fois par token -- corrigé de la
+    # même façon, effet bien plus petit (un seul remplacement par tour et par
+    # tête, pas par token).
+    old_hist = hist
     out_node.aux_data[:history] = copy(output_buffer)
+    old_hist !== nothing && Backend.free!(dev, old_hist)
     out_node.aux_data[:kv_cache_active] = true
     return output_buffer
 end

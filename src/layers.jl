@@ -266,6 +266,29 @@ function (m::LlamaModel)(g::NeuroGraph, x_sym::Symbol; namespace=g.active_ns)
     cur=x_sym
     for i in 1:m.n_layers
         cur=m.blocks[i](g,cur,Symbol(:layer_,i);namespace=namespace)
+        # Nettoyage périodique -- mesuré nécessaire (2026-08-31,
+        # notebook/diag_construction_vram_spike.jl) : chaque poids de couche
+        # est initialisé via `(Backend.rand32(...) .- 0.5f0) .* (2k)`
+        # (`LlamaBlock`/`MultiHeadAttention` ci-dessus), ce qui alloue
+        # TRANSITOIREMENT le tableau aléatoire brut ET le résultat décalé/mis
+        # à l'échelle avant que le premier ne devienne collectable -- sans
+        # passage périodique du GC pendant la boucle des 28 couches, ces
+        # tableaux orphelins de TOUTES les couches précédentes peuvent encore
+        # être vivants quand les dernières couches allouent les leurs. Mesuré
+        # sur Qwen2.5-1.5B (28 couches) : pool_high_watermark=10887 Mo contre
+        # pool_current=5889 Mo une fois le GC passé -- ~4.1 Go gaspillés
+        # transitoirement dès la CONSTRUCTION du graphe (poids aléatoires
+        # jetables, avant même `load_graph!`). Même patron que le nettoyage
+        # déjà appliqué manuellement dans `notebook/load_qwen2.jl` (toutes les
+        # 4 couches) -- ici généralisé au chemin `LlamaModel` lui-même pour
+        # que TOUT appelant en bénéficie, pas seulement ce script de
+        # conversion ponctuel. Ne change AUCUNE valeur aléatoire générée ni
+        # l'ordre de consommation du RNG (le GC ne touche que des tableaux
+        # déjà orphelins) -- comportement numérique identique, coût mémoire
+        # transitoire réduit.
+        if i % 4 == 0
+            GC.gc(); Backend.reclaim!(g.device)
+        end
     end
     return cur
 end
@@ -612,8 +635,20 @@ function prime_kv_cache_from_prefix!(g::NeuroGraph; src_ns::Symbol, dst_ns::Symb
                 error("prime_kv_cache_from_prefix! : :$k_src/:$v_src n'ont pas de valeur -- " *
                       "demand! a-t-il été appelé sur le graphe complet (namespace :$src_ns) AVANT ce priming ?")
 
+            # CORRECTIF MÉMOIRE 2026-08-31 (voir la note jumelle dans
+            # src/kv_cache.jl:kv_cache_append! -- même bug, même correctif) :
+            # cette fonction est appelée une fois PAR TOUR de `chat(...)`
+            # (notebook/qwen2.ipynb), à chaque fois avec un préfixe plus long
+            # (l'historique complet de la conversation) -- l'ancien
+            # `aux_data[:history]`, déjà remplacé ci-dessous par la copie
+            # fraîche du préfixe recalculé, doit être rendu au pool CUDA de
+            # façon SYNCHRONE (`Backend.free!`), pas laissé au GC Julia.
+            old_k_hist = get(g.nodes[dst_ns][k_dst].aux_data, :history, nothing)
+            old_v_hist = get(g.nodes[dst_ns][v_dst].aux_data, :history, nothing)
             g.nodes[dst_ns][k_dst].aux_data[:history] = copy(k_val)
             g.nodes[dst_ns][v_dst].aux_data[:history] = copy(v_val)
+            old_k_hist !== nothing && Backend.free!(g.device, old_k_hist)
+            old_v_hist !== nothing && Backend.free!(g.device, old_v_hist)
             g.nodes[dst_ns][k_dst].aux_data[:kv_cache_active] = true
             g.nodes[dst_ns][v_dst].aux_data[:kv_cache_active] = true
             n += 2

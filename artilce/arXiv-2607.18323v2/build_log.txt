@@ -1,0 +1,1058 @@
+Rc files read (in order):
+  NONE
+Latexmk: This is Latexmk, John Collins, 9 March 2026. Version 4.88.
+No existing .aux file, so I'll make a simple one, and require run of *latex.
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Category 'other':
+  Rerun of 'pdflatex' forced or previously required:
+    Reason or flag: 'Initial setup'
+
+------------
+Run number 1 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "math2.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(math2.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithms\algorith
+m.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/float\float.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\ifthen.sty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algpse
+udocode.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algori
+thmicx.sty
+Document Style algorithmicx 1.2 - a greatly improved `algorithmic' style
+)
+Document Style - pseudocode environments for use with the `algorithmicx' style
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (math2.aux)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+
+LaTeX Warning: Citation `neurodsl' on page 1 undefined on input line 39.
+
+
+Overfull \hbox (16.87631pt too wide) in paragraph at lines 39--40
+[]\T1/cmr/m/n/10 Exhaustive site-by-site in-ter-ven-tions on a neu-ral net-work
+'s com-pu-ta-tional graph --- activation-
+
+LaTeX Warning: Citation `conmy2023' on page 1 undefined on input line 44.
+
+
+LaTeX Warning: Citation `meng2022' on page 1 undefined on input line 44.
+
+
+LaTeX Warning: Citation `pytorch' on page 1 undefined on input line 46.
+
+
+LaTeX Warning: Citation `jax' on page 1 undefined on input line 46.
+
+
+LaTeX Warning: Citation `neurodsl' on page 1 undefined on input line 46.
+
+
+LaTeX Warning: Reference `thm:locality' on page 1 undefined on input line 46.
+
+
+LaTeX Warning: Citation `surgery' on page 1 undefined on input line 46.
+
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+
+LaTeX Warning: Reference `thm:aggregate' on page 2 undefined on input line 52.
+
+
+LaTeX Warning: Reference `cor:wallclock' on page 2 undefined on input line 52.
+
+
+LaTeX Warning: Reference `sec:e9' on page 2 undefined on input line 52.
+
+
+LaTeX Warning: Reference `thm:sequential' on page 2 undefined on input line 53.
+
+
+
+LaTeX Warning: Reference `cor:order-extremes' on page 2 undefined on input line
+ 53.
+
+
+LaTeX Warning: Reference `prop:batched' on page 2 undefined on input line 53.
+
+
+LaTeX Warning: Reference `thm:backward-locality' on page 2 undefined on input l
+ine 54.
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 2 undefined on input l
+ine 54.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 2 undefined on input line 55
+.
+
+
+LaTeX Warning: Citation `pytorch' on page 2 undefined on input line 61.
+
+
+LaTeX Warning: Citation `jax' on page 2 undefined on input line 61.
+
+
+LaTeX Warning: Citation `neurodsl' on page 2 undefined on input line 61.
+
+
+LaTeX Warning: Citation `vig2020' on page 2 undefined on input line 63.
+
+
+LaTeX Warning: Citation `meng2022' on page 2 undefined on input line 63.
+
+
+LaTeX Warning: Citation `conmy2023' on page 2 undefined on input line 63.
+
+
+LaTeX Warning: Citation `transformerlens' on page 2 undefined on input line 63.
+
+
+
+LaTeX Warning: Citation `atpstar' on page 2 undefined on input line 63.
+
+[2]
+
+LaTeX Warning: Citation `atpstar' on page 3 undefined on input line 65.
+
+
+LaTeX Warning: Citation `eap' on page 3 undefined on input line 65.
+
+
+LaTeX Warning: Citation `atpstar' on page 3 undefined on input line 65.
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 3 undefined on input l
+ine 65.
+
+
+LaTeX Warning: Citation `conmy2023' on page 3 undefined on input line 65.
+
+
+LaTeX Warning: Citation `surgery' on page 3 undefined on input line 67.
+
+
+LaTeX Warning: Reference `thm:locality' on page 3 undefined on input line 67.
+
+
+LaTeX Warning: Reference `alg:invalidate' on page 3 undefined on input line 82.
+
+
+[3]
+
+LaTeX Warning: Reference `alg:invalidate' on page 4 undefined on input line 110
+.
+
+
+LaTeX Warning: Reference `thm:locality' on page 4 undefined on input line 125.
+
+[4]
+
+LaTeX Warning: Reference `thm:locality' on page 5 undefined on input line 147.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 5 undefined on input line 189.
+
+
+
+LaTeX Warning: Reference `sec:experiments' on page 5 undefined on input line 20
+3.
+
+
+LaTeX Warning: Reference `thm:locality' on page 5 undefined on input line 204.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 5 undefined on input line 210.
+
+
+[5]
+
+LaTeX Warning: Reference `sec:limitations' on page 6 undefined on input line 22
+6.
+
+
+LaTeX Warning: Reference `sec:e9' on page 6 undefined on input line 227.
+
+
+LaTeX Warning: Reference `thm:locality' on page 6 undefined on input line 234.
+
+
+LaTeX Warning: Reference `sec:aggregate' on page 6 undefined on input line 234.
+
+
+
+LaTeX Warning: Reference `thm:locality' on page 6 undefined on input line 243.
+
+[6]
+
+LaTeX Warning: Reference `thm:locality' on page 7 undefined on input line 288.
+
+
+LaTeX Warning: Reference `lem:trace-invariance' on page 7 undefined on input li
+ne 291.
+
+
+LaTeX Warning: Reference `thm:locality' on page 7 undefined on input line 295.
+
+
+LaTeX Warning: Reference `sec:prelim' on page 7 undefined on input line 330.
+
+
+LaTeX Warning: Citation `surgery' on page 7 undefined on input line 341.
+
+
+LaTeX Warning: Reference `thm:sequential' on page 7 undefined on input line 349
+.
+
+
+LaTeX Warning: Reference `prop:batched' on page 7 undefined on input line 349.
+
+
+LaTeX Warning: Reference `cor:wallclock' on page 7 undefined on input line 354.
+
+
+[7]
+
+LaTeX Warning: Reference `thm:locality' on page 8 undefined on input line 361.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 8 undefined on input line 361.
+
+
+
+LaTeX Warning: Reference `thm:locality' on page 8 undefined on input line 365.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 8 undefined on input line 367.
+
+
+
+LaTeX Warning: Reference `sec:prelim' on page 8 undefined on input line 372.
+
+
+LaTeX Warning: Reference `alg:invalidate' on page 8 undefined on input line 379
+.
+
+
+LaTeX Warning: Reference `thm:locality' on page 8 undefined on input line 381.
+
+
+LaTeX Warning: Reference `thm:locality' on page 8 undefined on input line 389.
+
+
+Overfull \hbox (10.06433pt too wide) in paragraph at lines 389--396
+\T1/cmr/m/n/10.95 proof with the edge di-rec-tion flipped. For the gra-di-ent c
+laim, write $\OML/cmm/m/it/10.95 @`=@v \OT1/cmr/m/n/10.95 = [][] [][] \OML/cmm/
+m/it/10.95 @b=@a$\T1/cmr/m/n/10.95 ,
+
+LaTeX Warning: Reference `def:layered' on page 8 undefined on input line 400.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 8 undefined on input line 415.
+
+
+
+LaTeX Warning: Reference `thm:locality' on page 8 undefined on input line 425.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 8 undefined on input line 425.
+
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 8 undefined on input line 428.
+
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 8 undefined on input l
+ine 428.
+
+
+LaTeX Warning: Citation `surgery' on page 8 undefined on input line 431.
+
+[8]
+
+LaTeX Warning: Reference `cor:wallclock' on page 9 undefined on input line 442.
+
+
+
+LaTeX Warning: Citation `surgery' on page 9 undefined on input line 444.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 9 undefined on input line 447.
+
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 9 undefined on input line 450.
+
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 9 undefined on input line 463.
+
+
+
+Overfull \hbox (14.12877pt too wide) in paragraph at lines 465--475
+ [][] 
+
+LaTeX Warning: Reference `def:layered' on page 9 undefined on input line 480.
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 9 undefined on input l
+ine 485.
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 9 undefined on input l
+ine 493.
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 9 undefined on input l
+ine 499.
+
+
+LaTeX Warning: Reference `thm:aggregate' on page 9 undefined on input line 500.
+
+
+[9
+pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
+ been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.502 
+      ]
+
+LaTeX Warning: Reference `thm:sequential' on page 10 undefined on input line 50
+3.
+
+
+LaTeX Warning: Reference `prop:batched' on page 10 undefined on input line 503.
+
+
+
+LaTeX Warning: Reference `thm:sequential' on page 10 undefined on input line 51
+0.
+
+
+LaTeX Warning: Reference `prop:batched' on page 10 undefined on input line 513.
+
+
+
+LaTeX Warning: Reference `thm:sequential' on page 10 undefined on input line 51
+7.
+
+
+LaTeX Warning: Reference `thm:sequential' on page 10 undefined on input line 51
+7.
+
+
+LaTeX Warning: Reference `thm:sequential' on page 10 undefined on input line 53
+1.
+
+
+LaTeX Warning: Reference `cor:order-extremes' on page 10 undefined on input lin
+e 532.
+
+
+LaTeX Warning: Reference `prop:batched' on page 10 undefined on input line 533.
+
+
+
+LaTeX Warning: Reference `prop:batched' on page 10 undefined on input line 543.
+
+
+
+LaTeX Warning: Reference `cor:wallclock' on page 10 undefined on input line 552
+.
+
+
+LaTeX Warning: Reference `cor:wallclock' on page 10 undefined on input line 560
+.
+
+
+LaTeX Warning: Reference `cor:wallclock' on page 10 undefined on input line 563
+.
+
+[10
+pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
+ been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.570 
+      ]
+
+LaTeX Warning: Reference `thm:aggregate' on page 11 undefined on input line 581
+.
+
+
+LaTeX Warning: Reference `cor:wallclock' on page 11 undefined on input line 602
+.
+
+
+LaTeX Warning: Reference `def:layered' on page 11 undefined on input line 607.
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 11 undefined on input 
+line 610.
+
+
+LaTeX Warning: Reference `thm:sequential' on page 11 undefined on input line 61
+1.
+
+
+LaTeX Warning: Reference `cor:backward-collapse' on page 11 undefined on input 
+line 615.
+
+[11]
+Underfull \hbox (badness 10000) in paragraph at lines 643--644
+[]\T1/cmr/m/n/10.95 Nanda, N., Bloom, J. (2022). Trans-former-Lens. []$\T1/cmtt
+/m/n/10.95 https : / / github . com /
+[12] (math2.aux)
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package rerunfilecheck Warning: File `math2.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+ )
+(see the transcript file for additional information) <C:\Users\Nevermind\AppDat
+a\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk> <C:\Users\Neverm
+ind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti0800.pk> <C:\Us
+ers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecit1095.
+pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600
+\ecrm0900.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen
+/ec/dpi600\eccc1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfou
+r/jknappen/ec/dpi600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\font
+s/pk/ljfour/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\M
+iKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppDa
+ta\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Never
+mind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\U
+sers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1000
+.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi60
+0\ecrm1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappe
+n/ec/dpi600\ecbx1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfo
+ur/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fon
+ts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\
+MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppDa
+ta/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmbx10.pfb><C:/Users/Ne
+vermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb
+><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/
+cm/cmmi10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/pub
+lic/amsfonts/cm/cmmi6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fon
+ts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/Nevermind/AppData/Local/Program
+s/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/Nevermind/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/Nevermin
+d/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Use
+rs/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy1
+0.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsf
+onts/cm/cmsy8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1
+/public/amsfonts/symbols/msam10.pfb><C:/Users/Nevermind/AppData/Local/Programs/
+MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on math2.pdf (12 pages, 387576 bytes).
+Transcript written on math2.log.
+Latexmk: Getting log file 'math2.log'
+Latexmk: Examining 'math2.fls'
+Latexmk: Examining 'math2.log'
+Latexmk: References changed.
+Latexmk: References changed.
+Latexmk: Log file says output to 'math2.pdf'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  math2.aux
+  math2.out
+
+------------
+Run number 2 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "math2.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(math2.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithms\algorith
+m.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/float\float.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\ifthen.sty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algpse
+udocode.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algori
+thmicx.sty
+Document Style algorithmicx 1.2 - a greatly improved `algorithmic' style
+)
+Document Style - pseudocode environments for use with the `algorithmicx' style
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (math2.aux) (math2.out) (math2.out)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+Overfull \hbox (16.87631pt too wide) in paragraph at lines 39--40
+[]\T1/cmr/m/n/10 Exhaustive site-by-site in-ter-ven-tions on a neu-ral net-work
+'s com-pu-ta-tional graph --- activation-
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+[2] [3] [4] [5] [6] [7]
+Overfull \hbox (10.06433pt too wide) in paragraph at lines 389--396
+\T1/cmr/m/n/10.95 proof with the edge di-rec-tion flipped. For the gra-di-ent c
+laim, write $\OML/cmm/m/it/10.95 @`=@v \OT1/cmr/m/n/10.95 = [][] [][] \OML/cmm/
+m/it/10.95 @b=@a$\T1/cmr/m/n/10.95 ,
+[8]
+Overfull \hbox (14.12877pt too wide) in paragraph at lines 465--475
+ [][] 
+[9
+pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
+ been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.502 
+      ] [10
+pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
+ been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.570 
+      ] [11]
+Underfull \hbox (badness 10000) in paragraph at lines 643--644
+[]\T1/cmr/m/n/10.95 Nanda, N., Bloom, J. (2022). Trans-former-Lens. []$\T1/cmtt
+/m/n/10.95 https : / / github . com /
+[12] (math2.aux)
+
+Package rerunfilecheck Warning: File `math2.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+ )
+(see the transcript file for additional information) <C:\Users\Nevermind\AppDat
+a\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk> <C:\Users\Neverm
+ind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti0800.pk> <C:\Us
+ers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecit1095.
+pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600
+\ecrm0900.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen
+/ec/dpi600\eccc1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfou
+r/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\font
+s/pk/ljfour/jknappen/ec/dpi600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\M
+iKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppDa
+ta\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Never
+mind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\U
+sers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1000
+.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi60
+0\ecrm1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappe
+n/ec/dpi600\ecbx1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfo
+ur/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fon
+ts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\
+MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppDa
+ta/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmbx10.pfb><C:/Users/Ne
+vermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb
+><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/
+cm/cmmi10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/pub
+lic/amsfonts/cm/cmmi6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fon
+ts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/Nevermind/AppData/Local/Program
+s/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/Nevermind/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/Nevermin
+d/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Use
+rs/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy1
+0.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsf
+onts/cm/cmsy8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1
+/public/amsfonts/symbols/msam10.pfb><C:/Users/Nevermind/AppData/Local/Programs/
+MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on math2.pdf (12 pages, 409782 bytes).
+Transcript written on math2.log.
+Latexmk: Getting log file 'math2.log'
+Latexmk: Examining 'math2.fls'
+Latexmk: Examining 'math2.log'
+Latexmk: References changed.
+Latexmk: Log file says output to 'math2.pdf'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  math2.out
+
+------------
+Run number 3 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "math2.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(math2.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithms\algorith
+m.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/float\float.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\ifthen.sty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algpse
+udocode.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algori
+thmicx.sty
+Document Style algorithmicx 1.2 - a greatly improved `algorithmic' style
+)
+Document Style - pseudocode environments for use with the `algorithmicx' style
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (math2.aux) (math2.out) (math2.out)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+Overfull \hbox (16.87631pt too wide) in paragraph at lines 39--40
+[]\T1/cmr/m/n/10 Exhaustive site-by-site in-ter-ven-tions on a neu-ral net-work
+'s com-pu-ta-tional graph --- activation-
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+[2] [3] [4] [5] [6] [7]
+Overfull \hbox (10.06433pt too wide) in paragraph at lines 389--396
+\T1/cmr/m/n/10.95 proof with the edge di-rec-tion flipped. For the gra-di-ent c
+laim, write $\OML/cmm/m/it/10.95 @`=@v \OT1/cmr/m/n/10.95 = [][] [][] \OML/cmm/
+m/it/10.95 @b=@a$\T1/cmr/m/n/10.95 ,
+[8]
+Overfull \hbox (14.12877pt too wide) in paragraph at lines 465--475
+ [][] 
+[9
+pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
+ been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.502 
+      ] [10
+pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
+ been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.570 
+      ] [11]
+Underfull \hbox (badness 10000) in paragraph at lines 643--644
+[]\T1/cmr/m/n/10.95 Nanda, N., Bloom, J. (2022). Trans-former-Lens. []$\T1/cmtt
+/m/n/10.95 https : / / github . com /
+[12] (math2.aux) )
+(see the transcript file for additional information) <C:\Users\Nevermind\AppDat
+a\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk> <C:\Users\Neverm
+ind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti0800.pk> <C:\Us
+ers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecit1095.
+pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600
+\ecrm0900.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen
+/ec/dpi600\eccc1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfou
+r/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\font
+s/pk/ljfour/jknappen/ec/dpi600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\M
+iKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppDa
+ta\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Never
+mind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\U
+sers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1000
+.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi60
+0\ecrm1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappe
+n/ec/dpi600\ecbx1000.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfo
+ur/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fon
+ts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\
+MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppDa
+ta/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmbx10.pfb><C:/Users/Ne
+vermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb
+><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/
+cm/cmmi10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/pub
+lic/amsfonts/cm/cmmi6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fon
+ts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/Nevermind/AppData/Local/Program
+s/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/Nevermind/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/Nevermin
+d/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Use
+rs/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy1
+0.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsf
+onts/cm/cmsy8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1
+/public/amsfonts/symbols/msam10.pfb><C:/Users/Nevermind/AppData/Local/Programs/
+MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on math2.pdf (12 pages, 409757 bytes).
+Transcript written on math2.log.
+Latexmk: Getting log file 'math2.log'
+Latexmk: Examining 'math2.fls'
+Latexmk: Examining 'math2.log'
+Latexmk: Log file says output to 'math2.pdf'
+Latexmk: All targets (math2.pdf) are up-to-date
+

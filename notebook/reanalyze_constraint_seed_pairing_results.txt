@@ -1,0 +1,51 @@
+==============================================================================
+Réanalyse : structure partagée seed/profondeur dans le bootstrap Étape 4
+==============================================================================
+
+--- Étape 0 : vérification directe du code (growth_jalon0.jl) ---
+train_growth_arm!(schedule, budget; seed, ...) :
+  ligne 128 : Random.seed!(seed)          <- RNG global, AVANT construction
+  ligne 129 : build_char_lm_graph(...)     <- poids tirés via ce RNG global
+  ligne 146 : rng = MersenneTwister(seed)  <- RNG séparé, dédié aux fenêtres
+  campagne (growth_theory_constraint_test.jl) : schedule=[L] (1 seul palier),
+  layer_step_budget = n_steps*L => n_steps_stage = budget÷L = n_steps,
+  IDENTIQUE pour toutes les profondeurs d'un même groupe de budget
+  (20000 pour L∈{1..6}, 10000 pour L∈{8,12,16}).
+  => même seed : même graine d'init pour les blocs partagés (couches 1..min(L1,L2))
+     ET même séquence exacte de fenêtres d'entraînement (même rng, même nb d'appels).
+  => "seed k à L1" et "seed k à L2" NE SONT PAS des tirages indépendants.
+
+==============================================================================
+Étape 1 : fit a(L,seed) PAR graine individuelle (matrice profondeur x graine)
+==============================================================================
+L=1   : 1.5458   1.5769   1.5763   1.5438
+L=2   : 1.4428   1.4631   1.4321   1.4998
+L=3   : 1.4391   1.4404   1.4559   1.4338
+L=4   : 1.4796   1.4923   1.4769   1.4036
+L=5   : 1.4326   1.4536   1.4546   1.4625
+L=6   : 1.4191   1.4539   1.4184   1.4043
+L=8   : 1.3474   1.3663   1.3549   1.3258
+L=12  : 1.3165   1.3303   1.3011   1.3063
+L=16  : 1.3066   1.3188   1.3128   1.3013
+
+==============================================================================
+Étape 2 : corrélation croisée-profondeurs, indice de graine apparié
+==============================================================================
+Résidu a(L,s) - moyenne_s(a(L,:)), poolé sur 36 paires de profondeurs x 4 graines = 144 points
+Corrélation de Pearson observée : r = 0.1407
+Test de permutation (20000 tirages, permutation des graines par profondeur) : p = 0.0874
+  (moyenne |r| sous H0 = 0.0739, écart-type = 0.0926)
+
+>>> PAS de corrélation croisée-profondeurs mesurable (p>=0.05) -- l'hypothèse de structure partagée ne laisse pas de trace détectable dans a(L,seed).
+
+==============================================================================
+CONCLUSION
+==============================================================================
+Le partage d'initialisation/ordre de fenêtres entre profondeurs (confirmé au
+niveau du code) n'imprime PAS de corrélation détectable sur a(L,seed) dans ces
+données -- le bruit d'entraînement (20000 pas, dynamique non-linéaire, insertion
+de nouvelles couches profondes après les couches partagées) efface apparemment
+la corrélation d'origine. Le bootstrap indépendant-par-profondeur de l'Étape 4
+de analyze_growth_constraint.jl n'est donc PAS invalidé par cet effet : pas de
+biais démontré, pas de raison de refaire le bootstrap par blocs. Le verdict
+inconclusif d'article3.tex (R=-0.1247, IC95% [-0.19,0.57]) est confirmé tel quel.

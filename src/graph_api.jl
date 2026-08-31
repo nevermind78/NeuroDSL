@@ -368,6 +368,57 @@ function copy_params_to_namespace!(g::NeuroGraph, src_ns::Symbol, dst_ns::Symbol
     return n
 end
 
+"""
+    alias_tied_param!(g, ns, keep_sym, alias_sym; atol=1f-6) -> Bool
+
+Corrige une duplication de poids LIÉS (`tie_word_embeddings=true` côté HF --
+`embed_tokens.weight`/`lm_head.weight` partagent mathématiquement le MÊME
+tenseur) redevenue réelle après un aller-retour disque via
+`save_graph!`/`load_graph!` (`src/serialization.jl`).
+
+Pourquoi la duplication réapparaît malgré `load_qwen2.jl` qui fait déjà
+`set!(g, :lm_head_W, tok_W; ...)` avec le MÊME objet Julia que `:tok_E` :
+`save_graph!` itère sur `g.nodes[ns]` PAR SYMBOLE et écrit `Array(nd.value)`
+pour chaque nœud feuille indépendamment -- aucune détection d'aliasing entre
+deux noms différents pointant vers le même tableau. Le `.bin` contient donc
+DEUX blobs de ~890 Mio identiques (vérifié : `qwen2_neurodsl.bin`,
+`lm_head_W`/`tok_E`, mêmes 151936×1536 octets, offsets différents), et
+`load_graph!` recrée deux `CuArray` séparés à partir d'eux -- l'alias
+d'origine est perdu au chargement, pas à la construction.
+
+Corrige ÇA, pas `save_graph!`/`load_graph!` eux-mêmes (format générique,
+utilisé aussi par des modèles SANS poids liés -- y toucher pour ce seul cas
+Qwen serait un changement bien plus large que nécessaire, voir la discipline
+de ce dépôt sur les correctifs ciblés). À appeler UNE FOIS juste après
+`load_graph!`, avant toute construction de graphe qui lirait `alias_sym`.
+
+Vérifie d'abord que les deux tableaux sont NUMÉRIQUEMENT identiques
+(`isapprox`, comme `load_qwen2.jl` le fait déjà à la conversion) -- ne fait
+RIEN et retourne `false` si `alias_sym` est absent (modèle non lié / déjà
+appelé) ou si les valeurs diffèrent (refuse de deviner un aliasing qui ne
+serait pas réellement vrai). Si conforme : libère (`Backend.free!`) l'ancien
+tableau GPU de `alias_sym` puis réassigne son `.value` au MÊME objet Julia
+que `keep_sym` -- alias réel, zéro octet supplémentaire, exactement l'état
+que `load_qwen2.jl` avait avant la sérialisation.
+"""
+function alias_tied_param!(g::NeuroGraph, ns::Symbol, keep_sym::Symbol, alias_sym::Symbol; atol=1f-6)
+    haskey(g.nodes[ns], keep_sym) ||
+        error("❌ alias_tied_param! : nœud :$keep_sym introuvable dans :$ns")
+    haskey(g.nodes[ns], alias_sym) || return false
+
+    keep_nd  = g.nodes[ns][keep_sym]
+    alias_nd = g.nodes[ns][alias_sym]
+    keep_nd.value === alias_nd.value && return false  # déjà aliasé (idempotent)
+
+    size(keep_nd.value) == size(alias_nd.value) || return false
+    isapprox(Array(keep_nd.value), Array(alias_nd.value); atol=atol) || return false
+
+    old_value = alias_nd.value
+    alias_nd.value = keep_nd.value
+    Backend.free!(g.device, old_value)
+    return true
+end
+
 params(g::NeuroGraph; namespace=g.active_ns) =
     [nd for (_, nd) in g.nodes[namespace] if nd.is_param && is_backpropable(nd)]
 

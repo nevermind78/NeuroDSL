@@ -1,0 +1,1116 @@
+Rc files read (in order):
+  NONE
+Latexmk: This is Latexmk, John Collins, 9 March 2026. Version 4.88.
+No existing .aux file, so I'll make a simple one, and require run of *latex.
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Category 'other':
+  Rerun of 'pdflatex' forced or previously required:
+    Reason or flag: 'Initial setup'
+
+------------
+Run number 1 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "crosslayer_interaction_qwen.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(crosslayer_interaction_qwen.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/placeins\placeins.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (crosslayer_interaction_qwen.aux)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+
+LaTeX Warning: Reference `sec:multilayer' on page 2 undefined on input line 129
+.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+
+LaTeX Warning: Reference `sec:crossterm' on page 2 undefined on input line 142.
+
+
+
+LaTeX Warning: Reference `sec:curvature' on page 2 undefined on input line 160.
+
+
+[2]
+
+LaTeX Warning: Reference `sec:experiments' on page 3 undefined on input line 16
+7.
+
+
+LaTeX Warning: Reference `sec:related' on page 3 undefined on input line 176.
+
+
+LaTeX Warning: Reference `sec:setup' on page 3 undefined on input line 177.
+
+
+LaTeX Warning: Reference `sec:discussion' on page 3 undefined on input line 179
+.
+
+
+LaTeX Warning: Reference `sec:conclusion' on page 3 undefined on input line 180
+.
+
+
+LaTeX Warning: Reference `sec:crossterm' on page 3 undefined on input line 199.
+
+
+
+LaTeX Warning: Citation `wang2023' on page 3 undefined on input line 209.
+
+
+LaTeX Warning: Citation `mcgrath2023' on page 3 undefined on input line 216.
+
+
+LaTeX Warning: Citation `elhage2022' on page 3 undefined on input line 220.
+
+
+LaTeX Warning: Citation `vaidyanathan2026mediators' on page 3 undefined on inpu
+t line 227.
+
+
+LaTeX Warning: Reference `sec:crossterm' on page 3 undefined on input line 240.
+
+
+
+LaTeX Warning: Citation `gong2026coablation' on page 3 undefined on input line 
+246.
+
+
+LaTeX Warning: Citation `guo2026sobol' on page 3 undefined on input line 247.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 3 undefined on input line 25
+0.
+
+[3]
+
+LaTeX Warning: Reference `sec:multilayer' on page 4 undefined on input line 258
+.
+
+
+LaTeX Warning: Reference `sec:crossterm' on page 4 undefined on input line 261.
+
+
+
+LaTeX Warning: Reference `sec:curvature' on page 4 undefined on input line 263.
+
+
+
+LaTeX Warning: Reference `sec:experiments' on page 4 undefined on input line 26
+7.
+
+[4]
+
+LaTeX Warning: Reference `eq:ablation' on page 5 undefined on input line 309.
+
+
+LaTeX Warning: Reference `sec:crossterm' on page 5 undefined on input line 319.
+
+
+
+LaTeX Warning: Reference `rem:bridge' on page 5 undefined on input line 379.
+
+[5]
+
+LaTeX Warning: Reference `sec:curvature' on page 6 undefined on input line 417.
+
+
+
+LaTeX Warning: Reference `thm:interaction' on page 6 undefined on input line 42
+9.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 6 undefined on input line 43
+7.
+
+
+LaTeX Warning: Reference `prop:readout' on page 6 undefined on input line 453.
+
+
+LaTeX Warning: Reference `prop:readout' on page 6 undefined on input line 456.
+
+
+LaTeX Warning: Reference `sec:setup' on page 6 undefined on input line 457.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 6 undefined on input line 47
+7.
+
+[6]
+
+LaTeX Warning: Reference `eq:multilayer' on page 7 undefined on input line 487.
+
+
+
+LaTeX Warning: Reference `thm:interaction' on page 7 undefined on input line 49
+1.
+
+
+LaTeX Warning: Reference `prop:readout' on page 7 undefined on input line 492.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 7 undefined on input line 49
+4.
+
+
+LaTeX Warning: Reference `sec:setup' on page 7 undefined on input line 499.
+
+
+LaTeX Warning: Reference `eq:multilayer' on page 7 undefined on input line 520.
+
+
+
+LaTeX Warning: Reference `prop:readout' on page 7 undefined on input line 530.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 7 undefined on input line 54
+7.
+
+
+LaTeX Warning: Reference `sec:curvature' on page 7 undefined on input line 571.
+
+
+
+LaTeX Warning: Reference `sec:crossterm' on page 7 undefined on input line 571.
+
+
+
+LaTeX Warning: Reference `sec:experiments' on page 7 undefined on input line 57
+3.
+
+
+LaTeX Warning: Reference `eq:multilayer' on page 7 undefined on input line 575.
+
+
+[7]
+
+LaTeX Warning: Reference `rem:multilayer-scope' on page 8 undefined on input li
+ne 584.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 8 undefined on input line 58
+7.
+
+
+LaTeX Warning: Reference `sec:curvature' on page 8 undefined on input line 590.
+
+
+
+LaTeX Warning: Reference `rem:multilayer-scope' on page 8 undefined on input li
+ne 593.
+
+
+LaTeX Warning: Reference `prop:multilayer' on page 8 undefined on input line 59
+8.
+
+
+LaTeX Warning: Reference `prop:readout' on page 8 undefined on input line 600.
+
+
+LaTeX Warning: Reference `sec:setup' on page 8 undefined on input line 607.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 8 undefined on input line 60
+8.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 8 undefined on input line 61
+4.
+
+
+LaTeX Warning: Reference `lem:jacobian' on page 8 undefined on input line 621.
+
+
+LaTeX Warning: Reference `prop:multilayer' on page 8 undefined on input line 64
+1.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 8 undefined on input line 65
+5.
+
+[8]
+
+LaTeX Warning: Reference `sec:curvature' on page 9 undefined on input line 662.
+
+
+
+LaTeX Warning: Reference `sec:curvature' on page 9 undefined on input line 686.
+
+
+
+LaTeX Warning: Reference `prop:curvature' on page 9 undefined on input line 686
+.
+
+
+LaTeX Warning: Reference `eq:attnjac' on page 9 undefined on input line 700.
+
+
+LaTeX Warning: Reference `eq:attnjacbound' on page 9 undefined on input line 70
+1.
+
+
+LaTeX Warning: Reference `eq:attnjacbound' on page 9 undefined on input line 71
+2.
+
+
+LaTeX Warning: Reference `rem:curvature-check' on page 9 undefined on input lin
+e 713.
+
+
+LaTeX Warning: Reference `eq:attnjacbound' on page 9 undefined on input line 71
+8.
+
+
+LaTeX Warning: Reference `prop:curvature' on page 9 undefined on input line 721
+.
+
+
+LaTeX Warning: Reference `prop:crossterm' on page 9 undefined on input line 731
+.
+
+
+LaTeX Warning: Reference `prop:curvature' on page 9 undefined on input line 743
+.
+
+
+LaTeX Warning: Reference `prop:attnjacobian' on page 9 undefined on input line 
+747.
+
+
+LaTeX Warning: Reference `prop:curvature' on page 9 undefined on input line 749
+.
+
+
+LaTeX Warning: Reference `rem:attnjacobian-check' on page 9 undefined on input 
+line 750.
+
+
+LaTeX Warning: Reference `eq:attnjacbound' on page 9 undefined on input line 75
+3.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 9 undefined on input line 77
+0.
+
+[9]
+
+LaTeX Warning: Reference `sec:experiments' on page 10 undefined on input line 7
+86.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 10 undefined on input line 7
+91.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 10 undefined on input line 8
+10.
+
+
+LaTeX Warning: Reference `lem:jacobian' on page 10 undefined on input line 831.
+
+
+[10]
+
+LaTeX Warning: Reference `thm:interaction' on page 11 undefined on input line 8
+60.
+
+
+LaTeX Warning: Reference `eq:curvature' on page 11 undefined on input line 862.
+
+
+
+LaTeX Warning: Reference `lem:jacobian' on page 11 undefined on input line 899.
+
+
+
+LaTeX Warning: Reference `lem:d2norm' on page 11 undefined on input line 900.
+
+
+LaTeX Warning: Reference `eq:curvature' on page 11 undefined on input line 906.
+
+
+
+LaTeX Warning: Reference `prop:curvature' on page 11 undefined on input line 90
+9.
+
+
+LaTeX Warning: Reference `eq:curvature' on page 11 undefined on input line 925.
+
+
+
+LaTeX Warning: Reference `lem:d2norm' on page 11 undefined on input line 927.
+
+
+LaTeX Warning: Reference `app:repro' on page 11 undefined on input line 941.
+
+
+LaTeX Warning: Reference `prop:multilayer' on page 11 undefined on input line 9
+42.
+
+[11]
+
+LaTeX Warning: Reference `prop:multilayer' on page 12 undefined on input line 9
+57.
+
+
+LaTeX Warning: Reference `prop:readout' on page 12 undefined on input line 960.
+
+
+
+LaTeX Warning: Reference `eq:multilayer' on page 12 undefined on input line 964
+.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 12 undefined on input line 9
+86.
+
+
+LaTeX Warning: Reference `rem:multilayer-scope' on page 12 undefined on input l
+ine 994.
+
+
+LaTeX Warning: Reference `def:pair' on page 12 undefined on input line 1003.
+
+[12]
+
+LaTeX Warning: Reference `def:pair' on page 13 undefined on input line 1012.
+
+
+LaTeX Warning: Citation `wang2023' on page 13 undefined on input line 1018.
+
+
+LaTeX Warning: Citation `wang2023' on page 13 undefined on input line 1029.
+
+
+LaTeX Warning: Reference `fig:qwen-freq' on page 13 undefined on input line 103
+8.
+
+
+LaTeX Warning: Citation `elhage2022' on page 13 undefined on input line 1044.
+
+
+LaTeX Warning: Citation `mcgrath2023' on page 13 undefined on input line 1044.
+
+
+LaTeX Warning: Reference `sec:related' on page 13 undefined on input line 1045.
+
+
+
+LaTeX Warning: Reference `fig:qwen-freq' on page 13 undefined on input line 104
+8.
+
+
+LaTeX Warning: Reference `fig:qwen-traj' on page 13 undefined on input line 104
+9.
+
+
+LaTeX Warning: Reference `prop:patchedit' on page 13 undefined on input line 10
+85.
+
+
+LaTeX Warning: Reference `ass:lowrank' on page 13 undefined on input line 1089.
+
+
+
+LaTeX Warning: Reference `rem:bridge' on page 13 undefined on input line 1093.
+
+
+LaTeX Warning: Reference `prop:patchedit' on page 13 undefined on input line 10
+94.
+
+
+LaTeX Warning: Reference `eq:ablation' on page 13 undefined on input line 1096.
+
+
+
+LaTeX Warning: Reference `prop:patchedit' on page 13 undefined on input line 10
+98.
+
+[13] [14 <./figures/fig_qwen_ioi_circuit_frequency.pdf> <./figures/fig_qwen_ioi
+_recovery_trajectory.pdf>]
+
+LaTeX Warning: Reference `thm:dissociation' on page 15 undefined on input line 
+1109.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 15 undefined on input line 1
+131.
+
+
+LaTeX Warning: Reference `sec:multilayer' on page 15 undefined on input line 11
+35.
+
+
+LaTeX Warning: Reference `prop:multilayer' on page 15 undefined on input line 1
+135.
+
+
+LaTeX Warning: Reference `rem:multilayer-open' on page 15 undefined on input li
+ne 1136.
+
+
+LaTeX Warning: Reference `sec:crossterm' on page 15 undefined on input line 114
+1.
+
+
+LaTeX Warning: Reference `rem:signlaw' on page 15 undefined on input line 1145.
+
+
+
+LaTeX Warning: Reference `thm:dissociation' on page 15 undefined on input line 
+1182.
+
+
+LaTeX Warning: Reference `thm:interaction' on page 15 undefined on input line 1
+190.
+
+
+LaTeX Warning: Reference `fig:qwen-freq' on page 15 undefined on input line 119
+5.
+
+[15]
+
+LaTeX Warning: Reference `prop:multilayer' on page 16 undefined on input line 1
+206.
+
+
+LaTeX Warning: Reference `prop:crossterm' on page 16 undefined on input line 12
+13.
+
+
+LaTeX Warning: Reference `rem:multilayer-scope' on page 16 undefined on input l
+ine 1218.
+
+
+LaTeX Warning: Reference `prop:attnjacobian' on page 16 undefined on input line
+ 1220.
+
+
+LaTeX Warning: Reference `prop:curvature' on page 16 undefined on input line 12
+25.
+
+
+LaTeX Warning: Reference `sec:crossterm' on page 16 undefined on input line 123
+1.
+
+
+LaTeX Warning: Reference `rem:signlaw' on page 16 undefined on input line 1234.
+
+
+
+LaTeX Warning: Reference `prop:attnjacobian' on page 16 undefined on input line
+ 1237.
+
+[16]
+
+LaTeX Warning: Reference `sec:experiments' on page 17 undefined on input line 1
+293.
+
+
+LaTeX Warning: Reference `sec:experiments' on page 17 undefined on input line 1
+295.
+
+
+LaTeX Warning: Reference `ass:readout' on page 17 undefined on input line 1310.
+
+
+
+LaTeX Warning: Reference `eq:ablation' on page 17 undefined on input line 1333.
+
+
+
+LaTeX Warning: Reference `rem:bridge' on page 17 undefined on input line 1334.
+
+[17]
+
+LaTeX Warning: Reference `prop:multilayer' on page 18 undefined on input line 1
+347.
+
+
+LaTeX Warning: Reference `prop:curvature' on page 18 undefined on input line 13
+50.
+
+
+LaTeX Warning: Reference `rem:curvature-check' on page 18 undefined on input li
+ne 1351.
+
+
+LaTeX Warning: Reference `prop:attnjacobian' on page 18 undefined on input line
+ 1353.
+
+
+LaTeX Warning: Reference `rem:attnjacobian-check' on page 18 undefined on input
+ line 1354.
+
+
+Overfull \hbox (3.22495pt too wide) in paragraph at lines 1352--1356
+\T1/cmr/m/n/10.95 Proposition [], the finite-difference refu-ta-tion test of Re
+-mark [] on Qwen2.5-1.5B-Instruct's
+
+LaTeX Warning: Reference `tab:qwen' on page 18 undefined on input line 1362.
+
+
+LaTeX Warning: Reference `fig:qwen-freq' on page 18 undefined on input line 136
+4.
+
+
+LaTeX Warning: Reference `fig:qwen-traj' on page 18 undefined on input line 136
+4.
+
+[18] [19] (crosslayer_interaction_qwen.aux)
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package rerunfilecheck Warning: File `crosslayer_interaction_qwen.out' has chan
+ged.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+ )
+(see the transcript file for additional information) <C:\Users\Nevermind\AppDat
+a\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm0800.pk> <C:\Users\Neverm
+ind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk> <C:\Us
+ers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecit1095.
+pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600
+\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen
+/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfou
+r/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\font
+s/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Nevermind\AppData\Local\M
+iKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\Nevermind\AppDa
+ta\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1000.pk> <C:\Users\Never
+mind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1000.pk> <C:\U
+sers\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1200
+.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi60
+0\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappe
+n/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts
+/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/Nevermind/AppData/Local/Programs
+/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/Nevermind/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi6.pfb><C:/Users/Nevermi
+nd/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/U
+sers/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr
+10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
+fonts/cm/cmr6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1
+/public/amsfonts/cm/cmr8.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/
+fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/Nevermind/AppData/Local/Pro
+grams/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/Nevermind/AppDa
+ta/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on crosslayer_interaction_qwen.pdf (19 pages, 453251 bytes).
+Transcript written on crosslayer_interaction_qwen.log.
+Latexmk: Getting log file 'crosslayer_interaction_qwen.log'
+Latexmk: Examining 'crosslayer_interaction_qwen.fls'
+Latexmk: Examining 'crosslayer_interaction_qwen.log'
+Latexmk: References changed.
+Latexmk: References changed.
+Latexmk: Log file says output to 'crosslayer_interaction_qwen.pdf'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  crosslayer_interaction_qwen.aux
+  crosslayer_interaction_qwen.out
+
+------------
+Run number 2 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "crosslayer_interaction_qwen.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(crosslayer_interaction_qwen.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/placeins\placeins.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (crosslayer_interaction_qwen.aux) (crosslayer_interaction_qwen.out
+) (crosslayer_interaction_qwen.out)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+[2] [3] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14 <./figures/fig_qwen_ioi
+_circuit_frequency.pdf> <./figures/fig_qwen_ioi_recovery_trajectory.pdf>]
+[15] [16] [17] [18] [19] (crosslayer_interaction_qwen.aux) ) <C:\Users\Nevermin
+d\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm0800.pk> <C:\User
+s\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk
+> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\e
+cit1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/e
+c/dpi600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/
+jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/
+pk/ljfour/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\MiK
+TeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Nevermind\AppData
+\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\Nevermi
+nd\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1000.pk> <C:\Use
+rs\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1000.p
+k> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\
+ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/
+ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour
+/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppData/Local/Programs/MiKT
+eX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/Nevermind/AppData/Local/
+Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/Nevermind/A
+ppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi6.pfb><C:/Users
+/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.p
+fb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfont
+s/cm/cmr10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/pu
+blic/amsfonts/cm/cmr6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fon
+ts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/Nevermind/AppData/Local/Programs
+/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/Nevermind/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/Nevermi
+nd/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb
+>
+Output written on crosslayer_interaction_qwen.pdf (19 pages, 481703 bytes).
+Transcript written on crosslayer_interaction_qwen.log.
+Latexmk: Getting log file 'crosslayer_interaction_qwen.log'
+Latexmk: Examining 'crosslayer_interaction_qwen.fls'
+Latexmk: Examining 'crosslayer_interaction_qwen.log'
+Latexmk: Log file says output to 'crosslayer_interaction_qwen.pdf'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  crosslayer_interaction_qwen.aux
+
+------------
+Run number 3 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -recorder  "crosslayer_interaction_qwen.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(crosslayer_interaction_qwen.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-06-18>
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\inputenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty)
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+ (C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
+))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.s
+ty))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys
+.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvde
+finekeys.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfesca
+pe.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftex
+cmds.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infware
+rr.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.st
+y
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\ge
+ttitlestring.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions
+.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringe
+nc.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigint
+calc.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.de
+f
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\reru
+nfilecheck.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uni
+quecounter.sty)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphi
+cs.cfg)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\pdftex
+.def)))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/placeins\placeins.s
+ty)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.s
+ty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty)
+
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.c
+fg))
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend
+-pdftex.def) (crosslayer_interaction_qwen.aux) (crosslayer_interaction_qwen.out
+) (crosslayer_interaction_qwen.out)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pd
+f.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstop
+df-base.sty
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/00miktex\epstopdf-s
+ys.cfg))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(71.13188pt, 455.24411pt, 71.13188pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=-1.1381pt
+* \evensidemargin=-1.1381pt
+* \topmargin=-38.1381pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=50.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+[1{C:/Users/Nevermind/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\Nevermind\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+[2] [3] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14 <./figures/fig_qwen_ioi
+_circuit_frequency.pdf> <./figures/fig_qwen_ioi_recovery_trajectory.pdf>]
+[15] [16] [17] [18] [19] (crosslayer_interaction_qwen.aux) ) <C:\Users\Nevermin
+d\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm0800.pk> <C:\User
+s\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk
+> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\e
+cit1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/e
+c/dpi600\ectt1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/
+jknappen/ec/dpi600\ecti1095.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/
+pk/ljfour/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\Nevermind\AppData\Local\MiK
+TeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\Nevermind\AppData
+\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\Nevermi
+nd\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1000.pk> <C:\Use
+rs\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1000.p
+k> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\
+ecti1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/
+ec/dpi600\ecrm1200.pk> <C:\Users\Nevermind\AppData\Local\MiKTeX\fonts/pk/ljfour
+/jknappen/ec/dpi600\ecrm1728.pk><C:/Users/Nevermind/AppData/Local/Programs/MiKT
+eX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/Nevermind/AppData/Local/
+Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/Nevermind/A
+ppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi6.pfb><C:/Users
+/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.p
+fb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfont
+s/cm/cmr10.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fonts/type1/pu
+blic/amsfonts/cm/cmr6.pfb><C:/Users/Nevermind/AppData/Local/Programs/MiKTeX/fon
+ts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/Nevermind/AppData/Local/Programs
+/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/Nevermind/AppData/L
+ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/Nevermi
+nd/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb
+>
+Output written on crosslayer_interaction_qwen.pdf (19 pages, 481703 bytes).
+Transcript written on crosslayer_interaction_qwen.log.
+Latexmk: Getting log file 'crosslayer_interaction_qwen.log'
+Latexmk: Examining 'crosslayer_interaction_qwen.fls'
+Latexmk: Examining 'crosslayer_interaction_qwen.log'
+Latexmk: Log file says output to 'crosslayer_interaction_qwen.pdf'
+Latexmk: All targets (crosslayer_interaction_qwen.pdf) are up-to-date
+
