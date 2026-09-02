@@ -960,6 +960,84 @@ if Backend.CUDA_AVAILABLE
     end
 end
 
+# ══════════════════════════════════════════════════════════════════════════════
+# hcat_heads groupé (1 seul lancement de kernel au lieu d'un par tête) --
+# trouvé en profilant le décodage KV-cache (notebook/diag_decode_hcat_split.jl,
+# 2026-08-31) : sur `CachedMultiHeadAttention` (src/layers.jl), le nœud
+# `:hcat_heads` de la couche 1 coûte À LUI SEUL 6.0ms/28.5ms (couche complète) --
+# 92.9% du "reste" de l'attention (tout sauf les matmul QK/PV) -- alors que la
+# projection de sortie qui le SUIT immédiatement (1 seul matmul) coûte <0.5ms.
+# Douze lancements `output_buffer[:, offset+1:offset+d] .= inp_arr` (un par
+# tête, chacun ne copiant que 1×128 Float32 = 512 octets en décodage) sont
+# dominés par le coût fixe de lancement, exactement le phénomène déjà
+# documenté et corrigé pour `restore_from_cache_batched!`/`_multi_copy_kernel!`
+# (src/patching.jl : ~0.01-0.02ms/lancement sous Windows/WDDM, domine dès que
+# le volume réel par lancement est petit). Même patron pointeur-brut-par-bloc
+# ici, corps de boucle copié verbatim pour garantir la bit-exactitude.
+#
+# Optimisation supplémentaire : les buffers `value` de chaque nœud (têtes ET
+# sortie concat) sont RÉUTILISÉS EN PLACE d'un pas de décodage à l'autre tant
+# que leur forme ne change pas (`execute_rule!`, src/dispatch.jl:243 --
+# réalloue seulement si `size(out_node.value) != out_shape`) -- donc leurs
+# pointeurs GPU sont STABLES en régime établi. Le tableau de pointeurs
+# source/destination n'est donc reconstruit (et re-uploadé host->device) que
+# la première fois OU si un pointeur a effectivement changé (détecté par
+# comparaison directe) ; en régime établi, un seul lancement de kernel par pas
+# de décodage, sans transfert H2D. Le cache vit dans `out_node.aux_data`
+# (même convention que `:_alias_buf` ailleurs dans dispatch.jl) -- portée au
+# nœud `:hcat_heads`, jamais partagée entre nœuds.
+# ══════════════════════════════════════════════════════════════════════════════
+if Backend.CUDA_AVAILABLE
+    function _hcat_heads_ptrcopy_kernel!(dst_ptrs::CUDA.CuDeviceVector{CUDA.CuPtr{Float32}},
+                                          src_ptrs::CUDA.CuDeviceVector{CUDA.CuPtr{Float32}},
+                                          lens::CUDA.CuDeviceVector{Int32})
+        bid = blockIdx().x
+        n = Int(lens[bid])
+        dst = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, dst_ptrs[bid]), (n,))
+        src = CUDA.CuDeviceArray{Float32,1,CUDA.AS.Global}(
+            reinterpret(Core.LLVMPtr{Float32,CUDA.AS.Global}, src_ptrs[bid]), (n,))
+        i = Int(threadIdx().x)
+        while i <= n
+            @inbounds dst[i] = src[i]
+            i += Int(blockDim().x)
+        end
+        return
+    end
+
+    function hcat_heads_fwd_batched!(output_buffer::CUDA.CuArray{Float32}, inputs, out_node)
+        H = length(inputs)
+        rows = size(output_buffer, 1)
+        cur_ptrs = ntuple(h -> pointer(inputs[h]), H)
+        cur_dst_ptr = pointer(output_buffer)
+        cache = get(out_node.aux_data, :_hcat_batch_cache, nothing)
+        stale = cache === nothing || cache.H != H || cache.dst_ptr != cur_dst_ptr || cache.src_ptrs != cur_ptrs
+        if stale
+            srcs = Vector{CUDA.CuPtr{Float32}}(undef, H)
+            dsts = Vector{CUDA.CuPtr{Float32}}(undef, H)
+            lens = Vector{Int32}(undef, H)
+            offset = 0
+            for h in 1:H
+                d = size(inputs[h], 2)
+                srcs[h] = cur_ptrs[h]
+                dsts[h] = pointer(output_buffer, offset*rows + 1)
+                lens[h] = Int32(rows * d)
+                offset += d
+            end
+            src_gpu = CUDA.CuArray(srcs)
+            dst_gpu = CUDA.CuArray(dsts)
+            len_gpu = CUDA.CuArray(lens)
+            threads = min(256, Int(maximum(lens)))
+            cache = (H=H, dst_ptr=cur_dst_ptr, src_ptrs=cur_ptrs,
+                     src_gpu=src_gpu, dst_gpu=dst_gpu, len_gpu=len_gpu, threads=threads)
+            out_node.aux_data[:_hcat_batch_cache] = cache
+        end
+        @cuda threads=cache.threads blocks=cache.H _hcat_heads_ptrcopy_kernel!(
+            cache.dst_gpu, cache.src_gpu, cache.len_gpu)
+        return output_buffer
+    end
+end
+
 # ── Forward : batched_pv (P·V groupé sur les têtes) ────────────────────────
 function batched_pv_fwd!(::Backend.CPUDevice, output_buffer, pr_heads::AbstractVector, v_heads::AbstractVector, d_head::Int)
     for h in eachindex(pr_heads)

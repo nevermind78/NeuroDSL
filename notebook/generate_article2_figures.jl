@@ -26,7 +26,8 @@ end
 p4 = plot(xvals, naive_ms, label="PyTorch (naive hook, full forward)", color=:firebrick, lw=2, marker=:circle, markersize=3,
           xlabel="Site (5 layers × 4 heads, grouped by layer)", ylabel="Median patch cost (ms)",
           title="Patch cost vs. depth: NeuroDSL vs. PyTorch (same weights, parity 1.23e-6)",
-          legend=:topright, size=(900, 480), xticks=(2.5:4:18.5, layer_labels))
+          legend=:topright, size=(900, 480), xticks=(2.5:4:18.5, layer_labels),
+          bottom_margin=12Plots.mm)
 plot!(p4, xvals, partial_ms, label="PyTorch (manual partial forward)", color=:seagreen, lw=2, marker=:diamond, markersize=3)
 plot!(p4, xvals, nd_ms, label="NeuroDSL (sweep_patch_sites!)", color=:steelblue, lw=2.5, marker=:square, markersize=3)
 for b in [4.5, 8.5, 12.5, 16.5]
@@ -55,7 +56,8 @@ p1bis_plot = groupedbar(hcat(nonbatched_vals, batched_vals), bar_position=:dodge
     label=["Non-batched" "Batched"], color=[:seagreen :steelblue],
     xlabel="Site type (grouped by layer: Layer 1 | Graft | Layer 3)", ylabel="Downstream cone size (nodes)",
     title="Patch cone size: batched vs. non-batched attention",
-    xticks=(1:n_groups, xt), size=(1000, 480), legend=:topright, xrotation=0)
+    xticks=(1:n_groups, xt), size=(1000, 480), legend=:topright, xrotation=0,
+    left_margin=12Plots.mm, bottom_margin=12Plots.mm)
 for b in [5.5, 10.5]
     vline!(p1bis_plot, [b], color=:gray, alpha=0.3, linestyle=:dot, label="")
 end
@@ -83,7 +85,7 @@ hs = plot(xg[1:split_i], vg[1:split_i], label="Grafted -- before graft (steps 1-
           color=:darkorange, lw=1.5, alpha=0.8,
           xlabel="Training step", ylabel="Loss (nats/char)",
           title="Hot surgery on a trained char-LM: grafted vs. equal-budget control",
-          legend=:topright, size=(950, 500))
+          legend=:topright, size=(950, 500), bottom_margin=12Plots.mm)
 plot!(hs, xg[split_i:end], vg[split_i:end], label="Grafted -- after graft (steps $(n_A+1)-$(n_total))", color=:steelblue, lw=1.5, alpha=0.8)
 plot!(hs, xc, vc, label="Control -- fresh 4-layer, same total budget", color=:mediumpurple, lw=1.5, alpha=0.7)
 vline!(hs, [n_A], label="graft insertion", linestyle=:dot, color=:red, lw=2)
@@ -103,13 +105,14 @@ loss_temoin  = [2.0590, 2.1779, 2.1244]
 p_alpha = groupedbar(hcat(alpha_goulot, alpha_temoin), bar_position=:dodge, bar_width=0.6,
     label=["Bottleneck-placed graft" "Control-placed graft"], color=[:steelblue :seagreen],
     xlabel="Random seed", ylabel="|alpha| (final)", xticks=(1:3, string.(seeds)),
-    title="Gate magnitude", legend=:topleft, size=(460, 400))
+    title="Gate magnitude", legend=:topleft, size=(460, 400), bottom_margin=10Plots.mm)
 p_loss = groupedbar(hcat(loss_goulot, loss_temoin), bar_position=:dodge, bar_width=0.6,
     label=["Bottleneck-placed graft" "Control-placed graft"], color=[:steelblue :seagreen],
     xlabel="Random seed", ylabel="Continued-training loss", xticks=(1:3, string.(seeds)),
-    title="Final loss (lower is better)", legend=:topleft, size=(460, 400))
-gt = plot(p_alpha, p_loss, layout=(1, 2), size=(940, 420),
-          plot_title="Directed graft placement: bottleneck vs. depth-matched control (3 seeds)")
+    title="Final loss (lower is better)", legend=:topleft, size=(460, 400), bottom_margin=10Plots.mm)
+gt = plot(p_alpha, p_loss, layout=(1, 2), size=(940, 480),
+          plot_title="Directed graft placement: bottleneck vs. depth-matched control (3 seeds)",
+          plot_titlevspan=0.14, top_margin=4Plots.mm)
 savefig(gt, joinpath(figdir, "goulot_temoin_en.pdf"))
 println("Saved -> figures/goulot_temoin_en.pdf")
 

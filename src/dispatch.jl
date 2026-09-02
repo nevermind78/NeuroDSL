@@ -471,12 +471,28 @@ function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, ou
         end
         return output_buffer
     elseif op == :hcat_heads
-        offset = 0
-        for inp in inputs
-            inp_arr = inp::AbstractArray{Float32}
-            d = size(inp_arr, 2)
-            output_buffer[:, offset+1:offset+d] .= inp_arr
-            offset += d
+        # CORRECTIF PERF 2026-08-31 (notebook/diag_decode_hcat_split.jl) : la
+        # boucle `.=` ci-dessous lance 1 kernel GPU par tête -- coût fixe de
+        # lancement dominant pour de petits tampons (décodage KV-cache : 12
+        # lancements de 512 octets chacun = 6.0ms/pas, couche 1 seule, alors
+        # que le matmul de projection qui suit immédiatement coûte <0.5ms).
+        # Voir src/kernels.jl (`hcat_heads_fwd_batched!`) pour le détail --
+        # même patron pointeur-brut-par-bloc que `_multi_copy_kernel!`
+        # (src/patching.jl), déjà validé pour la même classe de problème.
+        # Repli sur la boucle existante hors CUDA ou pour <=2 têtes (aucun
+        # gain à en attendre, coût de lancement nul/négligeable sur CPU).
+        if Backend.CUDA_AVAILABLE && dev isa Backend.CUDADevice &&
+           output_buffer isa CUDA.CuArray{Float32} && length(inputs) > 2 &&
+           all(inp -> inp isa CUDA.CuArray{Float32}, inputs)
+            hcat_heads_fwd_batched!(output_buffer, inputs, out_node)
+        else
+            offset = 0
+            for inp in inputs
+                inp_arr = inp::AbstractArray{Float32}
+                d = size(inp_arr, 2)
+                output_buffer[:, offset+1:offset+d] .= inp_arr
+                offset += d
+            end
         end
         if ctx_store !== nothing
             _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(

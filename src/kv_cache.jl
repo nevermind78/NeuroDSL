@@ -190,21 +190,47 @@ de rotation faux) si réutilisé tel quel ici. Entrées `[x, pos_id]` :
     `:kv_cache_append`, transmis comme un vrai nœud d'entrée du graphe pour
     la même raison -- voir `kv_cache_shape` ci-dessus).
 
-Ne met RIEN en cache dans `aux_data` (contrairement à `:rope`, qui met en
-cache `cos_a`/`sin_a` par longueur de séquence) : la position change à
-CHAQUE appel ici, donc rien à réutiliser ; le coût (un `cos`/`sin` sur un
-vecteur de longueur `d/2`) est négligeable face à ce que le cache KV évite
-déjà (le recalcul des projections/MLP des tokens précédents à travers
-28 couches).
+CORRECTIF PERF 2026-08-31 (notebook/diag_decode_hcat_split2.jl) : profilage
+du décodage KV-cache après correction d'un artefact de méthodologie (voir ce
+script) -- le "reste" de l'attention (hors matmul QK/PV) est en réalité
+dominé par CE nœud (Q slice+RoPE, 12 têtes/couche ≈ 5.0ms/couche ≈ 140ms sur
+28 couches, PAS `hcat_heads` comme le suggérait un profil antérieur mal
+attribué). Cause trouvée par instrumentation directe : CHAQUE appel faisait
+(1) `Array(inputs[2])[1]` -- une lecture device→host d'UN SEUL Float32, qui
+force une synchronisation complète du pipeline CUDA (coût dominant mesuré,
+pas le calcul RoPE lui-même) -- puis (2) recalculait ET ré-uploadait (host→
+device) le vecteur `theta` (`d/2` éléments) à CHAQUE appel, alors qu'il ne
+dépend que de `theta_base`/`d` -- CONSTANTS sur toute la génération. Les deux
+corrigés ci-dessous : `theta` est mis en cache par `(device, half, theta_base)`
+(même patron que `causal_mask_cached`, src/kernels.jl) -- calculé UNE fois ;
+`pos` reste sur le device d'un bout à l'autre (plus aucune lecture D2H) --
+le broadcast `(1,) .* (half,)` fonctionne nativement sur CuArray. Arithmétique
+IDENTIQUE bit à bit à l'ancien code (même expression Float32/Float64 pour
+`theta`, même multiplication IEEE754 pour `angles`) -- seul CE QUI est mis en
+cache/où le calcul a lieu (host vs device) change, jamais la valeur produite.
 """
+const _ROPE_THETA_CACHE = Dict{Tuple{Symbol,Int,Float32},Any}()
+const _ROPE_THETA_CACHE_MAXSIZE = 20
+function _rope_theta_cached(dev, half::Int, theta_base::Float32)
+    key = dev isa Backend.CUDADevice ?
+        (Symbol(:cuda, Int(CUDA.device().handle)), half, theta_base) : (:cpu, half, theta_base)
+    haskey(_ROPE_THETA_CACHE, key) && return _ROPE_THETA_CACHE[key]
+    theta = Backend.to_device(dev, Float32.(1f0 ./ (theta_base .^ ((0:half-1) ./ half))))
+    if length(_ROPE_THETA_CACHE) >= _ROPE_THETA_CACHE_MAXSIZE
+        pop!(_ROPE_THETA_CACHE, first(keys(_ROPE_THETA_CACHE)))
+    end
+    _ROPE_THETA_CACHE[key] = theta
+    return theta
+end
+
 function rope_at_pos!(dev, output_buffer, inputs, attrs, out_sym, out_node, ctx_store)
     x = inputs[1]::AbstractArray{Float32}
-    pos = Float32(Array(inputs[2])[1])
+    pos_dev = inputs[2]::AbstractArray{Float32}    # (1,), reste sur device -- pas de D2H
     d = size(x, 2)
     half = d ÷ 2
     theta_base = Float32(get(attrs, :theta, 10000f0))
-    theta = Backend.to_device(dev, Float32.(1f0 ./ (theta_base .^ ((0:half-1) ./ half))))
-    angles = pos .* theta                          # (half,)
+    theta = _rope_theta_cached(dev, half, theta_base)
+    angles = reshape(pos_dev, 1) .* theta           # (1,) .* (half,) -> (half,), tout sur device
     cos_a = reshape(cos.(angles), 1, half)
     sin_a = reshape(sin.(angles), 1, half)
     output_buffer[:, 1:half]     .= x[:, 1:half] .* cos_a .- x[:, half+1:end] .* sin_a

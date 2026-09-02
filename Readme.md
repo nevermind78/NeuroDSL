@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Julia](https://img.shields.io/badge/Julia-1.10%2B-purple?style=flat-square&logo=julia)](https://julialang.org)
 [![GPU](https://img.shields.io/badge/GPU-CUDA-green?style=flat-square&logo=nvidia)](https://developer.nvidia.com/cuda-toolkit)
-[![Papers](https://img.shields.io/badge/papers-4%20preprints-b31b1b?style=flat-square)](#citation)
+[![Papers](https://img.shields.io/badge/papers-6%20on%20arXiv-b31b1b?style=flat-square)](#citation)
 
 **NeuroDSL** is a 100%-Julia framework built around one idea: a computation graph doesn't have to be a static trace you build once and run. In NeuroDSL, the graph is a **live, reactive object** — you can mutate a single node while training, insert or remove entire blocks mid-run, or patch an internal activation to test a causal hypothesis, and only the part of the graph that actually depends on that change gets recomputed. Nothing else moves.
 
@@ -68,17 +68,49 @@ Activation patching — the core technique behind most mechanistic-interpretabil
 
 This is no longer a direction we're building toward — it's measured, at real scale:
 
-- **A proven ceiling, not an empirical accident.** An exhaustive site-by-site sweep (patch every candidate, restore, move to the next) speeds up by at most **2×** over independent full recomputations on a depth-uniform network — and this is a theorem, with the exact rate for non-uniform cost profiles given in closed form (Karamata index `q`: `(q+2)/(q+1)` output-heavy, `q+2` input-heavy). See *Cost Accounting for Reactive Computational Graphs* (see [Citation](#citation); PDF export not yet in this repo, submitted to arXiv).
-- **The aggregate is an average over a very wide spread.** At GPT-2 scale (12 layers, 12 heads, 156 sites) the deepest site re-forwards **259× cheaper** than a full forward and the shallowest only 1.04× — see `notebook/jalon0_results.json`. The closed-form cone size reproduces all 564 measured cones with zero residual. All correctness invariants (patched value survives `demand!`, restoration equals recomputation, independent patches commute) are re-verified at each scale rather than assumed to carry over.
-- **`greedy_patch_search!` and `backward_prune!` find real circuits, not just cheap ones.** On an induction task with a documented causal circuit, automated search retrieves it directly, and backward pruning shows a handful of heads carry nearly all of the recovered effect — at GPU scale, on a real 1.82B-parameter model, not only on a CPU-sized toy.
+- **A proven ceiling, not an empirical accident.** An exhaustive site-by-site sweep (patch every candidate, restore, move to the next) speeds up by at most **2×** over independent full recomputations on a depth-uniform network — and this is a theorem, with exact finite-depth bounds and the exact rate for non-uniform cost profiles given in closed form (Karamata index `q`: `(q+2)/(q+1)` output-heavy, `q+2` input-heavy). See *Cost Accounting for Reactive Computational Graphs* (on arXiv, see [Citation](#citation)).
 
-Full derivation, the GPU-scale validation, and the induction-circuit experiments: **[Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs](#citation)** (in preparation for peer review).
+  <p align="center"><img src="assets/readme/ceiling_ratio.png" alt="Aggregate sweep-ratio ceiling converging to exactly 2 as depth grows, with individual site ratios diverging" width="850"></p>
+
+  Measured, not just proved: the aggregate ratio (left) tracks the theorem's exact bounds at every depth tested and converges to 2, while individual sites (right) diverge far beyond that ceiling — the two panels together are the entire argument for why *aggregate* cost is the number worth quoting.
+
+- **The aggregate is an average over a very wide spread, and NeuroDSL beats PyTorch on the number that matters.** At GPT-2 scale (12 layers, 12 heads, 156 sites) the deepest site re-forwards **259× cheaper** than a full forward and the shallowest only 1.04× — see `notebook/jalon0_results.json`. Cross-validated against PyTorch on identical weights (parity 1.23×10⁻⁶), NeuroDSL's per-site patch cost crosses under PyTorch's around the network's midpoint and keeps falling where PyTorch's stays flat:
+
+  <p align="center"><img src="assets/readme/patch_cost_vs_pytorch.png" alt="NeuroDSL vs PyTorch patch cost by depth: NeuroDSL falls toward zero at deep sites, PyTorch stays flat" width="700"></p>
+
+  The closed-form cone size reproduces all 564 measured cones with zero residual. All correctness invariants (patched value survives `demand!`, restoration equals recomputation, independent patches commute) are re-verified at each scale rather than assumed to carry over.
+- **`greedy_patch_search!` and `backward_prune!` find real circuits, not just cheap ones.** On an induction task with a documented causal circuit, automated search retrieves attention heads reaching 99.94% of the causal effect, and backward pruning shows a handful of heads carry nearly all of the recovered effect — at GPU scale, on a real 1.82B-parameter model, not only on a CPU-sized toy.
+- **Grafting into an already-trained model, not just a fresh one.** A Gradient-Shadowing block grafted into a trained character-level LM, with the rest of the network frozen and backward pruning cutting the graft's own training cost, reaches lower validation loss than an equal-budget freshly-trained control in this run:
+
+  <p align="center"><img src="assets/readme/hot_surgery_loss.png" alt="Loss curve of a block grafted into an already-trained model, matching an equal-budget freshly-trained control" width="750"></p>
+
+  Reported as a single-run observation, not a seeded claim — a separate three-seed test in the same paper shows this kind of comparison can invert sign, and three pre-registered criteria for letting causal diagnosis *direct* graft placement all failed. Both the win and the two negative results are in the paper.
+
+Full derivation, the GPU-scale validation, and the induction-circuit experiments: **[A Universal Sweep-Ratio Ceiling for Activation Patching: Cache-Replay Restoration and Circuit Discovery in Persistent Computational Graphs](#citation)** — submitted to arXiv, on hold pending moderation, no public ID yet.
+
+---
+
+## Attributing a backward readout: an exact sign law
+
+A backward readout in a residual network is a sum over directed paths, each a product of local Jacobians — exponential in depth, though the readout itself costs linear time. NeuroDSL's per-branch gating makes it possible to decompose that sum exactly: the **mean branch order** decomposes into per-branch coefficients, each computable by a single backward-only ablation, with a closed form in two scalars (a gain ratio and a cosine) that gives an exact **sign law**. A companion result shows the site-dependence of that coefficient is exactly a change of inner product, generated by a vector estimable from two forward passes — so a sweep at one site recovers an entire row at a shallower site with no further backward pass.
+
+None of this is a claim about the function computed: every branch is gated by a parameter that leaves the forward pass unchanged, so these quantities describe how the gradient is routed, not how much a branch contributes to the output — an important distinction, since one of the paper's own findings is that a branch's *causal* magnitude does not predict its cross-site *gradient* instability.
+
+On a trained 1.5B-parameter model (22 prompts, 35,112 coefficients): the decomposition holds at the single-precision floor, the two-scalar form to 1.64×10⁻¹⁵, and a median 12.9% of coefficients are **negative** (up to 24.4%) — so the naive assumption that these coefficients are non-negative is false, with zero sign-law violations across the full set.
+
+Full derivation and the 1.5B-parameter validation: **[The Branch-Order Decomposition of a Backward Readout](#citation)** — submitted to arXiv, on hold pending moderation, no public ID yet.
 
 ---
 
 ## Growing a network's depth: when it's worth it
 
-A third line of work asks a training-economics question the graft primitive makes cheap to test empirically: does growing a network's depth mid-training ever beat training at full depth from scratch? Three theorems (a single-crossing lemma plus necessary/sufficient conditions) say it depends on which axis you fix — growing wins at equal **compute (FLOPs)**, loses at equal **step count** — and a closed-form capacity-floor model (derived from a digamma-function expansion) is validated, unrefit, against 18 independently measured growth schedules (`R² = 0.764`). Full derivation: **[Growing a Network During Training: The Economics of Depth](#citation)** (in preparation for peer review).
+A third line of work asks a training-economics question the graft primitive makes cheap to test empirically: does growing a network's depth mid-training ever beat training at full depth from scratch? Three theorems (a single-crossing lemma plus necessary/sufficient conditions) say it depends on which axis you fix — growing wins at equal **compute (FLOPs)**, loses at equal **step count** — and a closed-form capacity-floor model (derived from a digamma-function expansion) is validated, unrefit, against 18 independently measured growth schedules (`R² = 0.764`).
+
+<p align="center"><img src="assets/readme/growth_capacity_floor_fit.png" alt="Closed-form capacity-floor model fitted across 16 depths, with residuals showing no systematic trend" width="850"></p>
+
+The one visible outlier (`L=3`, red ×, −5.7σ from the fit) is a documented exclusion — a late plateau escape, labeled as such in the figure itself — not a point dropped after the fact to improve the fit.
+
+Full derivation: **[Growing a Network During Training: The Economics of Depth](#citation)** (in preparation for peer review).
 
 ---
 
@@ -92,7 +124,7 @@ In the interest of not overselling this:
 - **"Optimal memory planning" is optimal but vacuous by default.** Interval colouring uses the minimum slot count for a fixed execution order, but a graph expecting a backward pass has no two disjoint activation lifetimes, so that minimum *is* the node count and no slot is ever shared (measured: 201 slots for 201 nodes). A forward-only plan does share — 201 → 40 — yet peak VRAM is unchanged, because the buffer pool retains what it reclaims. The mechanism that actually lowers the forward-only peak is eager release (`demand_release!`), at 2.77× better.
 - **Frozen-prefix backward pruning is now measured, not just proven exact.** 85.19% of the nodes receiving backward treatment are skipped when the frozen prefix reaches the graph input, gradients bit-identical (difference exactly 0), wall-clock gain 69.9% median under a pinned clock — against a negative control bounded at 4.19% when the prefix is absent.
 - **The interactive viewer and dynamic-mutation demos are small-scale (MLPs, MNIST).** The rigorous claims that now hold at real scale — exact grafting, activation-patching cost — are stated and measured on models up to ~1.82B parameters (see above); the *demos* in this README are intentionally small so you can re-run them in seconds.
-- **`math1.tex`/`math2.tex`/article2/article3 are, at the time of writing, preprints and in-preparation manuscripts, not peer-reviewed publications.** Read them as rigorous but unreviewed.
+- **None of the eight manuscripts below have completed peer review.** Four are on arXiv with public IDs, two are on arXiv on hold pending moderation, one was submitted to arXiv and not accepted, and one is still in preparation — read all of them, including the four with public IDs, as rigorous but unreviewed.
 
 ---
 
@@ -204,9 +236,9 @@ NeuroDSL was inspired by the early work of [Julius Technology](https://juliustec
 
 ## Citation
 
-Seven manuscripts describe different parts of this work: four are on arXiv with public IDs, one is on arXiv pending its public ID, and two are in preparation.
+Eight manuscripts describe different parts of this work: four are on arXiv with public IDs, two are on arXiv on hold pending moderation, one was submitted to arXiv and not accepted, and one is in preparation.
 
-**NeuroDSL: A Mutable Computational Graph Framework with Local Invalidation and Inspectable Memory Planning** — the core engine, both halves of the locality result, and the memory profile that follows from them. Submitted to arXiv, awaiting moderation; no public ID yet. Reproduction guide: [`docs/REPRODUCING.md` §1](docs/REPRODUCING.md#1-neurodsl-the-framework-paper).
+**NeuroDSL: A Mutable Computational Graph Framework with Local Invalidation and Inspectable Memory Planning** — the core engine, both halves of the locality result, and the memory profile that follows from them. Submitted to arXiv; not accepted. Not currently under submission anywhere. PDF: [`artilce/NeuroDSL.pdf`](<artilce/NeuroDSL.pdf>). Reproduction guide: [`docs/REPRODUCING.md` §1](docs/REPRODUCING.md#1-neurodsl-the-framework-paper).
 
 ```bibtex
 @misc{khemais2026neurodsl,
@@ -214,7 +246,7 @@ Seven manuscripts describe different parts of this work: four are on arXiv with 
             Invalidation and Inspectable Memory Planning},
   author = {Khemais, Abdallah},
   year   = {2026},
-  note   = {arXiv submission pending moderation; public arXiv ID not yet assigned},
+  note   = {Submitted to arXiv; not accepted},
 }
 ```
 
@@ -229,7 +261,7 @@ Seven manuscripts describe different parts of this work: four are on arXiv with 
 > was never announced, so no version carrying the retracted figures was ever
 > public.
 
-**Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. On arXiv: [arXiv:2607.16568](https://arxiv.org/abs/2607.16568). PDF as published: [`artilce/2607.16568v1.pdf`](<artilce/2607.16568v1.pdf>).
+**Exact Network Surgery: Functional Invariance and Gradient Plasticity in Reactive Computational Graphs** — the graft primitive, its exactness proofs, and post-insertion gate dynamics. On arXiv: [arXiv:2607.16568](https://arxiv.org/abs/2607.16568) ([PDF](https://arxiv.org/pdf/2607.16568)).
 
 ```bibtex
 @article{khemais2026exact,
@@ -240,7 +272,7 @@ Seven manuscripts describe different parts of this work: four are on arXiv with 
 }
 ```
 
-**Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap** — the exact cost theory behind exhaustive sweeps, sequential grafting, and the backward-pass locality gap. On arXiv: [arXiv:2607.18323](https://arxiv.org/abs/2607.18323). PDF as published: [`artilce/2607.18323v1.pdf`](<artilce/2607.18323v1.pdf>).
+**Cost Accounting for Reactive Computational Graphs: Exhaustive Sweeps, Sequential Mutation, and the Backward-Locality Gap** — the exact cost theory behind exhaustive sweeps, sequential grafting, and the backward-pass locality gap. On arXiv: [arXiv:2607.18323](https://arxiv.org/abs/2607.18323) ([PDF](https://arxiv.org/pdf/2607.18323)).
 
 ```bibtex
 @article{khemais2026costaccounting,
@@ -251,13 +283,36 @@ Seven manuscripts describe different parts of this work: four are on arXiv with 
 }
 ```
 
-**Amortized Multi-Site Activation Patching via Cache-Replay Restoration in Persistent Computational Graphs** — the interpretability-patching line of work described above. In preparation for peer review. PDF: [`artilce/Amortized Multi-Site Activation Patching.pdf`](<artilce/Amortized Multi-Site Activation Patching.pdf>).
+**A Universal Sweep-Ratio Ceiling for Activation Patching: Cache-Replay Restoration and Circuit Discovery in Persistent Computational Graphs** — the interpretability-patching line of work described above, including the hot-surgery grafting result. Submitted to arXiv, on hold pending moderation; no public ID yet. PDF: [`artilce/patching_cost_and_circuits.pdf`](<artilce/patching_cost_and_circuits.pdf>).
 
-**Growing a Network During Training: The Economics of Depth** — the growth-schedule line of work described above. In preparation for peer review. PDF: [`artilce/Growing a Network During Training.pdf`](<artilce/Growing a Network During Training.pdf>).
+```bibtex
+@misc{khemais2026sweepratio,
+  title  = {A Universal Sweep-Ratio Ceiling for Activation Patching: Cache-Replay
+            Restoration and Circuit Discovery in Persistent Computational Graphs},
+  author = {Khemais, Abdallah},
+  year   = {2026},
+  note   = {arXiv submission on hold pending moderation; public arXiv ID not yet assigned},
+}
+```
+
+**The Branch-Order Decomposition of a Backward Readout: An Exact Identity for the Mean Branch Order, Its Two-Scalar Form, and the Obstruction to a Closed Form** — the exact-attribution and sign-law line of work described above. Submitted to arXiv, on hold pending moderation; no public ID yet. PDF: [`artilce/branch_order_theorem.pdf`](<artilce/branch_order_theorem.pdf>).
+
+```bibtex
+@misc{khemais2026branchorder,
+  title  = {The Branch-Order Decomposition of a Backward Readout: An Exact
+            Identity for the Mean Branch Order, Its Two-Scalar Form, and the
+            Obstruction to a Closed Form},
+  author = {Khemais, Abdallah},
+  year   = {2026},
+  note   = {arXiv submission on hold pending moderation; public arXiv ID not yet assigned},
+}
+```
+
+**Growing a Network During Training: The Economics of Depth** — the growth-schedule line of work described above. In preparation for peer review. PDF: [`artilce/article3.pdf`](<artilce/article3.pdf>).
 
 Two further manuscripts study what happens when weights are ablated rather than grafted. They use NeuroDSL's inspection surface but stand on their own theory, so the framework paper is not a prerequisite for either.
 
-**A Theory of Conditional Collapse under Low-Rank Weight-Space Ablations: I. The Single-Block Theory and Synthetic Validation** — when a low-rank weight-space ablation makes a block collapse, and when it does not. On arXiv: [arXiv:2608.03620](https://arxiv.org/abs/2608.03620). PDF: [`artilce/conditional_collapse_theory.pdf`](<artilce/conditional_collapse_theory.pdf>). Reproduction guide: [`docs/REPRODUCING.md` §4](docs/REPRODUCING.md#4-conditional-collapse-and-crosslayer-interaction).
+**A Theory of Conditional Collapse under Low-Rank Weight-Space Ablations: I. The Single-Block Theory and Synthetic Validation** — when a low-rank weight-space ablation makes a block collapse, and when it does not. On arXiv: [arXiv:2608.03620](https://arxiv.org/abs/2608.03620) ([PDF](https://arxiv.org/pdf/2608.03620)). Reproduction guide: [`docs/REPRODUCING.md` §4](docs/REPRODUCING.md#4-conditional-collapse-and-crosslayer-interaction).
 
 ```bibtex
 @article{khemais2026collapse,
@@ -269,7 +324,7 @@ Two further manuscripts study what happens when weights are ablated rather than 
 }
 ```
 
-**Cross-Layer Interaction under Weight-Space Ablation: A Closed-Form Attention Jacobian Bound and a Test on a Real Pretrained Model** — the closed-form Jacobian bound, tested on Qwen rather than on a synthetic stand-in. On arXiv: [arXiv:2608.03629](https://arxiv.org/abs/2608.03629). PDF: [`artilce/crosslayer_interaction_qwen.pdf`](<artilce/crosslayer_interaction_qwen.pdf>). Reproduction guide: [`docs/REPRODUCING.md` §4](docs/REPRODUCING.md#4-conditional-collapse-and-crosslayer-interaction).
+**Cross-Layer Interaction under Weight-Space Ablation: A Closed-Form Attention Jacobian Bound and a Test on a Real Pretrained Model** — the closed-form Jacobian bound, tested on Qwen rather than on a synthetic stand-in. On arXiv: [arXiv:2608.03629](https://arxiv.org/abs/2608.03629) ([PDF](https://arxiv.org/pdf/2608.03629)). Reproduction guide: [`docs/REPRODUCING.md` §4](docs/REPRODUCING.md#4-conditional-collapse-and-crosslayer-interaction).
 
 ```bibtex
 @article{khemais2026crosslayer,
@@ -281,7 +336,7 @@ Two further manuscripts study what happens when weights are ablated rather than 
 }
 ```
 
-This section will be updated with a public arXiv ID for the framework paper and, where applicable, venue/DOI information as each remaining manuscript clears review.
+This section will be updated with public arXiv IDs for the two manuscripts on hold and, where applicable, venue/DOI information as each remaining manuscript clears review.
 
 ---
 

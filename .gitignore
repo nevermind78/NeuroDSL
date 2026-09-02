@@ -174,3 +174,7 @@ notebook/*.pdf
 #docs/*.html
 notebook/p4_export/*.bin
 *.bak
+
+# Personal CV drafts (not project source)
+Awesome_CV.pdf
+CV_Khemais_Senior_DataScientist_AI_Architect.*
