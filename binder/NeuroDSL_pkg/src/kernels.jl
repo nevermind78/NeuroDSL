@@ -1,4 +1,14 @@
-if Backend.CUDA_AVAILABLE; using CUDA; end
+# Unconditional: CUDA.jl the *package* loads fine with no physical GPU (only
+# CUDA.functional() distinguishes that, checked via Backend.CUDA_AVAILABLE
+# below). A conditional `if Backend.CUDA_AVAILABLE; using CUDA; end` looks
+# safe but isn't: further down this file, `@cuda` is used inside blocks
+# guarded the same way, and on a real GPU-less machine (confirmed on an
+# actual BinderHub build) `using CUDA` never runs, so `@cuda` is undefined
+# at that point regardless of whether the guarded block would itself have
+# been skipped at runtime -- precompilation fails with
+# `UndefVarError: @cuda not defined`. Importing unconditionally here removes
+# the dependency on that runtime distinction entirely.
+using CUDA
 
 # ── Cache pour le masque causal (LRU avec taille max) ─────────────────
 const _MASK_CACHE = Dict{Tuple{Symbol,Int},Any}()
