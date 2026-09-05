@@ -1,0 +1,838 @@
+
+const DEBUG_MODE = Ref(true)
+debug!(v::Bool) = (DEBUG_MODE[] = v)
+
+function _check_matmul(name, A, B, trans_b)
+    DEBUG_MODE[] || return
+    kA=size(A,2); kB=trans_b ? size(B,2) : size(B,1)
+    kA==kB || error("❌ [$name] matmul incompatible A=$(size(A)) B=$(size(B)) trans_b=$trans_b")
+end
+
+# Buffer pool pour les tenseurs temporaires
+const _BUFFER_POOL = Dict{Tuple,Any}()
+function _get_buffer(dev, shape)
+    if dev isa Backend.CUDADevice
+        return Backend.zeros32(dev, shape...)
+    end
+    key = (:cpu, shape)
+    if haskey(_BUFFER_POOL, key)
+        return _BUFFER_POOL[key]
+    end
+    buf = Backend.zeros32(dev, shape...)
+    if length(_BUFFER_POOL) > 20
+        empty!(_BUFFER_POOL)
+    end
+    _BUFFER_POOL[key] = buf
+    return buf
+end
+
+_store_ctx!(::Nothing, ::Symbol, ::Dict) = nothing
+function _store_ctx!(ctx::CtxStore, sym::Symbol, d::Dict)
+    ctx[sym] = d
+    return nothing
+end
+
+# ── Ops de vue (zero-copy) : attention multi-têtes batchée ────────────────
+# `:view_cols` (tranche de colonnes 2D→2D) et `:head_view` (tranche 3D→2D le
+# long de la 3ème dimension) ne produisent JAMAIS de tampon possédé -- leur
+# `.value` alias directement le tampon du nœud parent. Interceptées AVANT le
+# bloc standard d'allocation dans `execute_rule!`/`execute_rule_pooled!` (voir
+# plus bas) -- jamais de `Backend.free!` sur leur valeur, jamais d'inférence
+# de forme standard nécessaire pour elles.
+const _VIEW_OPS = (:view_cols, :head_view)
+
+function _dispatch_view!(out_node::GraphNode, rule::GraphRule, inputs_vals, out_sym::Symbol, ctx_store)
+    if rule.op == :view_cols
+        x = inputs_vals[1]
+        s = rule.attrs[:start_col]; e = rule.attrs[:end_col]
+        out_node.value = view(x, :, s:e)
+        _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:start_col => s, :end_col => e))
+    elseif rule.op == :head_view
+        x = inputs_vals[1]
+        h = rule.attrs[:head]
+        out_node.value = view(x, :, :, h)
+        _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:head => h))
+    end
+    return nothing
+end
+
+# ── Shape inference ────────────────────────────────────────────────────
+# Point d'extension pour les ops personnalisés (`register_op!`) -- même
+# patron que `GRAD_RULES` (backward.jl:100) : un Dict{Symbol,Function} que
+# l'appelant peuple lui-même (`CUSTOM_SHAPE_RULES[:mon_op] = (inputs, attrs)
+# -> shape_tuple`). Sans entrée, `_infer_output_shape` retombe (comme avant)
+# sur la forme du premier argument avec un avertissement -- ce repli reste
+# correct pour certains ops (ex. tri : la forme de sortie égale TOUJOURS
+# celle de l'entrée) mais fragile pour d'autres (ex. un op dont la forme de
+# sortie dépend d'un autre argument) ; d'où ce point d'extension explicite.
+const CUSTOM_SHAPE_RULES = Dict{Symbol,Function}()
+
+function _infer_output_shape(op::Symbol, inputs, attrs)
+    if haskey(CUSTOM_SHAPE_RULES, op)
+        return CUSTOM_SHAPE_RULES[op](inputs, attrs)
+    elseif op == :matmul
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_matmul_relu
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_relu_matmul
+        A, B = inputs[1], inputs[2]  # Premier input a déjà subi relu, second = matrice
+        # Ici on suppose que le relu ne change pas la forme, donc shape = matmul
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :randvec
+        return (attrs[:vec_size],)
+    elseif op == :linear
+        X, W = inputs[1], inputs[2]
+        return (size(X, 1), size(W, 1))
+    elseif op == :hcat_heads
+        return (size(inputs[1], 1), sum(size(x, 2) for x in inputs))
+    elseif op in (:add, :mul, :rmsnorm, :swiglu, :softmax,:scale_mask, :rope, :dropout, :relu, :wsum, :nsum, :tanh, :identity,:scale_add,:linear2,:scalar_gate)
+        return size(inputs[1])
+    elseif op == :embedding
+        E, idx = inputs[1], inputs[2]
+        return (length(idx), size(E, 2))
+    elseif op in (:mse_loss, :sum_matrix, :cce)
+        return (1,)
+    elseif op == :slice_cols
+        return (size(inputs[1], 1), attrs[:end_col] - attrs[:start_col] + 1)
+    elseif op == :batched_qk
+        H = length(inputs) ÷ 2
+        seq = size(inputs[1], 1)
+        return (seq, seq, H)
+    elseif op == :batched_pv
+        H = length(inputs) ÷ 2
+        pr_heads = inputs[1:H]
+        v_heads = inputs[H+1:2H]
+        return (size(pr_heads[1], 1), size(v_heads[1], 2), H)
+    elseif op == :cross_entropy
+        return (1,)
+    elseif op == :flash_attn
+        return size(inputs[1])
+    elseif op == :fused_add_relu
+        return size(inputs[1])
+    elseif op == :fused_matmul_add
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_matmul_add_relu
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_qkv_projection
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        return (size(A, 1), tb ? size(B, 1) : size(B, 2))
+    elseif op == :fused_swiglu
+        return size(inputs[1])
+    elseif op == :fused_sdpa
+        return size(inputs[1])
+    elseif op in (:slice_cols, :slice_view)
+        A = inputs[1]
+        s = get(attrs, :start_col, 1)
+        e = get(attrs, :end_col, size(A, 2))
+        return (size(A, 1), e - s + 1)
+    else
+        @warn "Shape inference non implémentée pour :$op, utilisation de la forme du premier argument"
+        return size(inputs[1])
+    end
+end
+
+_infer_output_type(::Symbol, ::Any, ::Any) = Float32
+
+# ── Épilogue ReLU derrière une barrière de fonction ──────────────────────────
+# Écrit hors de `_dispatch_op` à cause d'un défaut de performance mesuré le
+# 2026-08-08 : la forme *inline* `output_buffer .= max.(output_buffer, 0f0)`
+# dans la branche `:fused_matmul_relu` coûtait **+143 µs** de surcoût moteur
+# (64×512 Float32, CPU) là où le calcul lui-même en coûte 377 -- soit une
+# pessimisation de 25-36% qui rendait la fusion PLUS LENTE que la paire
+# `:matmul` + `:relu` non fusionnée (celle-ci ne paie que +2 µs).
+#
+# Cause isolée expérimentalement (deux hypothèses plus simples réfutées en
+# route -- ce n'est ni la taille de `_dispatch_op`, qui reçoit déjà un buffer
+# concrètement typé via `_run_kernel!`, ni l'aliasing seul) : c'est la
+# CONJONCTION d'un broadcast aliasé (`dest === src`) et d'une fonction branchue
+# non inlinable (`Base.max` sur des flottants passe par `signbit`/`ifelse`/
+# `isnan`). Les deux facteurs pris séparément sont inoffensifs, mesures à
+# l'appui sur le même fichier :
+#   :fused_matmul_add      aliasé (`.+=`) mais `+` trivial  -> +13 µs
+#   :fused_matmul_add_relu `max` mais NON aliasé            -> +14 µs
+#   :fused_matmul_relu     aliasé ET `max`                  -> +143 µs
+# Aliasé + `max` retombe sur le `copyto!` scalaire générique (visible au
+# profil : `_broadcast_getindex_evalf`, `signbit`, `ifelse` en frames
+# séparées), soit ~4 ns par élément sur 32768 éléments.
+#
+# La barrière suffit : la même expression dans une petite fonction typée coûte
+# 2.2 µs. Générique en `eltype` (et non figé en `Float32`) pour ne pas casser
+# un graphe en Float64/Float16, et valable CPU comme GPU (`CuArray <:
+# AbstractArray`, le broadcast reste un unique kernel fusionné).
+# `@noinline` est ESSENTIEL et non décoratif : une barrière de fonction n'existe
+# que si le corps n'est PAS réinséré dans l'appelant. Un premier essai annoté
+# `@inline` n'a rien changé (+126 µs au lieu de +143), ce qui est cohérent --
+# inliner le helper reconstitue exactement le site problématique.
+@noinline _relu_into!(y::AbstractArray) = (y .= max.(y, zero(eltype(y))); y)
+@noinline _relu_into!(y::AbstractArray, x::AbstractArray) = (y .= max.(x, zero(eltype(y))); y)
+
+function _run_kernel!(dev, output_buffer::T, rule, inputs_vals, out_sym, out_node, ctx_store) where {T <: AbstractArray}
+    _dispatch_op(dev, output_buffer, rule.op, inputs_vals, rule.attrs, out_sym, out_node, ctx_store)
+end
+
+# Journalise la valeur forward des ENTRÉES FEUILLES d'une règle (nœuds sans
+# règle qui les calcule, ex. X/Y d'un batch) — sans ça, seul un notebook qui
+# l'injectait explicitement à la main obtenait une trace correcte de ces
+# nœuds, et le panneau tableau de viz.jl retombait sur leur valeur figée de
+# fin d'entraînement (bug "X gelé au clic"). Marche pour n'importe quelle
+# feuille de n'importe quel graphe, sans rien à écrire côté appelant.
+# Dédoublonnage simple (une feuille peut alimenter plusieurs règles) : ne
+# relogge pas une feuille déjà tracée dans CE passage.
+function _log_leaf_inputs!(log::ExecutionLog, g::NeuroGraph, ns::Symbol, rule::GraphRule)
+    for s in rule.inputs
+        haskey(g.rules[ns], s) && continue  # pas une feuille : sera loggée comme out_sym ailleurs
+        any(e[:node] == s && e[:phase] == "forward" for e in log.events) && continue
+        nd = g.nodes[ns][s]
+        nd.value === nothing && continue
+        log_event!(log, s, "forward", "finished", format_tensor_grid(nd.value))
+    end
+end
+
+# ── execute_rule! avec buffer pool ─────────────────────────────────────
+function execute_rule!(g::NeuroGraph, rule::GraphRule;
+                       ctx_store::Union{CtxStore,Nothing}=nothing, 
+                       namespace=g.active_ns,
+                       log::Union{Nothing, ExecutionLog}=nothing) # <--- AJOUT
+    dev = g.device
+    ns = rule.namespace
+    out_sym = rule.output
+    out_node = g.nodes[ns][out_sym]
+
+    # LOG : Début du calcul
+    if log !== nothing
+        log_event!(log, out_sym, "forward", "starting")
+        _log_leaf_inputs!(log, g, ns, rule)
+    end
+
+    n = length(rule.inputs)
+    if !haskey(out_node.aux_data, :_inputs_buf) || length(out_node.aux_data[:_inputs_buf]) != n
+        out_node.aux_data[:_inputs_buf] = Vector{AbstractArray{Float32}}(undef, n)
+    end
+    inputs_vals = out_node.aux_data[:_inputs_buf]::Vector{AbstractArray{Float32}}
+    for (i, s) in enumerate(rule.inputs)
+        inputs_vals[i] = g.nodes[ns][s].value::AbstractArray{Float32}
+    end
+
+    if rule.op in _VIEW_OPS
+        _dispatch_view!(out_node, rule, inputs_vals, out_sym, ctx_store)
+        out_node.valid = true
+        if log !== nothing
+            val_grid = try
+                format_tensor_grid(out_node.value)
+            catch
+                Dict("shape" => "?", "rows" => Any[], "trunc_rows" => false, "trunc_cols" => false)
+            end
+            log_event!(log, out_sym, "forward", "finished", val_grid)
+        end
+        return out_node.value
+    end
+
+    out_shape = _infer_output_shape(rule.op, inputs_vals, rule.attrs)
+    out_type  = _infer_output_type(rule.op, inputs_vals, rule.attrs)
+
+    if out_node.value === nothing || size(out_node.value) != out_shape || eltype(out_node.value) != out_type
+        # Libération SYNCHRONE de l'ancien buffer plutôt que d'attendre le
+        # GC Julia (qui peut ne jamais tourner au milieu d'une boucle chaude
+        # -- ex. génération autorégressive à contexte croissant, où chaque
+        # nouvelle longueur réalloue toutes les activations en aval). Sûr
+        # par construction : ce nœud est invalide (sinon on ne serait pas
+        # dans cette branche de recalcul), donc son ancienne valeur n'est
+        # plus le résultat courant de rien -- tout code qui a besoin de
+        # conserver une activation en fait déjà une copie explicite
+        # (capture_activations, capture_snapshot -- vérifié). Jamais pour
+        # un paramètre (stockage stable, jamais réalloué ici de toute façon).
+        if out_node.value !== nothing && !out_node.is_param
+            Backend.free!(dev, out_node.value)
+        end
+        out_node.value = Backend.zeros32(dev, out_shape...)
+    end
+    output_buffer = out_node.value
+
+    _run_kernel!(dev, output_buffer, rule, inputs_vals, out_sym, out_node, ctx_store)
+    out_node.valid = true
+
+    # LOG : Fin du calcul avec résumé de la valeur
+        # LOG : Fin du calcul avec résumé de la valeur
+    if log !== nothing
+        val_grid = try
+            format_tensor_grid(out_node.value)
+        catch
+            Dict("shape" => "?", "rows" => Any[], "trunc_rows" => false, "trunc_cols" => false)
+        end
+        log_event!(log, out_sym, "forward", "finished", val_grid)
+    end
+    return out_node.value
+end
+
+# ── execute_rule_pooled! : variante avec BufferPool (utilisée par CompiledPlan) ──
+#
+# Parallèle à execute_rule! ci-dessus, qui reste totalement inchangée — demand! et
+# backward_graph! continuent de l'appeler directement et ne sont donc jamais affectés
+# par cette fonction ni par un bug éventuel dans son chemin. La seule différence : le
+# buffer de sortie est emprunté/rendu à un BufferPool plutôt qu'alloué frais à chaque
+# appel via Backend.zeros32 — c'est ce qui élimine réellement les allocations
+# intermédiaires répétées pendant l'exécution d'un CompiledPlan. Les paramètres
+# (is_param) ne sont jamais empruntés au pool : ils gardent un stockage stable.
+function execute_rule_pooled!(g::NeuroGraph, rule::GraphRule, pool;
+                              ctx_store::Union{CtxStore,Nothing}=nothing,
+                              log::Union{Nothing, ExecutionLog}=nothing)
+    dev = g.device
+    ns = rule.namespace
+    out_sym = rule.output
+    out_node = g.nodes[ns][out_sym]
+
+    if log !== nothing
+        log_event!(log, out_sym, "forward", "starting")
+        _log_leaf_inputs!(log, g, ns, rule)
+    end
+
+    n = length(rule.inputs)
+    if !haskey(out_node.aux_data, :_inputs_buf) || length(out_node.aux_data[:_inputs_buf]) != n
+        out_node.aux_data[:_inputs_buf] = Vector{AbstractArray{Float32}}(undef, n)
+    end
+    inputs_vals = out_node.aux_data[:_inputs_buf]::Vector{AbstractArray{Float32}}
+    for (i, s) in enumerate(rule.inputs)
+        inputs_vals[i] = g.nodes[ns][s].value::AbstractArray{Float32}
+    end
+
+    if rule.op in _VIEW_OPS
+        error("execute_rule_pooled! : les ops de vue (:$(rule.op)) ne sont pas compatibles avec BufferPool " *
+              "(aliasing non maîtrisé entre le tampon parent et le pool) -- utiliser demand!/backward_graph! " *
+              "(execute_rule!), pas compile()/CompiledPlan, sur un graphe avec attention batchée.")
+    end
+
+    out_shape = _infer_output_shape(rule.op, inputs_vals, rule.attrs)
+    out_type  = _infer_output_type(rule.op, inputs_vals, rule.attrs)
+    is_poolable = !out_node.is_param
+
+    if out_node.value === nothing || size(out_node.value) != out_shape || eltype(out_node.value) != out_type
+        if is_poolable && out_node.value !== nothing
+            release!(pool, out_node.value)
+        end
+        out_node.value = is_poolable ? acquire!(pool, out_shape) : Backend.zeros32(dev, out_shape...)
+    end
+    output_buffer = out_node.value
+
+    _run_kernel!(dev, output_buffer, rule, inputs_vals, out_sym, out_node, ctx_store)
+    out_node.valid = true
+
+    if log !== nothing
+        val_grid = try
+            format_tensor_grid(out_node.value)
+        catch
+            Dict("shape" => "?", "rows" => Any[], "trunc_rows" => false, "trunc_cols" => false)
+        end
+        log_event!(log, out_sym, "forward", "finished", val_grid)
+    end
+    return out_node.value
+end
+
+# ── _dispatch_op ───────────────────────────────────────────────────────
+function _dispatch_op(dev, output_buffer, op::Symbol, inputs, attrs, out_sym, out_node::GraphNode, ctx_store)
+    if op == :matmul
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        _check_matmul(out_sym, A, B, tb)
+        # Sauvegarder A AVANT tout calcul (le buffer pool peut écraser A)
+        A_ctx = ctx_store !== nothing ? copy(A) : A
+
+        if output_buffer === A || output_buffer === B
+            if !haskey(out_node.aux_data, :_alias_buf) || size(out_node.aux_data[:_alias_buf]) != size(output_buffer)
+                out_node.aux_data[:_alias_buf] = similar(output_buffer)
+            end
+            tmp_buf = out_node.aux_data[:_alias_buf]
+            if tb
+                LinearAlgebra.mul!(tmp_buf, A, B')
+            else
+                LinearAlgebra.mul!(tmp_buf, A, B)
+            end
+            output_buffer .= tmp_buf
+        else
+            if tb
+                LinearAlgebra.mul!(output_buffer, A, B')
+            else
+                LinearAlgebra.mul!(output_buffer, A, B)
+            end
+        end
+
+        if ctx_store !== nothing
+            # Utiliser A_ctx (copie faite AVANT l'écrasement du buffer)
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:trans_b => tb, :A => A_ctx, :B => B))
+        end
+        return output_buffer
+    elseif op == :fused_matmul_relu
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        # Dispatch the matmul itself to the platform's optimized BLAS
+        # (OpenBLAS on CPU, cuBLAS via CUDA.jl's `mul!` overload on GPU) and
+        # fuse only the ReLU as a cheap elementwise epilogue on top of it.
+        # A hand-written CUDA kernel used to reimplement the matmul from
+        # scratch here -- 1.9-4.2x SLOWER than cuBLAS at 512-1024 matrix
+        # sizes (measured in notebook/neurodsl_benchmarks.ipynb), because no
+        # from-scratch kernel matches years of vendor GEMM tuning (register
+        # blocking, tensor cores, autotuning). This mirrors how
+        # cuDNN/cuBLASLt/TensorRT actually fuse epilogues in practice: call
+        # the vendor GEMM, fuse only the cheap elementwise tail onto it.
+        if tb
+            LinearAlgebra.mul!(output_buffer, A, B')
+        else
+            LinearAlgebra.mul!(output_buffer, A, B)
+        end
+        _relu_into!(output_buffer)   # barrière de fonction : voir _relu_into! plus haut
+
+        # 🚀 THIS IS THE MISSING PART 🚀
+        # We MUST save the output and metadata for the backward pass to work
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :trans_b => tb, 
+                :A => A, 
+                :B => B, 
+                :output => output_buffer  # This is the key that was missing!
+            ))
+        end
+        
+        return output_buffer
+    elseif op == :fused_matmul_add
+        A, B, bias = inputs[1], inputs[2], inputs[3]
+        tb = get(attrs, :trans_b, false)
+        A_ctx = ctx_store !== nothing ? copy(A) : A
+
+        if tb
+            LinearAlgebra.mul!(output_buffer, A, B')
+        else
+            LinearAlgebra.mul!(output_buffer, A, B)
+        end
+        output_buffer .+= reshape(vec(bias), 1, :)
+
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:trans_b => tb, :A => A_ctx, :B => B))
+        end
+        return output_buffer
+    elseif op == :fused_matmul_add_relu
+        A, B, bias = inputs[1], inputs[2], inputs[3]
+        tb = get(attrs, :trans_b, false)
+        A_ctx = ctx_store !== nothing ? copy(A) : A
+        M, K_A = size(A)
+        K_B, N_B = size(B)
+
+        N = tb ? K_B : N_B
+        K = tb ? N_B : K_B
+
+        if dev isa Backend.CUDADevice
+            bias_vec = vec(bias)
+            threads_x, threads_y = 16, 16
+            blocks_x, blocks_y = cld(M, threads_x), cld(N, threads_y)
+            @cuda threads=(threads_x, threads_y) blocks=(blocks_x, blocks_y) _fused_matmul_add_relu_kernel!(
+                output_buffer, A, B, bias_vec, M, N, K, tb
+            )
+        else
+            temp = similar(output_buffer)
+            if tb
+                LinearAlgebra.mul!(temp, A, B')
+            else
+                LinearAlgebra.mul!(temp, A, B)
+            end
+            temp .+= reshape(vec(bias), 1, :)
+            output_buffer .= max.(temp, 0f0)
+        end
+
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :trans_b => tb,
+                :A => A_ctx,
+                :B => B,
+                :output => output_buffer
+            ))
+        end
+        return output_buffer
+    elseif op == :fused_qkv_projection
+        A, B = inputs[1], inputs[2]
+        tb = get(attrs, :trans_b, false)
+        A_ctx = ctx_store !== nothing ? copy(A) : A
+
+        if tb
+            LinearAlgebra.mul!(output_buffer, A, B')
+        else
+            LinearAlgebra.mul!(output_buffer, A, B)
+        end
+
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:trans_b => tb, :A => A_ctx, :B => B))
+        end
+        return output_buffer
+    elseif op == :hcat_heads
+        # CORRECTIF PERF 2026-08-31 (notebook/diag_decode_hcat_split.jl) : la
+        # boucle `.=` ci-dessous lance 1 kernel GPU par tête -- coût fixe de
+        # lancement dominant pour de petits tampons (décodage KV-cache : 12
+        # lancements de 512 octets chacun = 6.0ms/pas, couche 1 seule, alors
+        # que le matmul de projection qui suit immédiatement coûte <0.5ms).
+        # Voir src/kernels.jl (`hcat_heads_fwd_batched!`) pour le détail --
+        # même patron pointeur-brut-par-bloc que `_multi_copy_kernel!`
+        # (src/patching.jl), déjà validé pour la même classe de problème.
+        # Repli sur la boucle existante hors CUDA ou pour <=2 têtes (aucun
+        # gain à en attendre, coût de lancement nul/négligeable sur CPU).
+        if Backend.CUDA_AVAILABLE && dev isa Backend.CUDADevice &&
+           output_buffer isa CUDA.CuArray{Float32} && length(inputs) > 2 &&
+           all(inp -> inp isa CUDA.CuArray{Float32}, inputs)
+            hcat_heads_fwd_batched!(output_buffer, inputs, out_node)
+        else
+            offset = 0
+            for inp in inputs
+                inp_arr = inp::AbstractArray{Float32}
+                d = size(inp_arr, 2)
+                output_buffer[:, offset+1:offset+d] .= inp_arr
+                offset += d
+            end
+        end
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :n_heads => length(inputs), :d_head => size(inputs[1], 2)))
+        end
+        return output_buffer
+
+    elseif op == :linear
+        X, W = inputs[1], inputs[2]
+
+        if output_buffer === X || output_buffer === W
+            if !haskey(out_node.aux_data, :_alias_buf) || size(out_node.aux_data[:_alias_buf]) != size(output_buffer)
+                out_node.aux_data[:_alias_buf] = similar(output_buffer)
+            end
+            tmp_buf = out_node.aux_data[:_alias_buf]
+            LinearAlgebra.mul!(tmp_buf, X, W')
+            output_buffer .= tmp_buf
+        else
+            LinearAlgebra.mul!(output_buffer, X, W')
+        end
+
+        if length(inputs) == 3
+            output_buffer .+= inputs[3]'
+        end
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :X => X, :W => W, :n_inputs => length(inputs)))
+        end
+        return output_buffer
+
+    elseif op == :add
+        a = inputs[1]
+        b = inputs[2]
+        # Handle common bias add patterns safely (matrix + vector)
+        try
+            if ndims(a) == 2 && ndims(b) == 1
+                # b may be (n_cols,) or (n_rows,) — prefer broadcasting on cols when lengths match
+                if size(b, 1) == size(a, 2)
+                    output_buffer .= a .+ reshape(b, 1, :)
+                elseif size(b, 1) == size(a, 1)
+                    output_buffer .= a .+ reshape(b, :, 1)
+                else
+                    output_buffer .= a .+ b
+                end
+            elseif ndims(a) == 1 && ndims(b) == 2
+                # reverse order
+                if size(a, 1) == size(b, 2)
+                    output_buffer .= reshape(a, 1, :) .+ b
+                elseif size(a, 1) == size(b, 1)
+                    output_buffer .= reshape(a, :, 1) .+ b
+                else
+                    output_buffer .= a .+ b
+                end
+            else
+                output_buffer .= a .+ b
+            end
+        catch err
+            # Fallback to safe broadcasting using temporary reshape on CPU if needed
+            @warn "add op broadcast failed, falling back to safe broadcast: $(err)"
+            output_buffer .= a .+ b
+        end
+        return output_buffer
+
+    elseif op == :mul
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:a => inputs[1], :b => inputs[2]))
+        end
+        output_buffer .= inputs[1] .* inputs[2]
+        return output_buffer
+
+    elseif op == :rmsnorm
+        x, gamma = inputs[1], inputs[2]
+        nr, nc = size(x)
+        if !haskey(out_node.aux_data, :rms_inv) || size(out_node.aux_data[:rms_inv]) != (nr,)
+            out_node.aux_data[:rms_inv] = Backend.zeros32(dev, nr)
+        end
+        rms_inv = out_node.aux_data[:rms_inv]
+        rmsnorm_fwd!(dev, output_buffer, rms_inv, x, gamma)
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :x => x, :gamma => gamma, :rms_inv => rms_inv))
+        end
+        return output_buffer
+
+    elseif op == :swiglu
+        gate, up = inputs[1], inputs[2]
+        swiglu_fwd!(dev, output_buffer, gate, up)
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:gate => gate, :up => up))
+        end
+        return output_buffer
+
+    elseif op == :relu
+        x = inputs[1]
+        _relu_into!(output_buffer, x)   # barrière de fonction : voir _relu_into! plus haut
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:x => x))
+        end
+        return output_buffer
+
+    elseif op == :softmax
+        x = inputs[1]
+        softmax_fwd!(dev, output_buffer, x)
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:output => output_buffer))
+        end
+        return output_buffer
+
+    elseif op == :scale_mask
+        scores = inputs[1]
+        d_head = get(attrs, :d_head, size(scores, 2))
+        seqlen = size(scores, 1)
+        mask = causal_mask(dev, seqlen)
+        scale_mask_fwd!(output_buffer, scores, d_head, mask)
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :scale => 1f0/sqrt(Float32(d_head))))
+        end
+        return output_buffer
+
+    elseif op == :embedding
+        # CORRECTIF PERF 2026-08-31 (trouvé en creusant "attention ≈8x MLP,
+        # kernel-launch-count driven" à la demande explicite de l'utilisateur
+        # -- voir notebook/diag_decode_op_breakdown.jl et
+        # notebook/diag_embedding_gpu_gather_check.jl) : l'ancienne
+        # implémentation faisait `E_cpu = Array(E)` -- un aller-retour GPU->CPU
+        # de la table d'embedding ENTIÈRE (890 Mo pour Qwen2.5-1.5B,
+        # vocab=151936 x dim=1536) À CHAQUE APPEL, y compris pour un lookup
+        # d'UN SEUL token (le nœud `:dec_tok_emb` du décodage incrémental,
+        # appelé une fois PAR TOKEN GÉNÉRÉ). Mesuré : ~220ms sur ce chemin,
+        # alors que ce qui semblait être "le coût de l'attention" dans le
+        # profilage précédent (`diag_kv_cache_growth_and_profile.jl`,
+        # seg_attn≈213ms/pas) était en réalité en bonne partie CE transfert,
+        # mal attribué à l'attention parce que l'embedding du nouveau token
+        # est calculé comme ancêtre du premier checkpoint de la couche 1.
+        # `view(E, idx_cpu, :)` reste sur le device de `E` (CPU comme CUDA) et
+        # déclenche un vrai gather GPU natif sur CUDA (kernel GPUArrays, testé
+        # SANS "scalar indexing disallowed" et vérifié bit-identique à
+        # l'ancien chemin dans diag_embedding_gpu_gather_check.jl) au lieu
+        # d'un memcpy device->host de toute la table -- mesuré 0.021ms contre
+        # 220ms (~10 600x), résultat NUMÉRIQUEMENT IDENTIQUE (`isapprox`
+        # vérifié). `idx_cpu` reste un petit `Vector{Int}` côté hôte (sa
+        # taille est `n_batch`, jamais `vocab_size`) -- aucun changement du
+        # comportement `ctx_store`/backward, qui continuent de lire `:idx`
+        # exactement comme avant.
+        E, idx_raw = inputs[1], inputs[2]
+        idx_cpu = Int.(vec(Array(idx_raw)))
+        output_buffer .= view(E, idx_cpu, :)
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :idx => idx_cpu, :E_size => size(E)))
+        end
+        return output_buffer
+    elseif op == :rope
+        x = inputs[1]::AbstractArray{Float32}
+        seqlen, d = size(x)
+        half = d ÷ 2
+        # `:theta` (base de fréquence RoPE) est lu depuis `attrs`, avec 10000f0
+        # comme défaut -- reproduit EXACTEMENT l'ancien comportement codé en dur
+        # tant qu'aucun appelant ne fixe `:theta` explicitement (aucun call site
+        # existant ne le fait ; ajouté pour charger des poids réels, ex. Qwen2.5
+        # utilise rope_theta=1e6, pas le défaut 10000 des jouets synthétiques).
+        # La base ENTRE dans la clé de cache aux_data pour éviter de réutiliser
+        # une table cos/sin construite avec une AUTRE base si jamais deux nœuds
+        # :rope de bases différentes partageaient la même longueur de séquence
+        # (n'arrive pas dans ce dépôt aujourd'hui -- un seul modèle chargé à la
+        # fois -- mais coûte une comparaison de plus, pas une hypothèse fragile).
+        theta_base = Float32(get(attrs, :theta, 10000f0))
+        if !haskey(out_node.aux_data, :cos_a) || size(out_node.aux_data[:cos_a], 1) != seqlen ||
+           get(out_node.aux_data, :theta_base, 10000f0) != theta_base
+            pos   = Backend.to_device(dev, Float32.(0:seqlen-1))
+            theta = Backend.to_device(dev, Float32.(1f0 ./ (theta_base .^ ((0:half-1) ./ half))))
+            angles = reshape(pos, :, 1) * reshape(theta, 1, :)
+            out_node.aux_data[:cos_a] = cos.(angles)
+            out_node.aux_data[:sin_a] = sin.(angles)
+            out_node.aux_data[:theta_base] = theta_base
+        end
+        cos_a = out_node.aux_data[:cos_a]::AbstractArray{Float32}
+        sin_a = out_node.aux_data[:sin_a]::AbstractArray{Float32}
+        output_buffer[:, 1:half]      .= x[:, 1:half] .* cos_a .- x[:, half+1:end] .* sin_a
+        output_buffer[:, half+1:end]  .= x[:, 1:half] .* sin_a .+ x[:, half+1:end] .* cos_a
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :cos_a => cos_a, :sin_a => sin_a, :half => half))
+        end
+        return output_buffer
+
+    elseif op == :mse_loss
+        out, target = inputs[1], inputs[2]
+        fill!(output_buffer, mse_loss_fwd(out, target)[1])
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:out => out, :target => target))
+        end
+        return output_buffer
+
+    elseif op == :sum_matrix
+        x = inputs[1]
+        fill!(output_buffer, sum_matrix_fwd(x)[1])
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:x_val => x))
+        end
+        return output_buffer
+
+    elseif op == :dropout
+        x = inputs[1]
+        rate = Float32(get(attrs, :rate, 0.1))
+        training = get(attrs, :training, true)
+        mask = Backend.rand32(dev, size(x)...) .> rate
+        if training
+            output_buffer .= x .* mask ./ (1f0 - rate)
+        else
+            output_buffer .= x
+        end
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(:mask => mask, :rate => rate, :training => training))
+        end
+        # Persisté dans aux_data (survit d'un appel à l'autre, contrairement
+        # à ctx_store) pour que CTX_REBUILD (src/backward.jl) puisse relire
+        # le masque de CE forward précis pendant le backward, sans le
+        # retirer une seconde fois (ce qui donnerait un gradient incohérent
+        # avec la valeur forward réellement produite -- c'était le
+        # comportement de la ré-exécution avant ce fix).
+        out_node.aux_data[:dropout_mask] = mask
+        out_node.aux_data[:dropout_rate] = rate
+        out_node.aux_data[:dropout_training] = training
+        return output_buffer
+
+    elseif op == :slice_cols
+        x = inputs[1]
+        s = get(attrs, :start_col, 1)
+        e = get(attrs, :end_col, size(x, 2))
+        output_buffer .= x[:, s:e]
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :start_col => s, :end_col => e))
+        end
+        return output_buffer
+
+    elseif op == :batched_qk
+        H = length(inputs) ÷ 2
+        d_head = size(inputs[1], 2)
+        q_heads = @view inputs[1:H]
+        k_heads = @view inputs[H+1:2H]
+        batched_qk_fwd!(dev, output_buffer, q_heads, k_heads, d_head)
+        return output_buffer
+
+    elseif op == :batched_pv
+        H = length(inputs) ÷ 2
+        pr_heads = @view inputs[1:H]
+        v_heads = @view inputs[H+1:2H]
+        d_head = size(v_heads[1], 2)
+        batched_pv_fwd!(dev, output_buffer, pr_heads, v_heads, d_head)
+        return output_buffer
+    elseif op == :cross_entropy
+        logits, labels_raw = inputs[1], inputs[2]
+        labels = Int.(vec(labels_raw))
+        loss = cross_entropy_loss(logits, labels)
+        # Affectation broadcast (pas setindex! scalaire) -- fonctionne pour
+        # (1,) et (1,1), et évite un "scalar indexing disallowed" sur CUDA
+        # (setindex! direct sur un CuArray, même à un seul élément, force une
+        # opération scalaire hors-kernel, interdite par défaut par GPUArrays).
+        output_buffer .= loss
+        if ctx_store !== nothing
+            _store_ctx!(ctx_store, out_sym, Dict{Symbol,Any}(
+                :logits => logits, 
+                :labels => labels))
+        end
+        return output_buffer
+
+    elseif haskey(CUSTOM_OPS, op)
+        CUSTOM_OPS[op](dev, output_buffer, inputs, attrs, out_sym, out_node, ctx_store)
+        return output_buffer
+
+    elseif op == :identity
+        # Élimination algébrique pure (double_transpose_elim, add_zero_elim) : recopie
+        # simple, sans dépendre d'un @defop custom enregistré par l'utilisateur (comme
+        # le faisait chaque cellule du notebook jusqu'ici).
+        output_buffer .= inputs[1]
+        return output_buffer
+
+    else
+        error("❌ Opérateur inconnu : :$op. Utilisez register_op! pour enregistrer un op custom.")
+    end
+end
+
+const CUSTOM_OPS = Dict{Symbol,Function}()
+register_op!(name::Symbol, fn::Function) = (CUSTOM_OPS[name] = fn; println("✅ Op :$name registered"))
+
+# Ops fusionnés dont l'exécution réelle existe dans _dispatch_op ci-dessus (pas seulement
+# une entrée d'inférence de forme). `:identity` est traité séparément (toujours autorisé,
+# voir _apply_fusion! dans compiler.jl). Utilisé pour empêcher `compile()` d'introduire un
+# nœud dont le op ne peut jamais être exécuté par `demand!` (voir _has_dispatch_support).
+const _DISPATCH_EXECUTABLE_FUSED_OPS = Set{Symbol}([
+    :fused_matmul_relu, :fused_matmul_add, :fused_matmul_add_relu, :fused_qkv_projection,
+])
+
+"""
+    _has_dispatch_support(op::Symbol) → Bool
+
+`true` si `op` a un chemin d'exécution réel dans `_dispatch_op` (soit câblé en dur, soit
+enregistré via `register_op!`). Plusieurs `RewriteRule` de `compiler_config.jl`/
+`compiler_rules.jl` (ex. `:fused_swiglu`, `:fused_sdpa`, `:scaled_matmul`, `:flash_attention`)
+n'ont qu'une entrée d'inférence de forme, jamais de branche d'exécution — les appliquer via
+`compile()` produirait un nœud qui plante au premier `demand!` avec "Opérateur inconnu".
+"""
+_has_dispatch_support(op::Symbol)::Bool =
+    op ∈ _DISPATCH_EXECUTABLE_FUSED_OPS || haskey(CUSTOM_OPS, op)
+
+_unwrap_value(v::T) where {T} = v
+
+function demand!(g::NeuroGraph, name::Symbol;
+                 ctx_store::Union{CtxStore,Nothing}=nothing,
+                 namespace=g.active_ns,
+                 log::Union{Nothing, ExecutionLog}=nothing) # <--- AJOUT
+    ns = namespace
+    haskey(g.nodes, ns) && haskey(g.nodes[ns], name) ||
+        error("❌ :$name introuvable dans :$ns")
+
+    nd = g.nodes[ns][name]
+    nd.valid && nd.value !== nothing && return _unwrap_value(nd.value)
+
+    # Restreint au cône des ANCÊTRES RÉELS de `name` (_ancestors_of!,
+    # src/graph_api.jl), pas au préfixe topologique complet du graphe --
+    # correctif du défaut trouvé après l'audit du théorème O(|V_θ|) : ce
+    # théorème couvre l'invalidation (déjà O(cône) via _consumers_index!),
+    # pas la récupération, qui parcourait auparavant O(position de la cible
+    # dans l'ordre du graphe entier). Vérifié comme cause directe du bug
+    # KV-cache du 2026-07-29 (`copy_params_to_namespace!`) : un `demand!` sur
+    # un nœud sans rapport pouvait ré-exécuter un nœud à état plus tôt dans
+    # l'ordre topologique, simplement parce qu'il se trouvait dans le
+    # préfixe -- impossible maintenant, puisque seuls les vrais ancêtres de
+    # `name` sont visités.
+    anc = _ancestors_of!(g, ns, name)
+    for sym in anc
+        nd_i = g.nodes[ns][sym]
+        if !(nd_i.valid && nd_i.value !== nothing) && haskey(g.rules[ns], sym)
+            # On passe le log à execute_rule!
+            execute_rule!(g, g.rules[ns][sym]; ctx_store=ctx_store, namespace=ns, log=log)
+        end
+    end
+
+    return _unwrap_value(g.nodes[ns][name].value)
+end

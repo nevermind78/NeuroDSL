@@ -1,0 +1,9 @@
+name = "pumas_dyad_demo_env"
+
+[deps]
+NeuroDSL = "05fb6cdb-0fc8-4ca7-953f-ac7a677c77a0"
+IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[compat]
+julia = "1.10"

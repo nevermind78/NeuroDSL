@@ -14,6 +14,14 @@ Manifest.toml
 *.aux
 *.out
 
+# Artefacts de compilation LaTeX (partout dans le dépôt, pas seulement artilce/)
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.bbl
+*.blg
+
 # Environnement Julia
 LocalPreferences.toml
 
@@ -178,3 +186,6 @@ notebook/p4_export/*.bin
 # Personal CV drafts (not project source)
 Awesome_CV.pdf
 CV_Khemais_Senior_DataScientist_AI_Architect.*
+cover.*
+cv2.*
+cover2.

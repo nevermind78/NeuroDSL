@@ -1,0 +1,39 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{parskip}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=black,      
+    urlcolor=blue,
+}
+
+\begin{document}
+\thispagestyle{empty} 
+
+\textbf{Hi Cast AI Engineering Team,}
+
+I’m applying for the Kimchi team because your job description highlighted the exact problems I’ve been obsessing over recently: KV cache utilization, TTFT vs. TPOT bottlenecks, and wringing every drop of performance out of a GPU. 
+
+I’m a systems builder and mathematical researcher. Most recently, I built \textbf{NeuroDSL}, a reactive computational graph framework from scratch. While standard frameworks over-provision memory, I engineered a static buffer pool architecture with zero dynamic memory allocation ($\mathcal{O}(0)$ garbage collection overhead) using native CUDA kernels. By aggressively profiling and overhauling the KV-cache management and memory allocation on a real Qwen2.5-1.5B workload, I managed to cut peak VRAM by $\sim$46\% and more than double the generation throughput. 
+
+You mentioned you need someone with a bias toward measurement who can tell a real win from a benchmark artifact. I couldn't agree more. I recently published four preprints on arXiv proving the exact closed-form bounds of activation patching costs and cross-layer interactions. I instrument the math before I optimize the code. 
+
+I know your stack relies heavily on vLLM, SGLang, and Python. While NeuroDSL was built in Julia to leverage its compiler, the underlying hardware realities---paged attention, memory bandwidth ceilings, and CUDA kernel tuning---are universal. Furthermore, I’ve spent the last decade building and shipping production Python and distributed data pipelines (Azure Databricks) for enterprise clients, so diving into the Kimchi Python/C++ codebase is a natural transition for me.
+
+I am based in Tunisia and looking for a high-autonomy, remote-first team where my kernels directly impact customer p99s. I’d love to walk you through how I bypassed standard KV-cache bloat on my engine, or jump straight into a system design technical screen.
+
+Thanks for your time,
+
+\vspace{1.5em}
+\textbf{Abdallah Khemais} \\
+\textbf{GitHub:} \url{https://github.com/nevermind78/NeuroDSL} \\
+\textbf{Research:} \url{https://scholar.google.com/citations?user=J1z5cOgAAAAJ} \\
+\textbf{LinkedIn:} \url{https://www.linkedin.com/in/khemais-abdallah/}
+
+\end{document}
