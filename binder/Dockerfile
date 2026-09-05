@@ -21,9 +21,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-pip \
     && pip3 install --no-cache-dir --break-system-packages notebook \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --chown=${NB_UID} NeuroDSL_pkg ${HOME}/NeuroDSL_pkg
-COPY --chown=${NB_UID} Project.toml ${HOME}/Project.toml
-COPY --chown=${NB_UID} pumas_dyad_locality_demo.ipynb ${HOME}/pumas_dyad_locality_demo.ipynb
+## repo2docker uses the REPO ROOT as the build context even when the
+## Dockerfile itself lives in binder/ (only the Dockerfile's own location is
+## looked up inside binder/; every COPY source path below is still resolved
+## relative to the repo root) -- confirmed by an actual failed BinderHub
+## build ("not found" on a bare filename) before this fix.
+COPY --chown=${NB_UID} binder/NeuroDSL_pkg ${HOME}/NeuroDSL_pkg
+COPY --chown=${NB_UID} binder/Project.toml ${HOME}/Project.toml
+COPY --chown=${NB_UID} binder/pumas_dyad_locality_demo.ipynb ${HOME}/pumas_dyad_locality_demo.ipynb
 
 USER ${NB_USER}
 WORKDIR ${HOME}
