@@ -7,9 +7,13 @@
 
 **NeuroDSL** is a 100%-Julia framework built around one idea: a computation graph doesn't have to be a static trace you build once and run. In NeuroDSL, the graph is a **live, reactive object** — you can mutate a single node while training, insert or remove entire blocks mid-run, or patch an internal activation to test a causal hypothesis, and only the part of the graph that actually depends on that change gets recomputed. Nothing else moves.
 
-That single property turns out to unlock three things a static-graph framework (PyTorch, JAX, most of Flux) can't do nearly as naturally: (1) growing a network's architecture mid-training, provably without changing the function it computes; (2) mechanistic-interpretability-style activation patching at a fraction of the usual recompute cost; and (3) inspecting any parameter's value *and* gradient interactively, live, without instrumenting your training loop by hand.
+That single property turns out to unlock three things a static-graph framework (PyTorch, JAX, most of Flux) can't do nearly as naturally:
 
-This README is deliberately not a hype sheet. Every claim below is backed by an experiment you can re-run yourself, a proof you can read in one of the linked preprints, or both — and the "what this isn't" section near the bottom is as important as the rest.
+(1) growing a network's architecture mid-training, provably without changing the function it computes;
+(2) mechanistic-interpretability-style activation patching at a fraction of the usual recompute cost; and
+(3) inspecting any parameter's value *and* gradient interactively, live, without instrumenting your training loop by hand.
+
+This README is deliberately not a hype sheet. Every claim below is backed by an experiment you can re-run yourself, a proof you can read in one of the linked preprints, or both ,and the "what this isn't" section near the bottom is as important as the rest.
 
 ---
 
