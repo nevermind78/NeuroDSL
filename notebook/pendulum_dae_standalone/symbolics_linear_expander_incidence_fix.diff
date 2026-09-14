@@ -1,0 +1,39 @@
+--- C:/Users/Nevermind/.julia/packages/Symbolics/j30jB/src/linear_algebra.jl	2026-09-13 00:07:06.373228600 +0100
++++ C:/Users/Nevermind/.julia/packages/Symbolics/mLvup/src/linear_algebra.jl	2026-09-13 18:27:04.168380300 +0100
+@@ -319,6 +319,36 @@
+         BSImpl.Term(; f, args) && if f === getindex end => begin
+             LinearExpander(ex, args[1], Dict{SymbolicT, Bool}(ex => true, args[1] => true), Dict{SymbolicT, LinearExpansionResultT}(), strict)
+         end
++        # `ex` is `D^n(arr[i])` (e.g. `Differential(t,1)(p(t)[1])`) for some array `arr` --
++        # a scalar component of an array, wrapped in an (possibly higher-order) unexpanded
++        # `Differential`. Record `D^n(arr)` (the SAME differential applied to the WHOLE,
++        # un-indexed array) as an additional alias for `ex`, exactly like the plain
++        # `arr[i]` case above records `arr` itself.
++        #
++        # This matters because `_linear_expansion_occursin`'s early-exit gate is a purely
++        # syntactic subterm walk: `ex` (`D(p[1])`) never literally appears as a subterm of
++        # e.g. `dot(p, D(p))` (a compact, non-scalarized `dot`/`norm` derivative -- see
++        # Symbolics' `compact_dot_derivative`/`compact_norm_derivative` in diff.jl -- whose
++        # arguments are the whole, un-indexed arrays `p` and `D(p)`, not any indexed scalar
++        # component of them). Without this alias, the gate wrongly reports "does not occur"
++        # and returns early, so the dedicated `dot`/`norm` scalarizing branch further down
++        # in this functor (which WOULD correctly discover the true per-component dependence
++        # once reached) is never even tried. `D(p)` DOES appear literally as a subterm of
++        # `dot(p, D(p))`, so recording it lets the existing `arr`-alias machinery
++        # (`_linear_expansion_predicate`) recognize potential occurrence and fall through
++        # into the real, correct computation -- `(D(p))[i]` and `D(p[i])` are the same
++        # canonical term (index and unexpanded-differentiation commute), so once inside,
++        # ordinary recursion finds the exact, correct linear coefficient.
++        BSImpl.Term(; f, args) && if f isa Differential end => begin
++            arr = @match args[1] begin
++                BSImpl.Term(; f = f2, args = args2) && if f2 === getindex end => f(args2[1])
++                _ => nothing
++            end
++            occursin_cache = arr === nothing ?
++                Dict{SymbolicT, Bool}(ex => true) :
++                Dict{SymbolicT, Bool}(ex => true, arr => true)
++            LinearExpander(ex, arr, occursin_cache, Dict{SymbolicT, LinearExpansionResultT}(), strict)
++        end
+         _ => LinearExpander(ex, nothing, Dict{SymbolicT, Bool}(ex => true), Dict{SymbolicT, LinearExpansionResultT}(), strict)
+     end
+ end

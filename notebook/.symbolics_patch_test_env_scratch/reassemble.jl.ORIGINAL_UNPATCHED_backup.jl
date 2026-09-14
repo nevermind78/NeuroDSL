@@ -1,0 +1,1851 @@
+using OffsetArrays: Origin
+
+#=
+function check_diff_graph(var_to_diff, fullvars)
+    diff_to_var = invview(var_to_diff)
+    for (iv, v) in enumerate(fullvars)
+        ov, order = var_from_nested_derivative(v)
+        graph_order = 0
+        vv = iv
+        while true
+            vv = diff_to_var[vv]
+            vv === nothing && break
+            graph_order += 1
+        end
+        @assert graph_order==order "graph_order: $graph_order, order: $order for variable $v"
+    end
+end
+=#
+
+"""
+Replace derivatives of non-selected unknown variables by dummy derivatives.
+
+State selection may determine that some differential variables are
+algebraic variables in disguise. The derivative of such variables are
+called dummy derivatives.
+
+`SelectedState` information is no longer needed after this function is called.
+State selection is done. All non-differentiated variables are algebraic
+variables, and all variables that appear differentiated are differential variables.
+"""
+function substitute_derivatives_algevars!(
+        ts::TearingState, neweqs::Vector{Equation}, var_eq_matching::Matching, dummy_sub::Dict{SymbolicT, SymbolicT}, iv::Union{Nothing, SymbolicT}, D::Union{Nothing, Differential, Shift})
+    (; fullvars, sys, structure) = ts
+    (; solvable_graph, var_to_diff, eq_to_diff, graph) = structure
+    diff_to_var = invview(var_to_diff)
+
+    for var in 1:length(fullvars)
+        dv = var_to_diff[var]
+        dv === nothing && continue
+        if var_eq_matching[var] !== SelectedState()
+            dd = fullvars[dv]
+            v_t = MTKBase.diff2term_with_unit(dd, iv)
+            for eq in 𝑑neighbors(graph, dv)
+                dummy_sub[dd] = v_t
+                neweqs[eq] = substitute(neweqs[eq], dd => v_t)
+            end
+            fullvars[dv] = v_t
+            # If we have:
+            # x -> D(x) -> D(D(x))
+            # We need to to transform it to:
+            # x   x_t -> D(x_t)
+            # update the structural information
+            dx = dv
+            x_t = v_t
+            while (ddx = var_to_diff[dx]) !== nothing
+                dx_t = D(x_t)
+                for eq in 𝑑neighbors(graph, ddx)
+                    neweqs[eq] = substitute(neweqs[eq], fullvars[ddx] => dx_t)
+                end
+                fullvars[ddx] = dx_t
+                dx = ddx
+                x_t = dx_t
+            end
+            diff_to_var[dv] = nothing
+        end
+    end
+end
+
+#=
+There are three cases where we want to generate new variables to convert
+the system into first order (semi-implicit) ODEs.
+
+1. To first order:
+Whenever higher order differentiated variable like `D(D(D(x)))` appears,
+we introduce new variables `x_t`, `x_tt`, and `x_ttt` and new equations
+```
+D(x_tt) = x_ttt
+D(x_t) = x_tt
+D(x) = x_t
+```
+and replace `D(x)` to `x_t`, `D(D(x))` to `x_tt`, and `D(D(D(x)))` to
+`x_ttt`.
+
+2. To implicit to semi-implicit ODEs:
+2.1: Unsolvable derivative:
+If one derivative variable `D(x)` is unsolvable in all the equations it
+appears in, then we introduce a new variable `x_t`, a new equation
+```
+D(x) ~ x_t
+```
+and replace all other `D(x)` to `x_t`.
+
+2.2: Solvable derivative:
+If one derivative variable `D(x)` is solvable in at least one of the
+equations it appears in, then we introduce a new variable `x_t`. One of
+the solvable equations must be in the form of `0 ~ L(D(x), u...)` and
+there exists a function `l` such that `D(x) ~ l(u...)`. We should replace
+it to
+```
+0 ~ x_t - l(u...)
+D(x) ~ x_t
+```
+and replace all other `D(x)` to `x_t`.
+
+Observe that we don't need to actually introduce a new variable `x_t`, as
+the above equations can be lowered to
+```
+x_t := l(u...)
+D(x) ~ x_t
+```
+where `:=` denotes assignment.
+
+As a final note, in all the above cases where we need to introduce new
+variables and equations, don't add them when they already exist.
+
+###### DISCRETE SYSTEMS #######
+
+Documenting the differences to structural simplification for discrete systems:
+
+In discrete systems everything gets shifted forward a timestep by `shift_discrete_system`
+in order to properly generate the difference equations.
+
+In the system x(k) ~ x(k-1) + x(k-2), becomes Shift(t, 1)(x(t)) ~ x(t) + Shift(t, -1)(x(t))
+
+The lowest-order term is Shift(t, k)(x(t)), instead of x(t). As such we actually want
+dummy variables for the k-1 lowest order terms instead of the k-1 highest order terms.
+
+Shift(t, -1)(x(t)) -> x\_{t-1}(t)
+
+Since Shift(t, -1)(x) is not a derivative, it is directly substituted in `fullvars`.
+No equation or variable is added for it.
+
+For ODESystems D(D(D(x))) in equations is recursively substituted as D(x) ~ x_t, D(x_t) ~ x_tt, etc.
+The analogue for discrete systems, Shift(t, 1)(Shift(t,1)(Shift(t,1)(Shift(t, -3)(x(t)))))
+does not actually appear. So `total_sub` in generate_system_equations` is directly
+initialized with all of the lowered variables `Shift(t, -3)(x) -> x_t-3(t)`, etc.
+=#
+"""
+Generate new derivative variables for the system.
+
+Effects on the system structure:
+- fullvars: add the new derivative variables x_t
+- neweqs: add the identity equations for the new variables, D(x) ~ x_t
+- graph: update graph with the new equations and variables, and their connections
+- solvable_graph: mark the new equation as solvable for `D(x)`
+- var_eq_matching: match D(x) to the added identity equation `D(x) ~ x_t`
+- full_var_eq_matching: match `x_t` to the equation that `D(x)` used to match to, and
+  match `D(x)` to `D(x) ~ x_t`
+- var_sccs: Replace `D(x)` in its SCC by `x_t`, and add `D(x)` in its own SCC. Return
+  the new list of SCCs.
+"""
+function generate_derivative_variables!(
+        ts::TearingState, neweqs, var_eq_matching, full_var_eq_matching,
+        var_sccs, mm::Union{Nothing, CLIL.SparseMatrixCLIL}, iv::Union{SymbolicT, Nothing})
+    (; fullvars, sys, structure) = ts
+    (; solvable_graph, var_to_diff, eq_to_diff, graph) = structure
+    eq_var_matching = invview(var_eq_matching)
+    diff_to_var = invview(var_to_diff)
+    is_discrete = StateSelection.is_only_discrete(structure)
+    linear_eqs = Dict{Int, Int}()
+    if mm !== nothing
+        for (i, e) in enumerate(mm.nzrows)
+            linear_eqs[e] = i
+        end
+    end
+
+    # We need the inverse mapping of `var_sccs` to update it efficiently later.
+    v_to_scc = NTuple{2, Int}[]
+    resize!(v_to_scc, ndsts(graph))
+    for (i, scc) in enumerate(var_sccs), (j, v) in enumerate(scc)
+
+        v_to_scc[v] = (i, j)
+    end
+    # Pairs of `(x_t, dx)` added below
+    v_t_dvs = NTuple{2, Int}[]
+
+    # For variable x, make dummy derivative x_t if the
+    # derivative is in the system
+    for v in 1:length(var_to_diff)
+        dv = var_to_diff[v]
+        # if the variable is not differentiated, there is nothing to do
+        dv isa Int || continue
+        # if we will solve for the differentiated variable, there is nothing to do
+        solved = var_eq_matching[dv] isa Int
+        solved && continue
+
+        # If there's `D(x) = x_t` already, update mappings and continue without
+        # adding new equations/variables
+        dd = find_duplicate_dd(dv, solvable_graph, diff_to_var, linear_eqs, mm)
+        if dd === nothing
+            # there is no such pre-existing equation
+            # generate the dummy derivative variable
+            dx = fullvars[dv]
+            order, lv = var_order(dv, diff_to_var)
+            x_t = is_discrete ? lower_shift_varname_with_unit(fullvars[dv], iv) :
+                  MTKBase.lower_varname_with_unit(fullvars[lv], iv, order)
+
+            # Add `x_t` to the graph
+            v_t = add_dd_variable!(structure, fullvars, x_t, dv)
+            # Add `D(x) - x_t ~ 0` to the graph
+            dummy_eq = add_dd_equation!(structure, neweqs, 0 ~ dx - x_t, dv, v_t)
+            # Update graph to say, all the equations featuring D(x) also feature x_t
+            for e in 𝑑neighbors(graph, dv)
+                add_edge!(graph, e, v_t)
+            end
+            # Update matching
+            push!(var_eq_matching, unassigned)
+            push!(full_var_eq_matching, unassigned)
+
+            # We also need to substitute all occurrences of `D(x)` with `x_t` in all equations
+            # except `dummy_eq`, but that is handled in `generate_system_equations!` since
+            # we will solve for `D(x) ~ x_t` and add it to the substitution map.
+            dd = dummy_eq, v_t
+        end
+        # there is a duplicate `D(x) ~ x_t` equation
+        # `dummy_eq` is the index of the equation
+        # `v_t` is the dummy derivative variable
+        dummy_eq, v_t = dd
+        var_to_diff[v_t] = var_to_diff[dv]
+        old_matched_eq = full_var_eq_matching[dv]
+        full_var_eq_matching[dv] = var_eq_matching[dv] = dummy_eq
+        full_var_eq_matching[v_t] = old_matched_eq
+        eq_var_matching[dummy_eq] = dv
+        push!(v_t_dvs, (v_t, dv))
+    end
+
+    # tuples of (index, scc) indicating that `scc` has to be inserted at
+    # index `index` in `var_sccs`. Same length as `v_t_dvs` because we will
+    # have one new SCC per new variable.
+    sccs_to_insert = similar(v_t_dvs, Tuple{Int, Vector{Int}})
+    # mapping of SCC index to indexes in the SCC to delete
+    idxs_to_remove = Dict{Int, Vector{Int}}()
+    for (k, (v_t, dv)) in enumerate(v_t_dvs)
+        # replace `dv` with `v_t`
+        i, j = v_to_scc[dv]
+        var_sccs[i][j] = v_t
+        if v_t <= length(v_to_scc)
+            # v_t wasn't added by this process, it was already present. Which
+            # means we need to remove it from whatever SCC it is in, since it is
+            # now in this one
+            i_, j_ = v_to_scc[v_t]
+            scc_del_idxs = get!(() -> Int[], idxs_to_remove, i_)
+            push!(scc_del_idxs, j_)
+        end
+        # `dv` still needs to be present in some SCC. Since we solve for `dv` from
+        # `0 ~ D(x) - x_t`, it is in its own SCC. This new singleton SCC must run
+        # before the SCC containing var_to_diff[dv] (the 2nd-order derivative), because
+        # `generate_system_equations!` populates `total_sub[D(x)] = x_t` when processing
+        # this singleton, and the DerivativeDict substitution for D(D(x)) requires D(x)
+        # to already be in `total_sub`. If the original SelectedState SCC for `dv` was
+        # placed after the 2nd-order derivative SCC in BLT order (e.g. when the dynamics
+        # equation has no incidence on `dv`), inserting at position `i` is too late.
+        ddv = var_to_diff[dv]
+        i_insert = if ddv isa Int && ddv <= length(v_to_scc)
+            min(i, v_to_scc[ddv][1])
+        else
+            i
+        end
+        sccs_to_insert[k] = (i_insert, [dv])
+    end
+
+    # When multiple entries in `sccs_to_insert` share the same insertion position,
+    # they are inserted in the order they appear in the list. Sort so that lower-order
+    # derivatives (those with more derivatives above them in the chain) come first at
+    # any given position. This ensures `total_sub` is populated in the right order:
+    # D(x) → x_t must be added before the SCC for D(D(x)) is processed.
+    chain_height = let var_to_diff = var_to_diff
+        function __chain_height(dv)
+            h = 0
+            v = dv
+            while true
+                v > length(var_to_diff) && break
+                v = var_to_diff[v]
+                v isa Int || break
+                h += 1
+            end
+            return h
+        end
+    end
+    sort!(sccs_to_insert, by = x -> (first(x), -chain_height(last(x)[1])))
+    # remove the idxs we need to remove
+    for (i, idxs) in idxs_to_remove
+        sort!(idxs)
+        deleteat!(var_sccs[i], idxs)
+    end
+    new_sccs = insert_sccs(var_sccs, sccs_to_insert)
+
+    if mm !== nothing
+        @set! mm.ncols = ndsts(graph)
+    end
+
+    return new_sccs
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Given a list of SCCs and a list of SCCs to insert at specific indices, insert them and
+return the new SCC vector.
+"""
+function insert_sccs(
+        var_sccs::Vector{Vector{Int}}, sccs_to_insert::Vector{Tuple{Int, Vector{Int}}})
+    # insert the new SCCs, accounting for the fact that we might have multiple entries
+    # in `sccs_to_insert` to be inserted at the same index.
+    old_idx = 1
+    insert_idx = 1
+    new_sccs = similar(var_sccs, length(var_sccs) + length(sccs_to_insert))
+    for i in eachindex(new_sccs)
+        # if we have SCCs to insert, and the index we have to insert them at is the current
+        # one in the old list of SCCs
+        if insert_idx <= length(sccs_to_insert) && sccs_to_insert[insert_idx][1] == old_idx
+            # insert it
+            new_sccs[i] = sccs_to_insert[insert_idx][2]
+            insert_idx += 1
+        else
+            # otherwise, insert the old SCC
+            new_sccs[i] = copy(var_sccs[old_idx])
+            old_idx += 1
+        end
+    end
+
+    filter!(!isempty, new_sccs)
+    return new_sccs
+end
+
+"""
+Check if there's `D(x) ~ x_t` already.
+"""
+function find_duplicate_dd(dv, solvable_graph, diff_to_var, linear_eqs, mm)
+    for eq in 𝑑neighbors(solvable_graph, dv)
+        mi = get(linear_eqs, eq, 0)
+        iszero(mi) && continue
+        row = @view mm[mi, :]
+        nzs = nonzeros(row)
+        rvs = SparseArrays.nonzeroinds(row)
+        # note that `v_t` must not be differentiated
+        if length(nzs) == 2 &&
+           (abs(nzs[1]) == 1 && nzs[1] == -nzs[2]) &&
+           (v_t = rvs[1] == dv ? rvs[2] : rvs[1];
+               diff_to_var[v_t] === nothing)
+            @assert dv in rvs
+            return eq, v_t
+        end
+    end
+    return nothing
+end
+
+"""
+Add a dummy derivative variable x_t corresponding to symbolic variable D(x)
+which has index dv in `fullvars`. Return the new index of x_t.
+"""
+function add_dd_variable!(s::SystemStructure, fullvars, x_t, dv)
+    push!(fullvars, MTKBase.simplify_shifts(x_t))
+    push!(s.state_priorities, s.state_priorities[dv])
+    v_t = length(fullvars)
+    v_t_idx = add_vertex!(s.var_to_diff)
+    add_vertex!(s.graph, DST)
+    # TODO: do we care about solvable_graph? We don't use them after
+    # `dummy_derivative_graph`.
+    add_vertex!(s.solvable_graph, DST)
+    s.var_to_diff[v_t] = s.var_to_diff[dv]
+    v_t
+end
+
+"""
+Add the equation D(x) - x_t ~ 0 to `neweqs`. `dv` and `v_t` are the indices
+of the higher-order derivative variable and the newly-introduced dummy
+derivative variable. Return the index of the new equation in `neweqs`.
+"""
+function add_dd_equation!(s::SystemStructure, neweqs, eq, dv, v_t)
+    push!(neweqs, eq)
+    add_vertex!(s.graph, SRC)
+    dummy_eq = length(neweqs)
+    add_edge!(s.graph, dummy_eq, dv)
+    add_edge!(s.graph, dummy_eq, v_t)
+    add_vertex!(s.solvable_graph, SRC)
+    add_edge!(s.solvable_graph, dummy_eq, dv)
+    dummy_eq
+end
+
+"""
+Solve the equations in `neweqs` to obtain the final equations of the
+system.
+
+For each equation of `neweqs`, do one of the following:
+   1. If the equation is solvable for a differentiated variable D(x),
+      then solve for D(x), and add D(x) ~ sol as a differential equation
+      of the system.
+   2. If the equation is solvable for an un-differentiated variable x,
+      solve for x and then add x ~ sol as a solved equation. These will
+      become observables.
+   3. If the equation is not solvable, add it as an algebraic equation.
+
+Solved equations are added to `total_sub`. Occurrences of differential
+or solved variables on the RHS of the final equations will get substituted.
+The topological sort of the equations ensures that variables are solved for
+before they appear in equations.
+
+Reorder the equations and unknowns to be in the BLT sorted form.
+
+Return the new equations, the solved equations,
+the new orderings, and the number of solved variables and equations.
+"""
+function generate_system_equations!(state::TearingState, neweqs::Vector{Equation},
+        var_eq_matching::Matching, full_var_eq_matching::Matching,
+        var_sccs::Vector{Vector{Int}}, extra_eqs_vars::NTuple{2, Vector{Int}},
+        iv::Union{SymbolicT, Nothing}, D::Union{Differential, Shift, Nothing};
+        simplify::Bool = false, inline_linear_sccs = false, analytical_linear_scc_limit = 2,
+        allow_symbolic::Bool = false, allow_parameter::Bool = true)
+    (; fullvars, sys, structure) = state
+    (; solvable_graph, var_to_diff, eq_to_diff, graph) = structure
+    eq_var_matching = invview(var_eq_matching)
+    full_eq_var_matching = invview(full_var_eq_matching)
+    diff_to_var = invview(var_to_diff)
+    extra_eqs, extra_vars = extra_eqs_vars
+
+    total_sub = MTKBase.ExpandDerivativeDict()
+    # ENV-gated diagnostic: dump the torn (unassigned) variables, i.e. the
+    # tear/iteration variables of this tearing result, with their names.
+    if haskey(ENV, "MTKT_DUMP_TORN")
+        open(ENV["MTKT_DUMP_TORN"], "a") do io
+            println(io, "TORNSET n_vars=", length(fullvars))
+            for (v, m) in enumerate(var_eq_matching)
+                v <= length(fullvars) || continue
+                if m === StateSelection.unassigned
+                    println(io, "  TORN ", fullvars[v])
+                end
+            end
+        end
+    end
+    is_disc = StateSelection.is_only_discrete(structure)
+    if is_disc
+        for (i, v) in enumerate(fullvars)
+            @match v begin
+                BSImpl.Term(; f) && if f isa Shift && f.steps < 0 end => begin
+                    lowered = lower_shift_varname_with_unit(v, iv)
+                    total_sub[v] = lowered
+                    fullvars[i] = lowered
+                end
+                _ => nothing
+            end
+        end
+    end
+
+    eq_generator = EquationGenerator(state, total_sub, D, iv)
+
+    # Inline linear-solve blocks recorded as they are emitted, for the
+    # `inline_linear_systems` diagnostic (stored in the system metadata below).
+    inline_blocks = InlineLinearSystem[]
+
+    # We need to solve extra equations before everything to repsect
+    # topological order. Extra equations do not belong to any SCC; tag them with SCC index
+    # `typemax(Int)` so the BLT reordering below suffixes them after all SCCs.
+    for eq in extra_eqs
+        var = eq_var_matching[eq]
+        var isa Int || continue
+        codegen_equation!(eq_generator, neweqs[eq], eq, var, typemax(Int); simplify)
+    end
+
+    # if the variable is present in the equations either as-is or differentiated
+    ispresent = let var_to_diff = var_to_diff, graph = graph
+        i -> (!isempty(𝑑neighbors(graph, i)) ||
+              (var_to_diff[i] !== nothing && !isempty(𝑑neighbors(graph, var_to_diff[i]))))
+    end
+
+    var_to_idx = Dict{SymbolicT, Int}(fullvars .=> eachindex(fullvars))
+    # NOTE: `state.structure.graph` should be accurate despite `generate_system_equations!`
+    # mutating the graph (when generating differential equations/populating `total_sub`).
+    # If the graph disagrees with symbolic incidence at any point during the execution of
+    # this function, then there is some invalid operation happening on the graph.
+    digraph = DiCMOBiGraph{false}(graph, var_eq_matching)
+    for (i, scc) in enumerate(var_sccs)
+        # `scc_idx` is the index of the SCC currently being processed; captured here because
+        # inner loops below rebind `i`.
+        scc_idx = i
+        # note that the `vscc <-> escc` relation is a set-to-set mapping, and not
+        # point-to-point.
+        vscc, escc = get_sorted_scc(digraph, full_var_eq_matching, var_eq_matching, scc)
+        var_sccs[i] = vscc
+        if length(escc) != length(vscc)
+            isempty(escc) && continue
+            escc = setdiff(escc, extra_eqs)
+            isempty(escc) && continue
+            vscc = setdiff(vscc, extra_vars)
+            isempty(vscc) && continue
+        end
+
+        # Inline linear SCCs pass is only valid on continuous systems. We check if the
+        # current SCC is algebraic and if the algebraic equations are linear in the
+        # algebraic variables.
+        linsol_result = nothing
+        if !is_disc && inline_linear_sccs
+            linsol_result = get_linear_scc_linsol(state, escc, vscc, neweqs, var_eq_matching, full_var_eq_matching, total_sub, analytical_linear_scc_limit, simplify)
+        end
+        if linsol_result isa Tuple{SymbolicT, BitVector, BitVector}
+            linsol, eqs_mask, vars_mask = linsol_result
+            @assert length(eqs_mask) == length(escc)
+            @assert length(vars_mask) == length(vscc)
+            _escc = escc[eqs_mask]
+            _vscc = vscc[vars_mask]
+            # `linsol` is the `A \ b` term (runtime path); component `j` is solved
+            # for the variable assigned below. The analytical path returns a
+            # `Const`-wrapped vector instead, which is not reported.
+            block_vars = Vector{SymbolicT}(nothing, length(_vscc))
+            new_incidence = map(Base.Fix1(getindex, var_to_idx), collect(Symbolics.get_variables(linsol, fullvars)))::Vector{Int}
+            for (j, (ieq, iv)) in enumerate(zip(_escc, _vscc))
+                ∫iv = diff_to_var[iv]
+                rhs = linsol[j]
+                if ∫iv isa Int
+                    order, lv = var_order(iv, diff_to_var)
+                    dx = D(fullvars[lv])
+                    eq = dx ~ rhs
+                    # Differential equation
+                    push!(eq_generator.neweqs′, eq)
+                    push!(eq_generator.eq_ordering, ieq)
+                    push!(eq_generator.var_ordering, ∫iv)
+                    push!(eq_generator.eq_scc, scc_idx)
+                    for e in copy(𝑑neighbors(graph, iv))
+                        e == ieq && continue
+                        for v in new_incidence
+                            add_edge!(graph, e, v)
+                        end
+                        rem_edge!(graph, e, iv)
+                    end
+
+                    total_sub[dx] = rhs
+                    block_vars[j] = dx
+                else
+                    var = substitute(fullvars[iv], total_sub)
+                    eq = var ~ rhs
+                    push!(eq_generator.solved_eqs, eq)
+                    push!(eq_generator.solved_vars, iv)
+                    block_vars[j] = var
+                end
+            end
+            if SU.iscall(linsol) && SU.operation(linsol) === INLINE_LINEAR_SCC_OP
+                push!(inline_blocks,
+                    InlineLinearSystem(length(_vscc), block_vars, linsol))
+            end
+
+            # Add the eliminated equations later so that the preceding loop
+            # can populate `total_sub` appropriately.
+            for (i, ieq) in enumerate(escc)
+                eqs_mask[i] && continue
+                var = eq_var_matching[ieq]
+                codegen_equation!(eq_generator, neweqs[ieq], ieq, var, scc_idx; simplify)
+            end
+        else
+            for ieq in escc
+                iv = eq_var_matching[ieq]
+                neq = neweqs[ieq]
+                codegen_equation!(eq_generator, neq, ieq, iv, scc_idx; simplify)
+            end
+        end
+    end
+
+    for eq in extra_eqs
+        var = eq_var_matching[eq]
+        var isa Int && continue
+        codegen_equation!(eq_generator, neweqs[eq], eq, var, typemax(Int); simplify)
+    end
+
+    (; neweqs′, eq_ordering, var_ordering, solved_eqs, solved_vars, eq_scc) = eq_generator
+
+    is_diff_eq = .!iszero.(var_ordering)
+    # Generate new equations and orderings
+    diff_vars = var_ordering[is_diff_eq]
+    diff_vars_set = BitSet(diff_vars)
+    if length(diff_vars_set) != length(diff_vars)
+        error("Tearing internal error: lowering DAE into semi-implicit ODE failed!")
+    end
+    solved_vars_set = BitSet(solved_vars)
+    # `findnextfn(j)` is true iff `j` is an algebraic unknown (present, not a differential
+    # variable, not solved, not an extra/derivative variable) that needs a slot in
+    # `var_ordering`.
+    findnextfn = let diff_vars_set = diff_vars_set, solved_vars_set = solved_vars_set,
+        diff_to_var = diff_to_var, ispresent = ispresent
+        j -> !(j in diff_vars_set || j in solved_vars_set || j in extra_vars) && diff_to_var[j] === nothing &&
+            ispresent(j)
+    end
+    # Permute the generated equations and their solved variables into block-lower-triangular
+    # (SCC) order, using the equation<->variable pairing recorded during code generation
+    # (`var_ordering[k]` is the variable `neweqs′[k]` solves). Equations that do not belong to
+    # any SCC — those generated from `extra_eqs`, tagged with SCC index `typemax(Int)` — are suffixed
+    # after the SCC-ordered block. Extra variables are likewise suffixed by the `setdiff`
+    # append below. Algebraic placeholders left unfilled (e.g. the redundant equations of an
+    # overdetermined system) stay `0` and are dropped by the `filter!`.
+    blt_reorder_generated_equations!(
+        neweqs′, eq_ordering, var_ordering, eq_scc, var_sccs, findnextfn, ndsts(graph))
+    filter!(!iszero, var_ordering)
+    var_ordering = [var_ordering; setdiff(1:ndsts(graph), var_ordering, solved_vars_set)]
+    neweqs = neweqs′
+    return neweqs, solved_eqs, eq_ordering, var_ordering, length(solved_vars),
+    length(solved_vars_set), inline_blocks
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Permute the generated equations (`neweqs′`, with parallel `eq_ordering`) and their solved
+variables (`var_ordering`) into block-lower-triangular (BLT) order — the topological order
+of `var_sccs` — in place.
+
+On entry `eq_scc[k]` is the index (into `var_sccs`) of the SCC that *generated* `neweqs′[k]`
+(recorded during code generation), or `typemax(Int)` for the extra equations of a
+non-fully-determined system, which belong to no SCC. This is used to fill each algebraic
+equation's placeholder (`var_ordering[k] == 0`) with an unknown from its SCC's pool.
+
+The equations are then ordered by a stable sort on `eq_scc`. Before sorting, each non-extra
+`eq_scc[k]` is re-tagged to the SCC that *contains* its solved variable `var_ordering[k]`
+(`scc_pos`): for a differential equation `D(x)=rhs` the generating SCC is the derivative
+variable's singleton, but the block it belongs to is the one holding the state `x`. Extra
+equations keep `typemax(Int)` and hence sort last (suffixed); their algebraic placeholders are
+left unfilled (an overdetermined system's redundant equations have no dedicated unknown; the
+caller drops the resulting `0`s). After the sort each SCC's variables are contiguous in
+`var_ordering`, so `reorder_vars!` renumbers `var_sccs` into contiguous blocks automatically.
+
+`findnextfn(v)` identifies the algebraic unknowns (the variables the placeholder fill assigns);
+`nvars` is `ndsts(graph)`.
+"""
+function blt_reorder_generated_equations!(
+        neweqs′::Vector{Equation}, eq_ordering::Vector{Int}, var_ordering::Vector{Int},
+        eq_scc::Vector{Int}, var_sccs::Vector{Vector{Int}}, findnextfn, nvars::Int)
+    n = length(neweqs′)
+    @assert length(eq_ordering) == n && length(var_ordering) == n && length(eq_scc) == n
+
+    # Position of each variable's SCC in the (topologically sorted) `var_sccs`.
+    scc_pos = zeros(Int, nvars)
+    for (i, scc) in enumerate(var_sccs), v in scc
+        scc_pos[v] = i
+    end
+
+    # Per-SCC pool of algebraic unknowns, to pair with that SCC's algebraic equations.
+    alg_pool = Dict{Int, Vector{Int}}()
+    for (i, scc) in enumerate(var_sccs)
+        pool = [v for v in scc if findnextfn(v)]
+        isempty(pool) || (alg_pool[i] = pool)
+    end
+    counters = Dict{Int, Int}()
+    for k in 1:n
+        var_ordering[k] == 0 || continue
+        i = eq_scc[k]
+        # Extra equations (SCC index `typemax(Int)`) belong to no SCC; leave the placeholder
+        # unfilled (dropped by the caller's `filter!`).
+        i == typemax(Int) && continue
+        pool = get(alg_pool, i, nothing)
+        (pool === nothing) &&
+            error("BLT reordering: SCC $i has an algebraic equation but no algebraic unknown.")
+        c = get(counters, i, 0) + 1
+        c <= length(pool) ||
+            error("BLT reordering: SCC $i has more algebraic equations than unknowns.")
+        counters[i] = c
+        var_ordering[k] = pool[c]
+    end
+
+    # Re-tag each non-extra equation with the SCC containing its solved variable, so the sort
+    # orders by containing SCC (differential equations are generated in a different SCC than
+    # the one holding their state). Extra equations keep `typemax(Int)` and sort last.
+    for k in 1:n
+        eq_scc[k] == typemax(Int) && continue
+        eq_scc[k] = scc_pos[var_ordering[k]]
+    end
+    perm = sortperm(eq_scc)
+    permute!(neweqs′, perm)
+    permute!(eq_ordering, perm)
+    permute!(var_ordering, perm)
+    return nothing
+end
+
+function dump_linear_scc_to_file(fname, A, x)
+    vars = Set{SymbolicT}()
+    SU.search_variables!(vars, A)
+    SU.search_variables!(vars, x)
+    for var in vars
+        push!(vars, MTKBase.split_indexed_var(var)[1])
+    end
+    filter!(v -> !MTKBase.split_indexed_var(v)[2], vars)
+    open(fname, "w") do f
+        for var in vars
+            mac = iscall(var) ? "variables" : "parameters"
+            print(f, "@", mac, " ")
+            print(f, SU.getname(var))
+            iscall(var) && print(f, "(..)")
+            sh = SU.shape(var)::SU.ShapeVecT
+            if isempty(sh)
+                println(f)
+                continue
+            end
+            print(f, "[")
+            for ax in sh
+                print(f, ax, ", ")
+            end
+            print(f, "]")
+            println(f)
+        end
+        println(f)
+        println(f, "A = ", A)
+        println(f)
+        println(f, "x = ", x)
+    end
+    return nothing
+end
+
+function safe_ldiv(A, b)
+    A = unwrap(A)
+    b = unwrap(b)
+    if A isa SymbolicT || A isa AbstractMatrix{Num} || A isa AbstractMatrix{SymbolicT} ||
+            b isa SymbolicT || b isa AbstractVector{Num} || b isa AbstractVector{SymbolicT}
+        return Symbolics.STerm(
+            safe_ldiv, Symbolics.SArgsT((A, b));
+            type = Vector{Real},
+            shape = SU.promote_shape(safe_ldiv, SU.shape(A), SU.shape(b))
+        )
+    end
+    return CommonSolve.solve(LinearProblem(A, b)).u
+end
+
+function SU.promote_symtype(::typeof(safe_ldiv), TA::SU.TypeT, TB::SU.TypeT)
+    return Vector{Real}
+end
+
+function SU.promote_shape(::typeof(safe_ldiv), sha::SU.ShapeT, shb::SU.ShapeT)
+    @nospecialize sha shb
+    if sha isa SU.Unknown
+        return SU.Unknown(1)
+    else
+        return SU.ShapeVecT((sha[2],))
+    end
+end
+
+const INLINE_LINEAR_SCC_OP = safe_ldiv
+
+"""
+    $TYPEDSIGNATURES
+
+If the SCC identified by `alg_eqs` and `alg_vars` warrants a linear solve, return a 3-tuple:
+
+- The expression denoting the solution of the linear system. The linear system
+  may be smaller than the SCC.
+- A `BitVector` indicating the indices of `alg_eqs` used in the linear system.
+- A `BitVector` indicating the indices of `alg_vars` used in the linear system.
+
+All equations not used in the linear system must be solved as normal.
+"""
+function get_linear_scc_linsol(state::TearingState, alg_eqs::Vector{Int},
+                               alg_vars::Vector{Int}, neweqs::Vector{Equation},
+                               var_eq_matching::StateSelection.VarEqMatchingT,
+                               full_var_eq_matching::StateSelection.VarEqMatchingT,
+                               total_sub::MTKBase.ExpandDerivativeDict{SymbolicT, Dict{SymbolicT, SymbolicT}},
+                               analytical_linear_scc_limit::Int,
+                               simplify::Bool; allow_symbolic::Bool = false,
+                               allow_parameter::Bool = true)
+    (; fullvars, sys, structure) = state
+    (; graph, solvable_graph, var_to_diff) = structure
+    diff_to_var = invview(var_to_diff)
+    D = Differential(MTKBase.get_iv(sys)::SymbolicT)
+
+    # If the SCC is fully torn, don't bother generating a linsolve
+    all_torn = true
+    for iv in alg_vars
+        all_torn &= var_eq_matching[iv] isa Int && !StateSelection.isdervar(state.structure, iv)
+    end
+    all_torn && return nothing
+
+    N = length(alg_eqs)
+    eqs_mask = trues(N)
+    vars_mask = trues(N)
+
+    eq_to_idx = Dict(Iterators.map(reverse, enumerate(alg_eqs)))
+
+    irreds = irreducibles(sys)
+    eq_var_matching = invview(var_eq_matching)
+    for (i, iv) in enumerate(alg_vars)
+        MTKBase.contains_possibly_indexed_element(irreds, fullvars[iv]) || continue
+        # Irreducible variables are excluded
+        vars_mask[i] = false
+        # Along with the equations used for them
+        ieq = full_var_eq_matching[iv]
+        eqs_mask[eq_to_idx[ieq]] = false
+        @assert !(eq_var_matching[ieq] isa Int)
+    end
+
+    vars = fullvars[alg_vars]
+
+    for i in eachindex(vars)
+        vars_mask[i] || continue
+        ivar = alg_vars[i]
+        ieq = var_eq_matching[ivar]
+        ieq isa Int || continue
+        issolvable = Graphs.has_edge(solvable_graph, BipartiteEdge(ieq, ivar))
+        issolvable || continue
+        isdervar = StateSelection.isdervar(state.structure, ivar)
+        isdervar || continue
+        order, lv = var_order(ivar, diff_to_var)
+        vars[i] = D(fullvars[lv])
+    end
+
+    subber = Symbolics.FixpointSubstituter{false}(total_sub; maxiters = max(length(total_sub), 10))
+    A = StateSelection.CLIL.SparseMatrixCLIL{Num, Int}(N, N, collect(1:N), map(_ -> Int[], 1:N), map(_ -> Num[], 1:N))
+    b = fill(Symbolics.COMMON_ZERO, N)
+
+    for (eqidx, ieq) in enumerate(alg_eqs)
+        eqs_mask[eqidx] || continue
+        eq = neweqs[ieq]
+        resid = eq.rhs
+        # If `ieq` is a differential equation
+        if !SU._iszero(eq.lhs)
+            resid -= eq.lhs
+        end
+        if simplify
+            resid = Symbolics.simplify(resid)
+        end
+        b[eqidx] = subber(resid)
+    end
+
+    for (varidx, var) in enumerate(vars)
+        vars_mask[varidx] || continue
+        lex = MTKBase.get_linear_expander_for!(sys, var, true)
+        for (eqidx, resid) in enumerate(b)
+            eqs_mask[eqidx] || continue
+            Graphs.has_edge(graph, BipartiteEdge(alg_eqs[eqidx], alg_vars[varidx])) || continue
+            p, q, islinear = lex(resid)
+            islinear || return nothing
+            if !SU._iszero(p)
+                # We're iterating in increasing `varidx` (column index) so we can just `push!`
+                push!(A.row_cols[eqidx], varidx)
+                push!(A.row_vals[eqidx], p)
+            end
+            b[eqidx] = q
+        end
+    end
+
+    # `-` is important! `b` is on the other side of the equality.
+    for i in eachindex(b)
+        eqs_mask[i] || continue
+        b[i] = -b[i]
+    end
+
+    A, b = __reduce_linear_system!(A, b, var_eq_matching, alg_eqs, alg_vars, eqs_mask, vars_mask)
+
+    N = length(b)
+    A = collect(A)::Matrix{Num}
+
+    if N == 1 || N <= analytical_linear_scc_limit && _check_allow_symbolic_parameter(
+            state, A, allow_symbolic, allow_parameter
+        )
+        lu = try
+            Symbolics.sym_lu(A)
+        catch err
+            err isa LinearAlgebra.SingularException || rethrow()
+            nothing
+        end
+        lu !== nothing && return (BSImpl.Const{VartypeT}((lu \ b)::Vector{SymbolicT}), eqs_mask, vars_mask)
+    end
+    # Turn into symbolic arrays
+    sys = state.sys
+    # Prefer using a differential variable
+    state_idx = findfirst(
+        Base.Fix2(isa, SelectedState) ∘ Base.Fix1(getindex, var_eq_matching),
+        eachindex(var_eq_matching)
+    )
+    if state_idx === nothing
+        # Find something in `A`
+        reference_idx = @something(
+            findfirst(iscall ∘ unwrap, A),
+            findfirst(!SU.isconst ∘ unwrap, A),
+            Some(nothing)
+        )
+        if reference_idx === nothing
+            # Find something in `b`
+            reference_idx = @something(
+                findfirst(iscall, b),
+                findfirst(!SU.isconst, b),
+                Some(nothing)
+            )
+            if reference_idx === nothing
+                reference = first(A)
+            else
+                reference = b[reference_idx]
+            end
+        else
+            reference = A[reference_idx]
+        end
+    else
+        reference = fullvars[state_idx]
+    end
+    # Use the `ArrayMaker` form for `A` and `b`
+    A_regions = SU.RegionsT()
+    A_values = Symbolics.SArgsT()
+    b_regions = SU.RegionsT()
+    b_values = Symbolics.SArgsT()
+    # fill the entire thing with zeros
+    push!(A_regions, SU.ShapeVecT((1:N, 1:N)))
+    push!(A_values, SU.Fill(A_regions[1])(Symbolics.COMMON_ZERO))
+    push!(b_regions, SU.ShapeVecT((1:N,)))
+    push!(b_values, SU.Fill(b_regions[1])(Symbolics.COMMON_ZERO))
+
+    for i in axes(A, 1), j in axes(A, 2)
+        coeff = unwrap(A[i, j])
+        SU._iszero(coeff) && continue
+        push!(A_regions, SU.ShapeVecT((i:i, j:j)))
+        push!(A_values, Symbolics.SConst([coeff;;]))
+    end
+
+    for (i, resid) in enumerate(b)
+        SU._iszero(resid) && continue
+        push!(b_regions, SU.ShapeVecT((i:i,)))
+        push!(b_values, Symbolics.SConst([resid]))
+    end
+
+    A = SU.ArrayMaker{VartypeT}(A_regions, A_values; shape = SU.ShapeVecT((1:N, 1:N)))
+    b = SU.ArrayMaker{VartypeT}(b_regions, b_values; shape = SU.ShapeVecT((1:N,)))
+
+    reference_args = Symbolics.SArgsT((reference, MTKBase.get_iv(sys)::SymbolicT))
+    inps = MTKBase.inputs(sys)
+    if !isempty(inps)
+        push!(reference_args, first(inps))
+    end
+    reference = Symbolics.STerm(
+        promote, reference_args;
+        type = Vector{Real}, shape = [1:length(reference_args)]
+    )[1]
+    sys, A_cache = MTKBase.add_diffcache(sys, N * N)
+    A_allocator = A_cache(reference)
+    A = SU.Code.with_allocator(A_allocator, SU.Const{VartypeT}(A))
+    sys, b_cache = MTKBase.add_diffcache(sys, N)
+    b_allocator = b_cache(reference)
+    b = SU.Code.with_allocator(b_allocator, SU.Const{VartypeT}(b))
+    state.sys = sys
+
+    return (INLINE_LINEAR_SCC_OP(A, b), eqs_mask, vars_mask)
+end
+
+function __reduce_linear_system!(A::StateSelection.CLIL.SparseMatrixCLIL{Num, Int}, b::Vector{SymbolicT}, var_eq_matching::StateSelection.VarEqMatchingT, alg_eqs::Vector{Int}, alg_vars::Vector{Int}, eqs_mask::BitVector, vars_mask::BitVector)
+    N = length(b)
+    # Identify rows (equations) not worth involving in the linear solve.
+    #
+    # The current heuristic is to find all rows with constant coefficients
+    # which are matched to a variable in `var_eq_matching`.
+    new_N = count(eqs_mask)
+    eq_var_matching = invview(var_eq_matching)
+    var_to_idx = Dict{Int, Int}(Iterators.map(reverse, enumerate(alg_vars)))
+    # The `i`th variable in the SCC is eliminated as
+    # `∑_k aliases[i][k] * fullvars[alg_vars[k]] + constants[i]`
+    constants = Dict{Int, SymbolicT}()
+    aliases = Dict{Int, SparseArrays.SparseVector{Num, Int}}()
+    for (i, coeffs) in enumerate(A.row_vals)
+        eqs_mask[i] || continue
+        eq_var_matching[alg_eqs[i]] isa Int || continue
+
+        eqs_mask[i] = false
+        var = eq_var_matching[alg_eqs[i]]::Int
+        ivar = var_to_idx[var]
+        vars_mask[ivar] = false
+        new_N -= 1
+
+        eqvars = A.row_cols[i]
+        idx_in_eq = findfirst(isequal(ivar), eqvars)::Int
+        var_coeff = coeffs[idx_in_eq]
+        deleteat!(eqvars, idx_in_eq)
+        deleteat!(coeffs, idx_in_eq)
+        # Negation to move variables to the other side of the equality
+        coeffs ./= -var_coeff
+        aliases[ivar] = SparseArrays.SparseVector(N, eqvars, coeffs)
+        # `b` is already on the other side of the equality
+        constants[ivar] = b[i] / var_coeff
+    end
+
+    # We could have eliminated a variable in terms of other eliminated variables. While
+    # `get_new_mm` can handle this, it makes updating `b` much more difficult. We can
+    # topologically sort the dependency graph and use this information to update `aliases`
+    # and `constants` to fix this issue.
+    dep_graph = Graphs.SimpleDiGraph(length(alg_vars))
+    for (var, coeffs) in aliases
+        I, _ = SparseArrays.findnz(coeffs)
+        for other_var in I
+            # Avoid unnecessary edges.
+            haskey(aliases, other_var) || continue
+            # Edge from dependency to dependent
+            Graphs.add_edge!(dep_graph, other_var, var)
+        end
+    end
+
+    # We know there won't be cycles because we're using the results of tearing, which
+    # partitioned this SCC into a lower
+    var_order = Graphs.topological_sort(dep_graph)
+    for var in var_order
+        haskey(aliases, var) || continue
+        iszero(Graphs.indegree(dep_graph, var)) && continue
+        coeffs = aliases[var]
+        cst = constants[var]
+        I, V = SparseArrays.findnz(coeffs)
+
+        new_I = Int[]
+        new_V = Num[]
+        sizehint!(new_I, length(I))
+        sizehint!(new_V, length(V))
+        for (other_var, coeff) in zip(I, V)
+            other_coeffs = get(aliases, other_var, nothing)
+            if other_coeffs === nothing
+                push!(new_I, other_var)
+                push!(new_V, coeff)
+                continue
+            end
+            other_coeffs = other_coeffs::valtype(aliases)
+            other_cst = constants[other_var]
+            other_I, other_V = SparseArrays.findnz(other_coeffs)
+            append!(new_I, other_I)
+            append!(new_V, Iterators.map(Base.Fix2(*, coeff), other_V))
+            cst += coeff * other_cst
+        end
+
+        # `sparsevec` sums duplicate indices but keeps explicit zeros; drop them.
+        aliases[var] = SparseArrays.dropzeros!(SparseArrays.sparsevec(new_I, new_V, length(coeffs)))
+        constants[var] = cst
+    end
+
+    # First we update `b`, since doing so requires the unmodified `A`.
+    for i in 1:N
+        # Don't bother updating equations we'll delete
+        eqs_mask[i] || continue
+        eqvars = A.row_cols[i]
+        eqcoeffs = A.row_vals[i]
+        for (var, coeff) in zip(eqvars, eqcoeffs)
+            # Ignore variables we'll retain
+            vars_mask[var] && continue
+            # This variable is deleted. `constants` stores its equation's constant RHS,
+            # so add the corresponding scaled value to this equation's RHS. Note that in
+            # `A x = b` we're effectively substituting on the LHS, so we use `-=` to move
+            # the constant term to the RHS.
+            b[i] -= coeff * constants[var]
+        end
+    end
+    b = b[eqs_mask]
+    # Now, update `A` and `b`
+    # Will give the new index of each variable in `A` for indices where `vars_mask[i] == true`
+    old_to_new_var = cumsum(vars_mask)
+    old_to_new_var[.!vars_mask] .= 0
+    old_to_new_eq = cumsum(eqs_mask)
+    old_to_new_eq[.!eqs_mask] .= 0
+    A = StateSelection.get_new_mm(aliases, old_to_new_eq, old_to_new_var, A)
+
+    return A, b
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Sort the provided SCC `scc`, given the `digraph` of the system constructed using
+`var_eq_matching` along with both the matchings of the system.
+"""
+function get_sorted_scc(
+        digraph::DiCMOBiGraph, full_var_eq_matching::Matching, var_eq_matching::Matching, scc::Vector{Int})
+    eq_var_matching = invview(var_eq_matching)
+    # obtain the matched equations in the SCC
+    scc_eqs = Int[]
+    # obtain the equations in the SCC that are linearly solvable
+    scc_solved_eqs = Int[]
+    for v in scc
+        e = full_var_eq_matching[v]
+        if e isa Int
+            push!(scc_eqs, e)
+        end
+        e = var_eq_matching[v]
+        if e isa Int
+            push!(scc_solved_eqs, e)
+        end
+    end
+    # obtain the subgraph of the contracted graph involving the solved equations
+    subgraph, varmap = Graphs.induced_subgraph(digraph, scc_solved_eqs)
+    # topologically sort the solved equations and append the remainder
+    scc_eqs = [varmap[reverse(topological_sort(subgraph))];
+               setdiff(scc_eqs, scc_solved_eqs)]
+    # the variables of the SCC are obtained by inverse mapping the sorted equations
+    # and appending the rest
+    scc_vars = Int[]
+    for e in scc_eqs
+        v = eq_var_matching[e]
+        if v isa Int
+            push!(scc_vars, v)
+        end
+    end
+    append!(scc_vars, setdiff(scc, scc_vars))
+    return scc_vars, scc_eqs
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Struct containing the information required to generate equations of a system, as well as
+the generated equations and associated metadata.
+"""
+struct EquationGenerator{S}
+    """
+    `TearingState` of the system.
+    """
+    state::S
+    """
+    Substitutions to perform in all subsequent equations. For each differential equation
+    `D(x) ~ f(..)`, the substitution `D(x) => f(..)` is added to the rules.
+    """
+    total_sub::MTKBase.ExpandDerivativeDict{SymbolicT, Dict{SymbolicT, SymbolicT}}
+    """
+    The differential operator, or `nothing` if not applicable.
+    """
+    D::Union{Differential, Shift, Nothing}
+    """
+    The independent variable, or `nothing` if not applicable.
+    """
+    idep::Union{SymbolicT, Nothing}
+    """
+    The new generated equations of the system.
+    """
+    neweqs′::Vector{Equation}
+    """
+    `eq_ordering[i]` is the index `neweqs′[i]` was originally at in the untorn equations of
+    the system. This is used to permute the state of the system into BLT sorted form.
+    """
+    eq_ordering::Vector{Int}
+    """
+    `var_ordering[i]` is the index in `state.fullvars` of the variable at the `i`th index in
+    the BLT sorted form.
+    """
+    var_ordering::Vector{Int}
+    """
+    List of linearly solved (observed) equations.
+    """
+    solved_eqs::Vector{Equation}
+    """
+    `eq_ordering` for `solved_eqs`.
+    """
+    solved_vars::Vector{Int}
+    """
+    `eq_scc[i]` is the index (into `var_sccs`) of the SCC whose processing generated
+    `neweqs′[i]`. Populated alongside `neweqs′` and used to permute the system into
+    block-lower-triangular (BLT) order; only consumed when there are no extra
+    equations/variables (see `generate_system_equations!`).
+    """
+    eq_scc::Vector{Int}
+end
+
+function EquationGenerator(state, total_sub, D, idep)
+    EquationGenerator(
+        state, total_sub, D, idep, Equation[], Int[], Int[], Equation[], Int[], Int[])
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Check if equation at index `ieq` is linearly solvable for variable at index `iv`.
+"""
+function is_solvable(eg::EquationGenerator, ieq, iv)
+    solvable_graph = eg.state.structure.solvable_graph::BipartiteGraph{Int, Nothing}
+    return ieq isa Int && iv isa Int && BipartiteEdge(ieq, iv) in solvable_graph
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+    If `iv` is like D(x) or Shift(t, 1)(x)
+"""
+is_dervar(eg::EquationGenerator, iv::Int) = StateSelection.isdervar(eg.state.structure, iv)
+
+"""
+    $(TYPEDSIGNATURES)
+
+Appropriately codegen the given equation `eq`, which occurs at index `ieq` in the untorn
+list of equations and is matched to variable at index `iv`. `scc_idx` is the index (into
+`var_sccs`) of the SCC being processed; it is recorded in `eg.eq_scc` for any equation
+appended to `neweqs′`, for later BLT ordering.
+"""
+function codegen_equation!(eg::EquationGenerator,
+        eq::Equation, ieq::Int, iv::Union{Int, Unassigned}, scc_idx::Int; simplify = false)
+    # We generate equations ordered by the matched variables
+    #   Solvable equations of differential variables D(x) become differential equations
+    #   Solvable equations of non-differential variables become observable equations
+    #   Non-solvable equations become algebraic equations.
+    (; state, total_sub, neweqs′, eq_ordering, var_ordering, eq_scc) = eg
+    (; solved_eqs, solved_vars, D, idep) = eg
+    (; fullvars, sys, structure) = state
+    (; var_to_diff, graph) = structure
+    diff_to_var = invview(var_to_diff)
+
+    issolvable = is_solvable(eg, ieq, iv)
+    isdervar = issolvable && is_dervar(eg, iv)
+    isdisc = StateSelection.is_only_discrete(structure)
+    # The variable is derivative variable and the "most differentiated"
+    # This is only used for discrete systems, and basically refers to
+    # `Shift(t, 1)(x(k))` in `Shift(t, 1)(x(k)) ~ x(k) + x(k-1)`. As illustrated in
+    # the docstring for `add_additional_history!`, this is an exception and needs to be
+    # treated like a solved equation rather than a differential equation.
+    is_highest_diff = iv isa Int && isdervar && var_to_diff[iv] === nothing
+    if issolvable && isdervar && (!isdisc || !is_highest_diff)
+        var = fullvars[iv]
+        isnothing(D) && throw(UnexpectedDifferentialError(equations(sys)[ieq]))
+        order, lv = var_order(iv, diff_to_var)
+        dx = D(MTKBase.simplify_shifts(fullvars[lv]))
+        neweq = make_differential_equation(var, dx, eq, total_sub)
+        # We will add `neweq.lhs` to `total_sub`, so any equation involving it won't be
+        # incident on it. Remove the edges incident on `iv` from the graph, and add
+        # the replacement vertices from `ieq` so that the incidence is still correct.
+        #
+        # The `copy` is necessary because `rem_edge!` will mutate the buffer that we
+        # iterate over.
+        for e in copy(𝑑neighbors(graph, iv))
+            e == ieq && continue
+            for v in 𝑠neighbors(graph, ieq)
+                add_edge!(graph, e, v)
+            end
+            rem_edge!(graph, e, iv)
+        end
+
+        total_sub[MTKBase.simplify_shifts(neweq.lhs)] = neweq.rhs
+        # Substitute unshifted variables x(k), y(k) on RHS of implicit equations
+        if StateSelection.is_only_discrete(structure)
+            var_to_diff[iv] === nothing && (total_sub[var] = neweq.rhs)
+        end
+        push!(neweqs′, neweq)
+        push!(eq_ordering, ieq)
+        push!(var_ordering, diff_to_var[iv])
+        push!(eq_scc, scc_idx)
+    elseif issolvable
+        var = fullvars[iv]
+        neweq = make_solved_equation(var, eq, total_sub; simplify)
+        if neweq !== nothing
+            # backshift solved equations to calculate the value of the variable at the
+            # current time. This works because we added one additional history element
+            # in `add_additional_history!`.
+            if isdisc
+                neweq = backshift_expr(neweq, idep::SymbolicT)::Equation
+            end
+            push!(solved_eqs, neweq)
+            push!(solved_vars, iv)
+        end
+    else
+        neweq = make_algebraic_equation(eq, total_sub)
+        # For the same reason as solved equations (they are effectively the same)
+        if isdisc
+            neweq = backshift_expr(neweq, idep::SymbolicT)
+        end
+        push!(neweqs′, neweq)
+        push!(eq_ordering, ieq)
+        # we push a dummy to `var_ordering` here because `iv` is `unassigned`
+        push!(var_ordering, 0)
+        push!(eq_scc, scc_idx)
+    end
+end
+
+"""
+Occurs when a variable D(x) occurs in a non-differential system.
+"""
+struct UnexpectedDifferentialError
+    eq::Equation
+end
+
+function Base.showerror(io::IO, err::UnexpectedDifferentialError)
+    error("Differential found in a non-differential system. Likely this is a bug in the construction of an initialization system. Please report this issue with a reproducible example. Offending equation: $(err.eq)")
+end
+
+"""
+Generate a first-order differential equation whose LHS is `dx`.
+
+`var` and `dx` represent the same variable, but `var` may be a higher-order differential and `dx` is always first-order. For example, if `var` is D(D(x)), then `dx` would be `D(x_t)`. Solve `eq` for `var`, substitute previously solved variables, and return the differential equation.
+"""
+function make_differential_equation(var, dx, eq, total_sub)
+    v1 = Symbolics.symbolic_linear_solve(eq, var)::SymbolicT
+    v2 = Symbolics.fixpoint_sub(v1, total_sub, MTKBase.Shift)
+    v3 = MTKBase.simplify_shifts(v2)
+    dx ~ v3
+end
+
+"""
+Generate an algebraic equation. Substitute solved variables into `eq` and return the equation.
+"""
+function make_algebraic_equation(eq, total_sub)
+    rhs = eq.rhs - eq.lhs
+    0 ~ MTKBase.simplify_shifts(Symbolics.fixpoint_sub(rhs, total_sub))
+end
+
+"""
+Solve equation `eq` for `var`, substitute previously solved variables, and return the solved equation.
+"""
+function make_solved_equation(var, eq, total_sub; simplify = false)
+    residual = eq.lhs - eq.rhs
+    a, b, islinear = Symbolics.linear_expansion(residual, var)
+    # 0 ~ a * var + b
+    # var ~ -b/a
+    if SU._iszero(a)
+        @warn "Tearing: solving $eq for $var is singular!"
+        return nothing
+    else
+        rhs = -b / a
+        return var ~ MTKBase.simplify_shifts(Symbolics.fixpoint_sub(
+            simplify ?
+            Symbolics.simplify(rhs) : rhs,
+            total_sub, MTKBase.Shift))
+    end
+end
+
+"""
+Given the ordering returned by `generate_system_equations!`, update the
+tearing state to account for the new order. Permute the variables and equations.
+Eliminate the solved variables and equations from the graph and permute the
+graph's vertices to account for the new variable/equation ordering.
+"""
+function reorder_vars!(state::TearingState, var_eq_matching, var_sccs, eq_ordering,
+        var_ordering, nsolved_eq, nsolved_var)
+    (; solvable_graph, var_to_diff, eq_to_diff, graph) = state.structure
+
+    eqsperm = zeros(Int, nsrcs(graph))
+    for (i, v) in enumerate(eq_ordering)
+        eqsperm[v] = i
+    end
+    varsperm = zeros(Int, ndsts(graph))
+    for (i, v) in enumerate(var_ordering)
+        varsperm[v] = i
+    end
+
+    # Contract the vertices in the structure graph to make the structure match
+    # the new reality of the system we've just created.
+    new_graph = StateSelection.contract_variables(graph, var_eq_matching, varsperm, eqsperm,
+        nsolved_eq, nsolved_var)
+    new_solvable_graph = StateSelection.contract_variables(solvable_graph, var_eq_matching, varsperm, eqsperm,
+        nsolved_eq, nsolved_var)
+
+    new_var_to_diff = complete(StateSelection.DiffGraph(length(var_ordering)))
+    for (v, d) in enumerate(var_to_diff)
+        v′ = varsperm[v]
+        (v′ > 0 && d !== nothing) || continue
+        d′ = varsperm[d]
+        new_var_to_diff[v′] = d′ > 0 ? d′ : nothing
+    end
+    new_eq_to_diff = complete(StateSelection.DiffGraph(length(eq_ordering)))
+    for (v, d) in enumerate(eq_to_diff)
+        v′ = eqsperm[v]
+        (v′ > 0 && d !== nothing) || continue
+        d′ = eqsperm[d]
+        new_eq_to_diff[v′] = d′ > 0 ? d′ : nothing
+    end
+    new_fullvars = state.fullvars[var_ordering]
+
+    # Update the SCCs
+    var_ordering_set = BitSet(var_ordering)
+    for scc in var_sccs
+        # Map variables to their new indices
+        map!(Base.Fix1(getindex, varsperm), scc, scc)
+        # Remove variables not in the reduced set
+        filter!(!iszero, scc)
+    end
+    # Remove empty SCCs
+    filter!(!isempty, var_sccs)
+
+    # Update system structure
+
+    state.structure.graph = complete(new_graph)
+    state.structure.solvable_graph = complete(new_solvable_graph)
+    state.structure.var_to_diff = new_var_to_diff
+    state.structure.eq_to_diff = new_eq_to_diff
+    state.fullvars = new_fullvars
+    state
+end
+
+"""
+Update the system equations, unknowns, and observables after simplification.
+"""
+function update_simplified_system!(
+        state::TearingState, neweqs::Vector{Equation}, solved_eqs::Vector{Equation},
+        dummy_sub::Dict{SymbolicT, SymbolicT}, var_sccs::Vector{Vector{Int}},
+        extra_unknowns::Vector{SymbolicT}, iv::Union{SymbolicT, Nothing},
+        D::Union{Differential, Shift, Nothing}; array_hack = true)
+    (; fullvars, structure, sys) = state
+    (; solvable_graph, var_to_diff, eq_to_diff, graph) = structure
+
+    sys = MTKBase.remove_unhack_system_transformation(sys)
+
+    diff_to_var = invview(var_to_diff)
+    # Since we solved the highest order derivative variable in discrete systems,
+    # we make a list of the solved variables and avoid including them in the
+    # unknowns.
+    solved_vars = Set{SymbolicT}()
+    if StateSelection.is_only_discrete(structure)
+        iv = iv::SymbolicT
+        D = D::Shift
+        for eq in solved_eqs
+            var = eq.lhs
+            if isequal(eq.lhs, eq.rhs)
+                var = lower_shift_varname_with_unit(D(eq.lhs), iv)
+            end
+            push!(solved_vars, var)
+        end
+        filter!(eq -> !isequal(eq.lhs, eq.rhs), solved_eqs)
+    end
+
+    ispresent = let var_to_diff = var_to_diff, graph = graph
+        i -> (!isempty(𝑑neighbors(graph, i)) ||
+              (var_to_diff[i] !== nothing && !isempty(𝑑neighbors(graph, var_to_diff[i]))))
+    end
+
+    obs_sub = dummy_sub
+    for eq in neweqs
+        MTKBase.isdiffeq(eq) || continue
+        obs_sub[eq.lhs] = eq.rhs
+    end
+    (; additional_observed) = state
+    if StateSelection.is_only_discrete(structure)
+        additional_observed = map(Base.Fix2(backshift_expr, iv), additional_observed)
+    end
+    # TODO: compute the dependency correctly so that we don't have to do this
+    obs = [substitute(observed(sys), obs_sub); solved_eqs;
+           substitute(additional_observed, obs_sub)]
+
+    filterer = let diff_to_var = diff_to_var, ispresent = ispresent, fullvars = fullvars,
+        solved_vars = solved_vars
+        i -> diff_to_var[i] === nothing && ispresent(i) && !(fullvars[i] in solved_vars)
+    end
+    unknown_idxs = filter(filterer, eachindex(state.fullvars))
+    unknowns = state.fullvars[unknown_idxs]
+    unknowns = [unknowns; extra_unknowns]
+    # `generate_system_equations!` will include the extra unknowns in `var_ordering` due to
+    # the `setdiff` at the end. Excluding them leads to issues when running `singularity_check`
+    # on the simplified `state` in `InitializationProblem`. However, `ispresent` can filter
+    # some of them out of `unknown_idxs` if they don't occur in the selected equations. As
+    # a result, we still add them here. `unique!` serves to remove duplicates. Otherwise,
+    # `tearing_hacks` may count an array variable occuring `length + 1` times in
+    # unknowns+observables, and will thus not add the `x ~ [x[1], x[2]...]` array hack
+    # observed equation.
+    unique!(unknowns)
+    if StateSelection.is_only_discrete(structure)
+        # Algebraic variables are shifted forward by one, so we backshift them.
+        _unknowns = SymbolicT[]
+        for var in unknowns
+            @match var begin
+                BSImpl.Term(; f, args, type, shape, metadata) && if f isa Shift && f.steps == 1 end => begin
+                    push!(_unknowns, args[1])
+                end
+                _ => push!(_unknowns, var)
+            end
+        end
+        unknowns = _unknowns
+    end
+    @set! sys.unknowns = unknowns
+
+    if array_hack
+        tf = MTKBase.add_array_observed!(obs, unknowns)
+        sys = MTKBase.with_reversible_transformation(sys, tf)
+    end
+
+    @set! sys.eqs = neweqs
+    @set! sys.observed = obs
+
+    # Only makes sense for time-dependent
+    if MTKBase.has_schedule(sys)
+        unknowns_set = BitSet(unknown_idxs)
+        for scc in var_sccs
+            intersect!(scc, unknowns_set)
+        end
+        filter!(!isempty, var_sccs)
+        merge!(dummy_sub, state.analytical_derivatives)
+        @set! sys.schedule = MTKBase.Schedule(var_sccs, dummy_sub)
+    end
+    if MTKBase.has_isscheduled(sys)
+        @set! sys.isscheduled = true
+    end
+    return sys
+end
+
+"""
+Give the order of the variable indexed by dv.
+"""
+function var_order(dv, diff_to_var)
+    order = 0
+    while (dv′ = diff_to_var[dv]) !== nothing
+        order += 1
+        dv = dv′
+    end
+    order, dv
+end
+
+"""
+Main internal function for structural simplification for DAE systems and discrete systems.
+Generate dummy derivative variables, new equations in terms of variables, return updated
+system and tearing state.
+
+Terminology and Definition:
+
+A general DAE is in the form of `F(u'(t), u(t), p, t) == 0`. We can
+characterize variables in `u(t)` into two classes: differential variables
+(denoted `v(t)`) and algebraic variables (denoted `z(t)`). Differential
+variables are marked as `SelectedState` and they are differentiated in the
+DAE system, i.e. `v'(t)` are all the variables in `u'(t)` that actually
+appear in the system. Algebraic variables are variables that are not
+differential variables.
+
+# Arguments
+
+- `state`: The `TearingState` of the system.
+- `var_eq_matching`: The maximal matching after state selection.
+- `full_var_eq_matching`: The maximal matching prior to state selection.
+- `var_sccs`: The topologically sorted strongly connected components of the system
+  according to `full_var_eq_matching`.
+
+# Options
+
+$TYPEDFIELDS
+"""
+@kwdef struct DefaultReassembleAlgorithm <: ReassembleAlgorithm
+    """
+    Whether to use `SymbolicUtils.simplify` when generating the equations.
+    """
+    simplify::Bool = false
+    """
+    Experimental toggle for disabling passes that aid in code generation of arrays.
+    """
+    array_hack::Bool = true
+    """
+    Whether SCCs which are linear systems of the associated variables should be
+    handled using inline linear solves via `LinearSolve.jl`. By default, such
+    SCCs generate algebraic equations.
+    """
+    inline_linear_sccs::Bool = false
+    """
+    If `inline_linear_sccs == true`, this is the maximum size of a system of linear
+    equations which is solved symbolically rather than using `LinearSolve.jl`.
+    """
+    analytical_linear_scc_limit::Int = 2
+end
+
+function (alg::DefaultReassembleAlgorithm)(state::TearingState,
+                                           tearing_result::StateSelection.TearingResult,
+                                           mm::Union{CLIL.SparseMatrixCLIL,  Nothing};
+                                           fully_determined::Bool = true,
+                                           allow_symbolic::Bool = false,
+                                           allow_parameter::Bool = true, kw...)
+    (; simplify, array_hack, inline_linear_sccs, analytical_linear_scc_limit) = alg
+    (; var_eq_matching, full_var_eq_matching, var_sccs) = tearing_result
+
+    extra_eqs_vars = get_extra_eqs_vars(
+        state, var_eq_matching, full_var_eq_matching, fully_determined)
+    neweqs = collect(equations(state))
+    dummy_sub = Dict{SymbolicT, SymbolicT}()
+
+    if MTKBase.has_iv(state.sys) && MTKBase.get_iv(state.sys) !== nothing
+        iv = MTKBase.get_iv(state.sys)::SymbolicT
+        if !StateSelection.is_only_discrete(state.structure)
+            D = Differential(iv)
+        else
+            D = Shift(iv, 1)
+        end
+    else
+        iv = D = nothing
+    end
+    # `iv === nothing` implies a nonlinear system. `SCCNonlinearProblem` should be
+    # used instead of this pass. `D isa Shift` implies a discrete system, which currently
+    # doesn't support inline linear SCCs.
+    if iv === nothing || D isa Shift
+        inline_linear_sccs = false
+    end
+
+    extra_unknowns = state.fullvars[extra_eqs_vars[2]]
+    if StateSelection.is_only_discrete(state.structure)
+        var_sccs = add_additional_history!(
+            state, var_eq_matching, full_var_eq_matching, var_sccs, iv::SymbolicT)
+    end
+
+    # Structural simplification
+    if iv isa SymbolicT # Without iv we don't have derivatives
+        D = D::Union{Differential, Shift}
+        substitute_derivatives_algevars!(state, neweqs, var_eq_matching, dummy_sub, iv, D)
+
+        var_sccs = generate_derivative_variables!(
+            state, neweqs, var_eq_matching, full_var_eq_matching, var_sccs, mm, iv)
+    end
+    if iv isa SymbolicT
+        D = D::Union{Differential, Shift}
+        neweqs, solved_eqs,
+        eq_ordering,
+        var_ordering,
+        nelim_eq,
+        nelim_var,
+        inline_blocks = generate_system_equations!(
+            state, neweqs, var_eq_matching, full_var_eq_matching,
+            var_sccs, extra_eqs_vars, iv, D; simplify, inline_linear_sccs,
+            analytical_linear_scc_limit, allow_symbolic, allow_parameter)
+        state = reorder_vars!(
+            state, var_eq_matching, var_sccs, eq_ordering, var_ordering, nelim_eq, nelim_var)
+        # var_eq_matching and full_var_eq_matching are now invalidated
+
+        sys = update_simplified_system!(state, neweqs, solved_eqs, dummy_sub, var_sccs,
+            extra_unknowns, iv, D; array_hack)
+    else
+        D = D::Nothing
+        neweqs, solved_eqs,
+            eq_ordering,
+            var_ordering,
+            nelim_eq,
+            nelim_var,
+            inline_blocks = generate_system_equations!(
+                state, neweqs, var_eq_matching, full_var_eq_matching,
+                var_sccs, extra_eqs_vars, iv, D; simplify, inline_linear_sccs,
+                analytical_linear_scc_limit)
+        state = reorder_vars!(
+            state, var_eq_matching, var_sccs, eq_ordering, var_ordering, nelim_eq, nelim_var)
+        # var_eq_matching and full_var_eq_matching are now invalidated
+
+        sys = update_simplified_system!(state, neweqs, solved_eqs, dummy_sub, var_sccs,
+            extra_unknowns, iv, D; array_hack)
+    end
+
+    if inline_linear_sccs
+        # We add this at the end so it is the first reversed transformation. This enables better
+        # caching.
+        sys = MTKBase.with_reversible_transformation(sys, InlineLinsolveTransformation)
+    end
+    sys = SU.setmetadata(sys, InlineLinearSystemsMetadata, inline_blocks)
+    @set! sys.tearing_state = state
+    state.sys = sys
+    return MTKBase.invalidate_cache!(sys)
+end
+
+function inline_linear_sccs_preprocessing!(state::TearingState, iv::SymbolicT, var_sccs::Vector{Vector{Int}})
+    (; structure) = state
+    if StateSelection.is_only_discrete(structure)
+        error("Inline linear SCC pass is not valid on discrete systems!")
+    end
+
+    
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Add one more history equation for discrete systems. For example, if we have
+
+```julia
+Shift(t, 1)(x(k-1)) ~ x(k)
+Shift(t, 1)(x(k)) ~ x(k) + x(k-1)
+```
+
+This turns it into
+
+```julia
+Shift(t, 1)(x(k-2)) ~ x(k-1)
+Shift(t, 1)(x(k-1)) ~ x(k)
+Shift(t, 1)(x(k)) ~ x(k) + x(k-1)
+```
+
+Thus adding an additional unknown as well. Later, the highest derivative equation will
+be backshifted by one and turned into an observed equation, resulting in:
+
+```julia
+Shift(t, 1)(x(k-2)) ~ x(k-1)
+Shift(t, 1)(x(k-1)) ~ x(k)
+
+x(k) ~ x(k-1) + x(k-2)
+```
+
+Where the last equation is the observed equation.
+"""
+function add_additional_history!(
+        state::TearingState, var_eq_matching::Matching,
+        full_var_eq_matching::Matching, var_sccs::Vector{Vector{Int}}, iv::Union{SymbolicT, Nothing})
+    iv === nothing && return var_sccs
+    iv = iv::SymbolicT
+    (; fullvars, sys, structure) = state
+    (; solvable_graph, var_to_diff, eq_to_diff, graph) = structure
+    diff_to_var = invview(var_to_diff)
+
+    # We need the inverse mapping of `var_sccs` to update it efficiently later.
+    v_to_scc = NTuple{2, Int}[]
+    resize!(v_to_scc, ndsts(graph))
+    for (i, scc) in enumerate(var_sccs), (j, v) in enumerate(scc)
+
+        v_to_scc[v] = (i, j)
+    end
+
+    vars_to_backshift = BitSet()
+    # add history for differential variables
+    for ivar in 1:length(fullvars)
+        ieq = var_eq_matching[ivar]
+        # the variable to backshift is a state variable which is not the
+        # derivative of any other one.
+        ieq isa SelectedState || continue
+        diff_to_var[ivar] === nothing || continue
+        push!(vars_to_backshift, ivar)
+    end
+
+    inserts = Tuple{Int, Vector{Int}}[]
+
+    for var in vars_to_backshift
+        add_backshifted_var!(state, var, iv)
+        # all backshifted vars are differential vars, hence SelectedState
+        push!(var_eq_matching, SelectedState())
+        push!(full_var_eq_matching, unassigned)
+        # add to the SCCs right before the variable that was backshifted
+        push!(inserts, (v_to_scc[var][1], [length(fullvars)]))
+    end
+
+    sort!(inserts, by = first)
+    new_sccs = insert_sccs(var_sccs, inserts)
+    return new_sccs
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Add the backshifted version of variable `ivar` to the system.
+"""
+function add_backshifted_var!(state::TearingState, ivar::Int, iv)
+    (; fullvars, structure) = state
+    (; var_to_diff, graph, solvable_graph) = structure
+
+    var = fullvars[ivar]
+    newvar = MTKBase.simplify_shifts(Shift(iv, -1)(var))
+    push!(fullvars, newvar)
+    push!(structure.state_priorities, structure.state_priorities[ivar])
+    inewvar = add_vertex!(var_to_diff)
+    add_edge!(var_to_diff, inewvar, ivar)
+    add_vertex!(graph, DST)
+    add_vertex!(solvable_graph, DST)
+    return inewvar
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Backshift the given expression `ex`.
+"""
+function backshift_expr(ex, iv)
+    ex isa SymbolicT || return ex
+    return descend_lower_shift_varname_with_unit(
+        MTKBase.simplify_shifts(MTKBase.distribute_shift(Shift(iv, -1)(ex))), iv)::SymbolicT
+end
+
+function backshift_expr(ex::Equation, iv)
+    return backshift_expr(ex.lhs, iv) ~ backshift_expr(ex.rhs, iv)
+end
+
+"""
+    $(TYPEDSIGNATURES)
+
+Return a 2-tuple of integer vectors containing indices of extra equations and variables
+respectively. For fully-determined systems, both of these are empty. Overdetermined systems
+have extra equations, and underdetermined systems have extra variables.
+"""
+function get_extra_eqs_vars(
+        state::TearingState, var_eq_matching::Matching, full_var_eq_matching::Matching, fully_determined::Bool)
+    fully_determined && return Int[], Int[]
+
+    extra_eqs = Int[]
+    extra_vars = Int[]
+    full_eq_var_matching = invview(full_var_eq_matching)
+
+    for v in 𝑑vertices(state.structure.graph)
+        eq = full_var_eq_matching[v]
+        eq isa Int && continue
+        # Only if the variable is also unmatched in `var_eq_matching`.
+        # Otherwise, `SelectedState` differential variables from order lowering
+        # are also considered "extra"
+        var_eq_matching[v] === unassigned || continue
+        push!(extra_vars, v)
+    end
+    for eq in 𝑠vertices(state.structure.graph)
+        v = full_eq_var_matching[eq]
+        v isa Int && continue
+        push!(extra_eqs, eq)
+    end
+
+    return extra_eqs, extra_vars
+end
+
+"""
+# HACK
+
+Add equations for array observed variables. If `p[i] ~ (...)` are equations, add an
+equation `p ~ [p[1], p[2], ...]` allow topsort to reorder them only add the new equation
+if all `p[i]` are present and the unscalarized form is used in any equation (observed or
+not) we first count the number of times the scalarized form of each observed variable
+occurs in observed equations (and unknowns if it's split).
+"""
+function tearing_hacks(sys, obs, unknowns, neweqs; array = true)
+    # map of array observed variable (unscalarized) to number of its
+    # scalarized terms that appear in observed equations
+    arr_obs_occurrences = Dict{SymbolicT, Int}()
+    for (i, eq) in enumerate(obs)
+        lhs = eq.lhs
+        rhs = eq.rhs
+
+        array || continue
+        Moshi.Match.@match lhs begin
+            BSImpl.Term(; f, args) && if f === getindex end => begin
+                arg1 = args[1]
+                cnt = get(arr_obs_occurrences, arg1, 0)
+                arr_obs_occurrences[arg1] = cnt + 1
+            end
+            _ => nothing
+        end
+    end
+
+    # count variables in unknowns if they are scalarized forms of variables
+    # also present as observed. e.g. if `x[1]` is an unknown and `x[2] ~ (..)`
+    # is an observed equation.
+    for sym in unknowns
+        Moshi.Match.@match sym begin
+            BSImpl.Term(; f, args, shape) && if f === getindex end => begin
+                shape isa SU.Unknown && continue
+                arg1 = args[1]
+                cnt = get(arr_obs_occurrences, arg1, 0)
+                cnt == 0 && continue
+                arr_obs_occurrences[arg1] = cnt + 1
+            end
+            _ => nothing
+        end
+    end
+
+    obs_arr_eqs = Equation[]
+    for (arrvar, cnt) in arr_obs_occurrences
+        cnt == length(arrvar) || continue
+        # firstindex returns 1 for multidimensional array symbolics
+        firstind = Tuple(first(eachindex(arrvar)))
+        scal = [arrvar[i] for i in eachindex(arrvar)]
+        # respect non-1-indexed arrays
+        # TODO: get rid of this hack together with the above hack, then remove OffsetArrays dependency
+        # `change_origin` is required because `Origin(firstind)(scal)` makes codegen
+        # try to `create_array(OffsetArray{...}, ...)` which errors.
+        # `term(Origin(firstind), scal)` doesn't retain the `symtype` and `size`
+        # of `scal`.
+        if all(isone, firstind)
+            rhs = scal
+        else
+            rhs = change_origin(firstind, scal)
+        end
+        push!(obs_arr_eqs, arrvar ~ rhs)
+    end
+    append!(obs, obs_arr_eqs)
+
+    return obs
+end
+
+# PART OF HACK
+function change_origin(origin, arr)
+    if all(isone, origin)
+        return arr
+    end
+    return Origin(origin)(arr)
+end
+
+@register_array_symbolic change_origin(origin::Any, arr::AbstractArray) begin
+    size = size(arr)
+    eltype = eltype(arr)
+    ndims = ndims(arr)
+end

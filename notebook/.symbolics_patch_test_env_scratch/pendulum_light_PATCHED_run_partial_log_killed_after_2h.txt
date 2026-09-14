@@ -1,0 +1,10 @@
+Pkg.activate done  [+0.4s]
+using ModelingToolkit done  [+6.7s]
+using LinearAlgebra done  [+6.7s]
+variables declared  [+7.0s]
+equations built  [+7.5s]
+ODESystem built  [+7.6s]
+stored constraint equation: LinearAlgebra.dot(p(t), p(t)) ~ L^2  [+7.7s]
+=== calling mtkcompile with UNCOLLECTED dot(p,p) ~ L^2 (lightweight env) ===  [+7.7s]
+
+[exited with code 1]

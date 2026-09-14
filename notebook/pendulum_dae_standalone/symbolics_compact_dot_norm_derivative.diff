@@ -1,0 +1,178 @@
+--- /c/Users/NEVERM~1/AppData/Local/Temp/claude/c--Users-Nevermind-Desktop-NeuroDSL/e5052320-c87b-4b5e-a6aa-e5856d4b5439/scratchpad/diff.jl.orig_backup	2026-09-13 12:43:41.025980100 +0100
++++ C:/Users/Nevermind/.julia/packages/Symbolics/mLvup/src/diff.jl	2026-09-13 17:35:17.090950700 +0100
+@@ -343,6 +343,78 @@
+     substitute(ex, rules; kw..., filterer = deriv_and_depvar_substitute_filter)
+ end
+ 
++"""
++    compact_reduction_derivative_applicable(D, a, b)
++
++Whether it is safe to use the compact `dot`/`norm` derivative rules for `D.x` at all.
++It is NOT safe when `D.x` is itself a scalar index into `a` or `b` -- e.g.
++`Symbolics.derivative(dot(x, x), x[1])`, an existing, tested Symbolics idiom (differentiate
++an array reduction with respect to one scalar component of the *same* array). There, the
++correct derivative genuinely depends on picking out just that one component (all other
++components contribute zero), which is exactly what full scalarization computes; `D(x)`
++left compact and unexpanded would be wrong (it does not collapse to the standard basis
++vector `[1,0,0]` the way plain scalarized per-component differentiation naturally does).
++This is the mirror image of `compact_dot_derivative`'s `D.x` being a functional/time-like
++variable that `a`/`b` merely *depend on* (e.g. `p(t)` differentiated wrt `t`), which is the
++case the compact rule is for and where it is correct.
++"""
++function compact_reduction_derivative_applicable(D::Differential, a::SymbolicT, b::SymbolicT)
++    is_scalar_indexed(D.x) || return true
++    base = arguments(D.x)[1]
++    return !isequal(base, a) && !isequal(base, b)
++end
++
++"""
++    compact_dot_derivative(D, a, b)
++
++Compact (non-scalarizing) product-rule derivative of `LinearAlgebra.dot(a, b)` for
++array-shaped symbolic `a`, `b`: `D(dot(a,b)) = dot(D(a), b) + dot(a, D(b))`. Caller must
++first check `compact_reduction_derivative_applicable(D, a, b)`.
++
++`a`/`b` are array-shaped, so we cannot recurse via `executediff` (it does not support
++differentiating a bare array expression directly: `occursin_info` with its default
++`fail=true` throws "Differentiation with array expressions is not yet supported" on
++array-shaped input). Instead we build `D(a)`/`D(b)` directly via the `Differential`
++callable (which just wraps the argument in an unexpanded `Differential` application,
++exactly like the ordinary scalar case `D(y) -> Differential(x,1)(y)`), and use
++`occursin_info(D.x, ·, false)` to check occurrence -- `fail=false` selects the safe,
++shape-agnostic `SymbolicUtils.query` search, exactly as `_occursin_info` already does
++internally when it recurses into a `dot`/`norm` call's arguments (see the `cond`
++computation a few dozen lines above, in `_occursin_info`).
++"""
++function compact_dot_derivative(D::Differential, a::SymbolicT, b::SymbolicT)
++    a_occurs = occursin_info(D.x, a, false)
++    b_occurs = occursin_info(D.x, b, false)
++    if !a_occurs && !b_occurs
++        return COMMON_ZERO
++    elseif isequal(a, b)
++        # D(dot(a,a)) = 2*dot(a, D(a))
++        return 2 * LinearAlgebra.dot(a, D(a))
++    elseif !a_occurs
++        return LinearAlgebra.dot(a, D(b))
++    elseif !b_occurs
++        return LinearAlgebra.dot(D(a), b)
++    else
++        return LinearAlgebra.dot(D(a), b) + LinearAlgebra.dot(a, D(b))
++    end
++end
++
++"""
++    compact_norm_derivative(D, a)
++
++Compact (non-scalarizing) chain-rule derivative of `LinearAlgebra.norm(a)`. This matches
++the *existing* scalarized branch's semantics exactly: that branch computes
++`sqrt(sum(abs2(a[i])))`, which is precisely the 2-norm and precisely equal to
++`sqrt(LinearAlgebra.dot(a, a))` (for both real and complex `a`, since `dot` conjugates
++its first argument). So `D(norm(a)) = dot(a, D(a)) / norm(a)` reproduces the same
++2-norm semantics compactly. See `compact_dot_derivative` for why `occursin_info(D.x, a,
++false)` rather than `executediff` is used to test occurrence.
++"""
++function compact_norm_derivative(D::Differential, a::SymbolicT)
++    occursin_info(D.x, a, false) || return COMMON_ZERO
++    return LinearAlgebra.dot(a, D(a)) / LinearAlgebra.norm(a)
++end
++
+ function chain_diff(D::Differential, arg::BasicSymbolic{VartypeT}, inner_args::SymbolicUtils.ROArgsT{VartypeT}; kw...)
+     any(isequal(D.x), inner_args) && return D(arg)
+ 
+@@ -385,33 +457,83 @@
+         return arg
+     end
+     isequal(arg, D.x) && return COMMON_ONE
++    if SymbolicUtils.is_array_shape(shape(arg)) && iscall(arg) &&
++            ((operation(arg) isa BasicSymbolic{VartypeT} && any(isequal(D.x), arguments(arg))) ||
++             (operation(arg) isa Differential && isequal((operation(arg)::Differential).x, D.x)))
++        # `arg` is either (a) itself a bare array-valued dependent-variable call (e.g.
++        # `p(t)`) with `D.x` literally among its call arguments -- the array-shaped
++        # analogue of `chain_diff`'s `any(isequal(D.x), inner_args) && return D(arg)`
++        # shortcut for the scalar case a bit further down -- or (b) itself an
++        # already-differentiated array-shaped leaf wrt the SAME independent variable,
++        # e.g. `arg = Differential(t,1)(p(t))` being differentiated wrt `t` again. Case
++        # (b) delegates to the pre-existing, already-correct same-variable merge in
++        # `(D::Differential)(x)` a few dozen lines above (`f isa Differential &&
++        # isequal(f.x, D.x) => Differential(D.x, D.order+f.order)(args[1])`), which turns
++        # this into a higher-order differential directly on the inner array `p(t)` rather
++        # than re-differentiating `p(t)` from scratch.
++        #
++        # Ordinarily `executediff` is never called directly on a bare array-shaped
++        # argument (the public API only ever differentiates scalars), but
++        # `compact_dot_derivative`/`compact_norm_derivative` below build `D(a)`-wrapped
++        # array terms, and re-differentiating their result -- either because
++        # `expand_derivatives` peels off the outer `Differential` and calls `executediff`
++        # again directly on the array-shaped `a` underneath (case a), or because a caller
++        # (e.g. Pantelides differentiating a `D(p) ~ v` equation introduced by an earlier
++        # index-reduction round) passes an already-differentiated array leaf straight in
++        # as `arg` (case b) -- would otherwise fall through to the unconditional
++        # `occursin_info(D.x, arg)` call below, which throws "Differentiation with array
++        # expressions is not yet supported" on any array-shaped `arg` (see
++        # `_occursin_info`'s `fail`-gated array-shape branch). So this return is load
++        # bearing for composability under repeated differentiation, not just a shortcut.
++        # General array-shaped differentiation (e.g. of `A*p` for a matrix `A`, or of an
++        # array Differential wrt a DIFFERENT independent variable) remains genuinely
++        # unsupported and still throws that same error, unchanged.
++        return D(arg)
++    end
+     @match arg begin
+         BSImpl.Term(; f, args, shape) && if f === (*) && length(args) == 2 && isempty(shape) end => begin
+             @match args[1] begin
+                 BSImpl.Term(; f = f2, args = args2) && if f2 === adjoint end => begin
+-                    arg = LinearAlgebra.dot(
+-                        collect(args2[1])::Vector{SymbolicT},
+-                        collect(args[2])::Vector{SymbolicT}
+-                    )
++                    a, b = args2[1], args[2]
++                    if compact_reduction_derivative_applicable(D, a, b)
++                        return compact_dot_derivative(D, a, b)
++                    else
++                        arg = LinearAlgebra.dot(
++                            collect(a)::Vector{SymbolicT}, collect(b)::Vector{SymbolicT}
++                        )
++                    end
+                 end
+                 _ => nothing
+             end
+         end
+         BSImpl.Term(; f, args) && if f === LinearAlgebra.dot end => begin
+-            arg = LinearAlgebra.dot(
+-                collect(args[1])::Vector{SymbolicT}, collect(args[2])::Vector{SymbolicT}
+-            )
++            a, b = args[1], args[2]
++            if compact_reduction_derivative_applicable(D, a, b)
++                return compact_dot_derivative(D, a, b)
++            else
++                arg = LinearAlgebra.dot(
++                    collect(a)::Vector{SymbolicT}, collect(b)::Vector{SymbolicT}
++                )
++            end
+         end
+         BSImpl.Term(; f, args) && if f === LinearAlgebra.norm end => begin
+-            add_buffer = SArgsT()
+-            arr = args[1]
+-            for i in SymbolicUtils.stable_eachindex(arr)
+-                push!(add_buffer, abs2(arr[i]))
++            a = args[1]
++            if compact_reduction_derivative_applicable(D, a, a)
++                return compact_norm_derivative(D, a)
++            else
++                add_buffer = SArgsT()
++                for i in SymbolicUtils.stable_eachindex(a)
++                    push!(add_buffer, abs2(a[i]))
++                end
++                arg = sqrt(SymbolicUtils.add_worker(VartypeT, add_buffer))
+             end
+-            arg = sqrt(SymbolicUtils.add_worker(VartypeT, add_buffer))
+         end
+         BSImpl.ArrayOp(; output_idx) && if isempty(output_idx) end => begin
+-            # Some sort of `mapreduce`
++            # Some sort of `mapreduce`. No general compact (non-scalarizing) derivative
++            # rule is known for an arbitrary reduce function (unlike the named `dot`/
++            # `norm`/adjoint-matmul cases above, which are handled compactly by
++            # returning early when `compact_reduction_derivative_applicable`), so this
++            # generic fallback still scalarizes.
+             arg = SymbolicUtils.scalarize(arg)::SymbolicT
+         end
+         _ => nothing

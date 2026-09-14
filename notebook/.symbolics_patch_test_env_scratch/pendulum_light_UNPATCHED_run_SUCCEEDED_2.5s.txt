@@ -1,0 +1,15 @@
+Pkg.activate done  [+0.4s]
+WARNING: @nospecialize annotation only supported on the first 32 arguments.
+WARNING: @nospecialize annotation only supported on the first 32 arguments.
+using ModelingToolkit done  [+233.6s]
+using LinearAlgebra done  [+233.6s]
+variables declared  [+234.1s]
+equations built  [+235.4s]
+ODESystem built  [+235.8s]
+stored constraint equation: LinearAlgebra.dot(p(t), p(t)) ~ L^2  [+235.9s]
+=== calling mtkcompile with UNCOLLECTED dot(p,p) ~ L^2 (UNPATCHED Symbolics, comparison run) ===  [+235.9s]
+SUCCEEDED  [+238.4s]
+n_eqs = 7  [+238.4s]
+unknowns = SymbolicUtils.BasicSymbolicImpl.var"typeof(BasicSymbolicImpl)"{SymReal}[(v(t))[3], (v(t))[2], (p(t))[3], (p(t))[2], (p(t))[1], (pˍt(t))[1], lambda(t)]  [+238.6s]
+
+[exited with code 0]

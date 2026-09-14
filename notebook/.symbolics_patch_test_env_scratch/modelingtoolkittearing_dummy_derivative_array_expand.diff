@@ -1,0 +1,92 @@
+--- reassemble.jl.ORIGINAL_UNPATCHED_backup.jl	2026-09-13 19:09:43.542748900 +0100
++++ C:/Users/Nevermind/.julia/packages/ModelingToolkitTearing/veEKu/src/reassemble.jl	2026-09-13 19:11:21.025367100 +0100
+@@ -18,6 +18,76 @@
+ =#
+ 
+ """
++    _expand_compact_array_differential(x)
++
++Rewriter primitive (see [`EXPAND_COMPACT_ARRAY_DIFFERENTIALS`](@ref)) for a single node
++`x`: if `x` is an array-shaped, unexpanded `Differential` application -- e.g.
++`Differential(t, 1)(p(t))`, the WHOLE-ARRAY compact form Symbolics' `compact_dot_derivative`/
++`compact_norm_derivative` (see Symbolics' `diff.jl`) produce when differentiating a
++`dot`/`norm` of an array variable -- rewrite it to `array_literal` of the same
++`Differential` applied to each SCALAR component instead, e.g.
++`array_literal(D(p(t)[1]), D(p(t)[2]), D(p(t)[3]))`. Returns `nothing` (meaning
++"no change") for every other node, per the `SymbolicUtils.Rewriters` convention.
++
++This produces the SAME canonical scalar shape that `fullvars`/`dummy_sub`/`total_sub`'s
++substitution keys already use everywhere else in this file (e.g. `dd = fullvars[dv]`
++just below, or the `neweq.lhs` registered into `total_sub` in
++`generate_system_equations!`). Without this rewrite, a scalar substitution rule for
++`D(p(t)[i])` can never match inside the compact whole-array `D(p(t))` term: they are
++different, though mathematically equal, syntactic shapes (index and unexpanded
++differentiation commute, but nothing canonicalizes that automatically), so a plain
++`substitute` silently no-ops and the compact `Differential` survives all the way to
++codegen, where `ModelingToolkitBase.check_operator_variables` correctly (if confusingly)
++rejects it as a raw operator that was never isolated to an equation's LHS.
++
++A single post-order pass also correctly unwinds a DOUBLY-compact term like
++`D(D(p(t)))` (the compact second derivative Pantelides produces when re-differentiating
++an already-once-differentiated `dot`/`norm` equation): the inner `D(p(t))` is rewritten
++to `array_literal(D(p(t)[i])...)` first (post-order visits children before parents), so
++by the time the outer `D(...)` is visited, indexing into that `array_literal` folds back
++to the plain scalar `D(p(t)[i])`, and re-wrapping it in the outer `Differential` merges
++via the existing same-variable `Differential` composition rule into `Differential(t,
++2)(p(t)[i])` -- exactly the scalar second-derivative shape `fullvars` uses for it.
++"""
++function _expand_compact_array_differential(x)
++    SU.iscall(x) || return nothing
++    op = SU.operation(x)
++    op isa Differential || return nothing
++    args = SU.arguments(x)
++    arr = args[1]
++    SU.is_array_shape(SU.shape(arr)) || return nothing
++    scal_args = Symbolics.SArgsT()
++    sizehint!(scal_args, (length(arr)::Int) + 1)
++    push!(scal_args, Symbolics.SConst(size(arr)))
++    for i in SU.stable_eachindex(arr)
++        push!(scal_args, op(arr[i]))
++    end
++    return Symbolics.STerm(SU.array_literal, scal_args; type = SU.symtype(x), shape = SU.shape(x))
++end
++
++"""
++    EXPAND_COMPACT_ARRAY_DIFFERENTIALS
++
++A `SymbolicUtils.Rewriters.Postwalk` rewriter built from
++[`_expand_compact_array_differential`](@ref); expands every compact, array-shaped
++`Differential` application anywhere in an expression to `array_literal` of scalar
++`Differential`s, so that scalar `D(x)`-keyed substitution rules (`dummy_sub`, `total_sub`)
++can subsequently match them. See `_expand_compact_array_differential` for why this is
++needed and why one post-order pass suffices even for nested/higher-order derivatives.
++"""
++const EXPAND_COMPACT_ARRAY_DIFFERENTIALS = SU.Rewriters.Postwalk(_expand_compact_array_differential)
++
++"""
++    expand_compact_array_differentials(eq::Equation)
++
++Apply [`EXPAND_COMPACT_ARRAY_DIFFERENTIALS`](@ref) to both sides of `eq` and return the
++resulting `Equation`.
++"""
++function expand_compact_array_differentials(eq::Equation)
++    return EXPAND_COMPACT_ARRAY_DIFFERENTIALS(eq.lhs) ~ EXPAND_COMPACT_ARRAY_DIFFERENTIALS(eq.rhs)
++end
++
++"""
+ Replace derivatives of non-selected unknown variables by dummy derivatives.
+ 
+ State selection may determine that some differential variables are
+@@ -42,6 +112,12 @@
+             v_t = MTKBase.diff2term_with_unit(dd, iv)
+             for eq in 𝑑neighbors(graph, dv)
+                 dummy_sub[dd] = v_t
++                # `dd` (e.g. `D(p(t)[1])`) can be buried inside a compact, unexpanded
++                # whole-array `D(p(t))` term (from Symbolics' compact `dot`/`norm`
++                # derivative rules) that plain `substitute` cannot see into -- expand
++                # those to scalar form first so the substitution actually finds it.
++                # See `_expand_compact_array_differential` for the full explanation.
++                neweqs[eq] = expand_compact_array_differentials(neweqs[eq])
+                 neweqs[eq] = substitute(neweqs[eq], dd => v_t)
+             end
+             fullvars[dv] = v_t
