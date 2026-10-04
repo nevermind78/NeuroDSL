@@ -1,0 +1,44 @@
+WIND-T4 -- entonnoir post-norme : vrai (T) vs linéarisations figées (A, AN)
+Date : 2026-09-30T22:11:56Z   NSUR = 4
+ern = erank₂(N_V·J_{1→28}) ; ernTN = même produit avec la vraie N (isole l'effet des couches)
+c = ern / ern_substituts-signes ; ovU_r / ovV_r = cos² moyen des sous-espaces top-r de sortie / d'entrée vs T
+hasard pour ov : r/n = 0.0033, 0.0065, 0.0130
+
+PROMPT 5
+   var     ern    ernTN   ern_S (moy±sd)      c      ovU5   ovU10  ovU20   ovV5   ovV10  ovV20   err_rel
+   T      15.75   15.75    48.22 ± 2.99     0.33   1.000  1.000  1.000   1.000  1.000  1.000    0.000
+   A      20.65   20.65    53.61 ± 5.59     0.39   0.612  0.707  0.709   0.379  0.516  0.555    0.735
+   AN     14.80   15.51    40.09 ± 5.23     0.37   0.556  0.601  0.659   0.364  0.469  0.519    0.978
+
+PROMPT 6
+   var     ern    ernTN   ern_S (moy±sd)      c      ovU5   ovU10  ovU20   ovV5   ovV10  ovV20   err_rel
+   T      47.60   47.60    64.74 ± 3.28     0.74   1.000  1.000  1.000   1.000  1.000  1.000    0.000
+   A      62.62   62.62    67.94 ± 1.20     0.92   0.764  0.766  0.792   0.598  0.658  0.713    0.546
+   AN     42.95   51.51    58.24 ± 2.88     0.74   0.607  0.655  0.723   0.451  0.593  0.669    0.797
+
+PROMPT 12
+   var     ern    ernTN   ern_S (moy±sd)      c      ovU5   ovU10  ovU20   ovV5   ovV10  ovV20   err_rel
+   T      13.11   13.11    29.39 ± 5.64     0.45   1.000  1.000  1.000   1.000  1.000  1.000    0.000
+   A       2.31    2.31     7.40 ± 1.97     0.31   0.557  0.639  0.724   0.618  0.645  0.711    1.493
+   AN      1.01    1.02     3.01 ± 1.25     0.34   0.438  0.571  0.672   0.558  0.612  0.683   20.292
+
+PROMPT 17
+   var     ern    ernTN   ern_S (moy±sd)      c      ovU5   ovU10  ovU20   ovV5   ovV10  ovV20   err_rel
+   T       8.47    8.47    30.55 ± 2.45     0.28   1.000  1.000  1.000   1.000  1.000  1.000    0.000
+   A      10.12   10.12    32.68 ± 4.65     0.31   0.741  0.646  0.698   0.619  0.581  0.623    0.686
+   AN      7.24    7.76    24.56 ± 6.00     0.29   0.549  0.567  0.641   0.414  0.515  0.591    1.088
+
+PROMPT 22
+   var     ern    ernTN   ern_S (moy±sd)      c      ovU5   ovU10  ovU20   ovV5   ovV10  ovV20   err_rel
+   T      27.63   27.63    46.97 ± 2.02     0.59   1.000  1.000  1.000   1.000  1.000  1.000    0.000
+   A      32.96   32.96    35.56 ± 5.96     0.93   0.580  0.616  0.710   0.554  0.560  0.613    0.725
+   AN      2.06    1.83    14.16 ± 0.73     0.15   0.347  0.567  0.670   0.420  0.507  0.593    2.600
+
+MÉDIANES sur les prompts :
+   var     ern    ernTN   ern_S      c      ovU5   ovU10  ovU20   ovV5   ovV10  ovV20   err_rel
+   T      15.75   15.75    46.97    0.45   1.000  1.000  1.000   1.000  1.000  1.000    0.000
+   A      20.65   20.65    35.56    0.39   0.612  0.646  0.710   0.598  0.581  0.623    0.725
+   AN      7.24    7.76    24.56    0.34   0.549  0.571  0.670   0.420  0.515  0.593    1.088
+
+HF1 (ern_AN ≤ 1,5·ern_T et c_AN ≤ 0,6) : VRAI  (7.24 vs 15.75 ; c = 0.34)
+HF2 (cos² moyen top-10 sortie T vs AN ≥ 0,5) : VRAI  (0.571 ; hasard 0.0065)

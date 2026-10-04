@@ -1,0 +1,12 @@
+
+WIND-T10 (EXPLORATOIRE) réduction de Galerkin sur les plans-capteurs -- 2026-10-02T13:13:09Z
+  p8   θ_c vrai 0.833 | Ho–Kalman ordre 2 0.854 | Galerkin capteurs 0.742 | ‖W−W_G‖/‖W‖ 0.671 | κ médian 0.106 [min 0.027] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.411 σ₃/σ₁ 0.244 | 54 s
+  p13  θ_c vrai 0.545 | Ho–Kalman ordre 2 0.566 | Galerkin capteurs 0.546 | ‖W−W_G‖/‖W‖ 0.754 | κ médian 0.116 [min 0.010] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.199 σ₃/σ₁ 0.123 | 53 s
+  p25  θ_c vrai 0.439 | Ho–Kalman ordre 2 0.458 | Galerkin capteurs 0.418 | ‖W−W_G‖/‖W‖ 0.742 | κ médian 0.102 [min 0.005] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.624 σ₃/σ₁ 0.248 | 52 s
+  p30  θ_c vrai 0.450 | Ho–Kalman ordre 2 0.451 | Galerkin capteurs 0.461 | ‖W−W_G‖/‖W‖ 0.721 | κ médian 0.106 [min 0.021] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.335 σ₃/σ₁ 0.219 | 52 s
+  p43  θ_c vrai 0.521 | Ho–Kalman ordre 2 0.527 | Galerkin capteurs 0.487 | ‖W−W_G‖/‖W‖ 0.711 | κ médian 0.105 [min 0.026] | x̂∈V 0.9993 | Hankel σ₂/σ₁ 0.271 σ₃/σ₁ 0.178 | 53 s
+  p1   θ_c vrai 1.466 | Ho–Kalman ordre 2 1.554 | Galerkin capteurs 0.996 | ‖W−W_G‖/‖W‖ 0.828 | κ médian 0.083 [min 0.034] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.573 σ₃/σ₁ 0.260 | 53 s
+  p6   θ_c vrai 1.649 | Ho–Kalman ordre 2 1.662 | Galerkin capteurs 1.067 | ‖W−W_G‖/‖W‖ 0.655 | κ médian 0.148 [min 0.025] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.279 σ₃/σ₁ 0.158 | 52 s
+  p16  θ_c vrai 1.555 | Ho–Kalman ordre 2 1.550 | Galerkin capteurs 0.949 | ‖W−W_G‖/‖W‖ 0.864 | κ médian 0.101 [min 0.024] | x̂∈V 0.9999 | Hankel σ₂/σ₁ 0.409 σ₃/σ₁ 0.209 | 53 s
+  p19  θ_c vrai 1.621 | Ho–Kalman ordre 2 1.624 | Galerkin capteurs 1.116 | ‖W−W_G‖/‖W‖ 0.557 | κ médian 0.117 [min 0.018] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.317 σ₃/σ₁ 0.163 | 53 s
+  p34  θ_c vrai 1.408 | Ho–Kalman ordre 2 1.387 | Galerkin capteurs 0.790 | ‖W−W_G‖/‖W‖ 0.810 | κ médian 0.104 [min 0.033] | x̂∈V 1.0000 | Hankel σ₂/σ₁ 0.443 σ₃/σ₁ 0.196 | 53 s

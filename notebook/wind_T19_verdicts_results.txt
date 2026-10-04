@@ -1,0 +1,17 @@
+prompts retenus 15/15 ; exclus (portes) []
+G1 (médiane AN/A ≤ 0,5 ET ≥ 50 % sous 0,5) : VRAI  (médiane 0.099 ; 12/15 sous 0,5)
+rapports par prompt : p1 0.09, p2 0.06, p3 0.02, p4 0.18, p5 0.10, p6 0.59, p7 0.19, p8 0.04, p9 0.56, p10 0.06, p11 0.05, p12 0.08, p13 0.70, p14 0.21, p15 0.10
+
+--- DESCRIPTIF (médianes) — repères : Qwen AN/A 0,27 ; GPT-2 1,04 ---
+  ern_A     33.497
+  ern_AN     3.058
+  g_raw      3.723
+  g_N        3.890
+  c_rad      0.272
+  c_dom      0.557
+  p1_A       0.276
+  excès de gain d'état (λ_AN − λ_A) médian +0.285
+  degré d'Euler médian du MLP 1.592
+  premier θ où ern(θ)/ern(A) ≤ 0,5 (médiane) : 0.75
+
+Qwen sur les mêmes 15 prompts : médiane AN/A 0.393 ; 12/15 sous 0,5

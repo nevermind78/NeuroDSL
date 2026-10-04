@@ -1,0 +1,60 @@
+
+WIND-T17 -- GPT-2 : COLLECTE DES JACOBIENNES PAR COUCHE (dernier token)
+Date : 2026-10-03T13:11:38Z
+Prompts : [1]   variantes : [:T, :A, :AN]   sortie : notebook/wind_data_GPT2_smoke   colonnes : 768
+
+==========================================================================================
+PROMPT 1 : "The opposite of up is" (5 tokens)
+==========================================================================================
+top-1 id=866 (logit -79.030)  top-2 id=262 (logit -79.444)
+G2 MLP analytique vs DF : max err rel = 5.59e-05  (seuil 1e-3) -> OK
+Degré d'Euler effectif du MLP (norme figée) : médiane 1.682 [min 0.566, max 3.696]
+  [T] couches 0..6 faites (31 s)
+[T] collecte : 51 s
+G1 [T] eps vs 2eps : médiane 8.90e-05  max 6.44e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [T] J(colonnes)·v vs JVP directionnelle : médiane 2.93e-04  max 1.66e-03
+  G3 [T] s= 1 t= 6 ||Jv||=    0.3642  eps=5e-03: err=9.06e-04  eps=1e-02: err=7.39e-04
+  G3 [T] s= 1 t=12 ||Jv||=    0.5667  eps=5e-03: err=5.05e-03  eps=1e-02: err=5.40e-03
+  G3 [T] s= 4 t= 8 ||Jv||=    0.9765  eps=5e-03: err=1.54e-04  eps=1e-02: err=2.79e-04
+  G3 [T] s= 4 t=12 ||Jv||=    1.3774  eps=5e-03: err=2.12e-03  eps=1e-02: err=2.27e-03
+  G3 [T] s= 6 t=12 ||Jv||=    2.8292  eps=5e-03: err=6.35e-04  eps=1e-02: err=6.79e-04
+  G3 [T] s= 8 t=12 ||Jv||=    1.4999  eps=5e-03: err=1.30e-03  eps=1e-02: err=1.29e-03
+G3 [T] médiane err = 1.01e-03 (seuil 1e-2) -> OK
+
+WIND-T17 -- GPT-2 : COLLECTE DES JACOBIENNES PAR COUCHE (dernier token)
+Date : 2026-10-03T13:13:25Z
+Prompts : [1]   variantes : [:T, :A, :AN]   sortie : notebook/wind_data_GPT2_smoke   colonnes : 768
+
+==========================================================================================
+PROMPT 1 : "The opposite of up is" (5 tokens)
+==========================================================================================
+top-1 id=866 (logit -79.030)  top-2 id=262 (logit -79.444)
+G2 MLP analytique vs DF : max err rel = 5.59e-05  (seuil 1e-3) -> OK
+Degré d'Euler effectif du MLP (norme figée) : médiane 1.682 [min 0.566, max 3.696]
+  [T] couches 0..6 faites (30 s)
+[T] collecte : 51 s
+G1 [T] eps vs 2eps : médiane 8.90e-05  max 6.44e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [T] J(colonnes)·v vs JVP directionnelle : médiane 2.93e-04  max 1.66e-03
+  G3 [T] s= 1 t= 6 ||Jv||=    0.3642  eps=5e-03: err=9.06e-04  eps=1e-02: err=7.39e-04
+  G3 [T] s= 1 t=12 ||Jv||=    0.5667  eps=5e-03: err=5.05e-03  eps=1e-02: err=5.40e-03
+  G3 [T] s= 4 t= 8 ||Jv||=    0.9765  eps=5e-03: err=1.54e-04  eps=1e-02: err=2.79e-04
+  G3 [T] s= 4 t=12 ||Jv||=    1.3774  eps=5e-03: err=2.12e-03  eps=1e-02: err=2.27e-03
+  G3 [T] s= 6 t=12 ||Jv||=    2.8292  eps=5e-03: err=6.35e-04  eps=1e-02: err=6.79e-04
+  G3 [T] s= 8 t=12 ||Jv||=    1.4999  eps=5e-03: err=1.30e-03  eps=1e-02: err=1.29e-03
+G3 [T] médiane err = 1.01e-03 (seuil 1e-2) -> OK
+G4a épinglage attention sans perturbation (couches 6, 12) : OK
+  [A] couches 0..6 faites (31 s)
+[A] collecte : 52 s
+G1 [A] eps vs 2eps : médiane 2.54e-04  max 6.44e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 1.38e-04  max 2.74e-04
+  G3 [A] s= 3 t=10 ||Jv||=    1.0397  eps=5e-03: err=2.44e-04  eps=1e-02: err=2.92e-04
+G3 [A] médiane err = 2.44e-04 (seuil 1e-2) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 6, 12) : OK
+  [AN] couches 0..6 faites (25 s)
+[AN] collecte : 43 s
+G1 [AN] eps vs 2eps : médiane 2.30e-04  max 4.33e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 1.28e-04  max 2.68e-04
+  G3 [AN] s= 3 t=10 ||Jv||=    1.0089  eps=5e-03: err=2.43e-04  eps=1e-02: err=3.43e-04
+G3 [AN] médiane err = 2.43e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p1_{T,A,AN}.bin + wind_meta_p1.json

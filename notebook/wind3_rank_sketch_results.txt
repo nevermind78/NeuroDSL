@@ -1,0 +1,162 @@
+WIND-3 -- HH5 : esquisse du rang du canal horizontal (K = 128 backwards de sonde par variante)
+Date : 2026-09-29T17:29:08Z
+
+PROMPT 5 (n=13) ; porte R0 (x_{n,k} == WIND-1) : OK
+  [T ] 51 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    17.2    15.1    27.5    81.7
+        puits i=1        :    11.4    53.1    60.3    82.0
+        max_{i<n}        :    33.6    53.1    60.3    82.0
+        médiane_{2≤i<n}  :    13.5    19.1    25.6    36.8
+        horizontal joint :    21.3    24.6    27.8    53.7
+        GS s= 1 : erank₂ exact (WIND-1) 20.0 ; esquissé 17.2 ; rapport 0.86
+        GS s= 7 : erank₂ exact (WIND-1) 18.4 ; esquissé 15.1 ; rapport 0.82
+        GS s=14 : erank₂ exact (WIND-1) 37.8 ; esquissé 27.5 ; rapport 0.73
+        Porte GS [T] : OK
+  [A ] 24 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    21.0    23.1    34.5    90.8
+        puits i=1        :     9.7    59.8    64.5    84.5
+        max_{i<n}        :    30.4    59.8    64.5    90.2
+        médiane_{2≤i<n}  :    12.2    23.8    23.8    78.9
+        horizontal joint :    24.1    31.8    29.6    77.8
+        GS s= 1 : erank₂ exact (WIND-1) 26.2 ; esquissé 21.0 ; rapport 0.80
+        GS s= 7 : erank₂ exact (WIND-1) 29.5 ; esquissé 23.1 ; rapport 0.78
+        GS s=14 : erank₂ exact (WIND-1) 52.0 ; esquissé 34.5 ; rapport 0.66
+        Porte GS [A] : ÉCHEC (comparaisons relatives seulement)
+  [AN] 24 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    10.2    21.8    32.3    87.9
+        puits i=1        :     1.2    56.2    61.3    83.4
+        max_{i<n}        :     4.7    56.2    61.3    88.8
+        médiane_{2≤i<n}  :     1.9    18.6    21.6    75.7
+        horizontal joint :     3.6    24.8    25.9    76.7
+        GS s= 1 : erank₂ exact (WIND-1) 15.0 ; esquissé 10.2 ; rapport 0.68
+        GS s= 7 : erank₂ exact (WIND-1) 27.3 ; esquissé 21.8 ; rapport 0.80
+        GS s=14 : erank₂ exact (WIND-1) 46.0 ; esquissé 32.3 ; rapport 0.70
+        Porte GS [AN] : OK
+
+PROMPT 6 (n=16) ; porte R0 (x_{n,k} == WIND-1) : OK
+  [T ] 45 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    33.8    29.1    41.1    97.1
+        puits i=1        :    17.7    64.5    71.2    75.1
+        max_{i<n}        :    27.1    64.5    71.2    75.1
+        médiane_{2≤i<n}  :    16.9    22.0    25.9    39.0
+        horizontal joint :    21.7    23.8    28.9    82.0
+        GS s= 1 : erank₂ exact (WIND-1) 53.3 ; esquissé 33.8 ; rapport 0.63
+        GS s= 7 : erank₂ exact (WIND-1) 46.3 ; esquissé 29.1 ; rapport 0.63
+        GS s=14 : erank₂ exact (WIND-1) 74.9 ; esquissé 41.1 ; rapport 0.55
+        Porte GS [T] : ÉCHEC (comparaisons relatives seulement)
+  [A ] 28 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    43.5    36.9    46.8    97.5
+        puits i=1        :    17.7    67.6    74.1    86.0
+        max_{i<n}        :    22.1    67.6    74.1    91.6
+        médiane_{2≤i<n}  :    14.5    22.2    26.2    78.3
+        horizontal joint :    20.8    25.0    28.4    97.1
+        GS s= 1 : erank₂ exact (WIND-1) 69.3 ; esquissé 43.5 ; rapport 0.63
+        GS s= 7 : erank₂ exact (WIND-1) 61.3 ; esquissé 36.9 ; rapport 0.60
+        GS s=14 : erank₂ exact (WIND-1) 88.7 ; esquissé 46.8 ; rapport 0.53
+        Porte GS [A] : ÉCHEC (comparaisons relatives seulement)
+  [AN] 26 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    33.2    32.6    40.9    95.1
+        puits i=1        :     1.1    64.9    71.5    85.7
+        max_{i<n}        :    13.2    64.9    71.5    88.8
+        médiane_{2≤i<n}  :     1.6    15.3    23.8    69.0
+        horizontal joint :     2.1    23.4    29.7    94.6
+        GS s= 1 : erank₂ exact (WIND-1) 50.7 ; esquissé 33.2 ; rapport 0.66
+        GS s= 7 : erank₂ exact (WIND-1) 51.3 ; esquissé 32.6 ; rapport 0.64
+        GS s=14 : erank₂ exact (WIND-1) 73.4 ; esquissé 40.9 ; rapport 0.56
+        Porte GS [AN] : ÉCHEC (comparaisons relatives seulement)
+
+PROMPT 12 (n=14) ; porte R0 (x_{n,k} == WIND-1) : OK
+  [T ] 44 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    11.9    28.7    33.8    84.1
+        puits i=1        :     8.6    37.7    50.2    84.8
+        max_{i<n}        :    15.7    37.7    50.2    84.8
+        médiane_{2≤i<n}  :     7.4    10.9     9.5    54.0
+        horizontal joint :     9.8    15.9    19.0    73.7
+        GS s= 1 : erank₂ exact (WIND-1) 15.4 ; esquissé 11.9 ; rapport 0.77
+        GS s= 7 : erank₂ exact (WIND-1) 36.9 ; esquissé 28.7 ; rapport 0.78
+        GS s=14 : erank₂ exact (WIND-1) 52.1 ; esquissé 33.8 ; rapport 0.65
+        Porte GS [T] : ÉCHEC (comparaisons relatives seulement)
+  [A ] 25 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :     2.9    29.5    37.9    85.3
+        puits i=1        :     6.9    38.1    50.4    85.6
+        max_{i<n}        :    10.2    38.1    50.4    89.0
+        médiane_{2≤i<n}  :     6.1     8.5     7.6    74.8
+        horizontal joint :     8.2    14.0    16.7    94.2
+        GS s= 1 : erank₂ exact (WIND-1) 2.5 ; esquissé 2.9 ; rapport 1.18
+        GS s= 7 : erank₂ exact (WIND-1) 39.9 ; esquissé 29.5 ; rapport 0.74
+        GS s=14 : erank₂ exact (WIND-1) 60.4 ; esquissé 37.9 ; rapport 0.63
+        Porte GS [A] : ÉCHEC (comparaisons relatives seulement)
+  [AN] 24 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :     1.0    12.4    28.1    73.1
+        puits i=1        :     1.0    25.5    38.7    83.5
+        max_{i<n}        :     2.4    25.5    38.7    86.8
+        médiane_{2≤i<n}  :     1.5     8.0     7.1    72.4
+        horizontal joint :     1.4     8.4    10.9    89.8
+        GS s= 1 : erank₂ exact (WIND-1) 1.0 ; esquissé 1.0 ; rapport 1.00
+        GS s= 7 : erank₂ exact (WIND-1) 15.4 ; esquissé 12.4 ; rapport 0.80
+        GS s=14 : erank₂ exact (WIND-1) 40.5 ; esquissé 28.1 ; rapport 0.69
+        Porte GS [AN] : OK
+
+PROMPT 17 (n=14) ; porte R0 (x_{n,k} == WIND-1) : OK
+  [T ] 44 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :     9.2     9.2    12.5    77.9
+        puits i=1        :     8.0    23.1    27.3    79.7
+        max_{i<n}        :    22.9    41.1    54.2    79.7
+        médiane_{2≤i<n}  :    15.2    23.5    29.3    62.8
+        horizontal joint :    12.2    13.2    27.1    72.8
+        GS s= 1 : erank₂ exact (WIND-1) 10.1 ; esquissé 9.2 ; rapport 0.91
+        GS s= 7 : erank₂ exact (WIND-1) 9.9 ; esquissé 9.2 ; rapport 0.92
+        GS s=14 : erank₂ exact (WIND-1) 14.9 ; esquissé 12.5 ; rapport 0.84
+        Porte GS [T] : OK
+  [A ] 25 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    10.2    10.0    11.5    78.4
+        puits i=1        :     9.7    22.8    25.0    80.9
+        max_{i<n}        :    20.0    42.9    56.9    86.9
+        médiane_{2≤i<n}  :    10.3    26.8    36.3    79.1
+        horizontal joint :    14.5    17.5    26.2    77.8
+        GS s= 1 : erank₂ exact (WIND-1) 11.9 ; esquissé 10.2 ; rapport 0.86
+        GS s= 7 : erank₂ exact (WIND-1) 11.7 ; esquissé 10.0 ; rapport 0.86
+        GS s=14 : erank₂ exact (WIND-1) 13.8 ; esquissé 11.5 ; rapport 0.83
+        Porte GS [A] : OK
+  [AN] 24 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :     8.8     8.9    10.1    67.5
+        puits i=1        :     1.2    22.1    24.1    79.7
+        max_{i<n}        :     5.7    33.9    44.9    85.9
+        médiane_{2≤i<n}  :     1.9    12.8    26.9    73.4
+        horizontal joint :     3.6    15.2    22.7    69.6
+        GS s= 1 : erank₂ exact (WIND-1) 9.5 ; esquissé 8.8 ; rapport 0.92
+        GS s= 7 : erank₂ exact (WIND-1) 10.2 ; esquissé 8.9 ; rapport 0.87
+        GS s=14 : erank₂ exact (WIND-1) 11.8 ; esquissé 10.1 ; rapport 0.86
+        Porte GS [AN] : OK
+
+PROMPT 22 (n=12) ; porte R0 (x_{n,k} == WIND-1) : OK
+  [T ] 41 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    18.8    19.2    38.3    85.7
+        puits i=1        :     5.1    24.9    35.4    74.0
+        max_{i<n}        :    19.9    24.9    35.4    74.0
+        médiane_{2≤i<n}  :     8.7     8.8    11.9    55.1
+        horizontal joint :     7.7    14.1    19.0    78.7
+        GS s= 1 : erank₂ exact (WIND-1) 24.0 ; esquissé 18.8 ; rapport 0.78
+        GS s= 7 : erank₂ exact (WIND-1) 24.8 ; esquissé 19.2 ; rapport 0.77
+        GS s=14 : erank₂ exact (WIND-1) 59.1 ; esquissé 38.3 ; rapport 0.65
+        Porte GS [T] : ÉCHEC (comparaisons relatives seulement)
+  [A ] 22 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :    23.7    23.3    45.7    86.2
+        puits i=1        :     8.3    32.9    41.3    86.0
+        max_{i<n}        :    19.7    32.9    41.3    86.3
+        médiane_{2≤i<n}  :    10.8    11.4    17.0    66.0
+        horizontal joint :    13.4    19.1    25.0    82.1
+        GS s= 1 : erank₂ exact (WIND-1) 30.6 ; esquissé 23.7 ; rapport 0.78
+        GS s= 7 : erank₂ exact (WIND-1) 31.6 ; esquissé 23.3 ; rapport 0.74
+        GS s=14 : erank₂ exact (WIND-1) 80.7 ; esquissé 45.7 ; rapport 0.57
+        Porte GS [A] : ÉCHEC (comparaisons relatives seulement)
+  [AN] 24 s ; erank₂ esquissé (s = 1,7,14,21) :
+        vertical i=n     :     1.9     9.0    31.9    76.9
+        puits i=1        :     2.0    21.1    27.4    85.3
+        max_{i<n}        :     6.3    21.1    27.4    85.3
+        médiane_{2≤i<n}  :     3.4     7.5    11.2    59.9
+        horizontal joint :     4.8    12.6    13.8    76.1
+        GS s= 1 : erank₂ exact (WIND-1) 2.0 ; esquissé 1.9 ; rapport 0.94
+        GS s= 7 : erank₂ exact (WIND-1) 11.9 ; esquissé 9.0 ; rapport 0.76
+        GS s=14 : erank₂ exact (WIND-1) 48.7 ; esquissé 31.9 ; rapport 0.65
+        Porte GS [AN] : ÉCHEC (comparaisons relatives seulement)

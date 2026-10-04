@@ -1,0 +1,3 @@
+
+WIND-T9 -- attributions vs ablations -- 2026-10-02T12:28:29Z   prompts [51]
+  p51  fact      R   2.87 | ρ T 0.91 A 0.83 AN 0.81 | GV T NaN A 6.7e-05 AN 7.8e-05 | GA 3.3e-04 | GR OK | retenu | 83 s

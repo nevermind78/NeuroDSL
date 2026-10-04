@@ -1,0 +1,27 @@
+=== Partie A — théorème 1 : hypothèses aux 18 points (Qwen, Gemma : couches 3/13/23 ; GPT-2 : 2/6/10 ; p1, p2)
+P0 parité : VRAI (max 1.1e-06)
+H1 excès d'Euler ‖E‖/‖f−f_base‖ ≥ 0,1 : VRAI (min 0.87)
+H2 injectivité (Cholesky, λ_min/λ_max ≥ 1e-10) : VRAI (min ratio 3.7e-05)
+  qwen  r* ∈ [0.145 ; 0.185] | r_½ ∈ [0.515 ; 0.643] | r_½ ≥ r* partout : True | Euler effectif ∈ [0.99 ; 1.84]
+  gemma r* ∈ [0.192 ; 0.229] | r_½ ∈ [0.512 ; 0.566] | r_½ ≥ r* partout : True | Euler effectif ∈ [1.36 ; 1.99]
+  gpt2  r* ∈ [0.229 ; 0.611] | Euler effectif ∈ [-0.38 ; 1.65]
+Question quantitative r* ≥ 0,05 partout : VRAI
+
+=== Partie B — REC sur Qwen : 49 prompts retenus, exclus ['8']
+portes : G1 max 4.8e-03 ; T14 max 7.5e-04 ; T9(A) max 7.0e-04 ; relèvement max 3.2e-15
+REC effondrés (ern ≤ 3) : 0/50 [] ; prédits (θ_c^AN·d̄ < 1) : ['13', '25', '30', '43']
+  < 3 effondrements REC : critère d'exactitude non applicable
+B1 (stabilité) : FAUX  [compte VRAI ; exactitude VRAI ; θ_c^REC/θ_c^AN médian 2.052, Spearman 0.584 → FAUX ; θ_c^REC censuré à 2,5 sur 33/49]
+B2 (géométrie) : VRAI  [ern_REC/ern_A médian 0.976 ; |ln(ern_V/ern_T)| médian REC 0.291, AN 0.967, AH 1.761 ; ern médian T 17.04 A 17.64 AN 5.45 AH 91.57 REC 17.31]
+B3 (fidélité, 28 MLP) : VRAI  [REC − ANf médian +0.079 p 2.0e-06 → VRAI ; REC ≥ AHf VRAI ; |REC − AAf| ≤ 0,05 VRAI]
+  ρ médians (28 MLP) : A 0.718 ; ANf 0.593 ; AAf 0.729 ; REC 0.691 ; AHf 0.559 ; T 0.840
+B4 (biais de profondeur) : VRAI  [écart médian |early_V − vérité| : REC 0.038 ; ANf 0.073 ; AHf 0.102 ; T 0.042 ; AAf 0.043 ; part précoce médiane vérité 0.211, REC 0.202, ANf 0.262, AHf 0.105]
+  descriptif ρ médian effondrés/non (θ_c^mod<1, 14/36) : A 0.631/0.745 ; ANf 0.515/0.635 ; AAf 0.625/0.740 ; REC 0.687/0.699 ; AHf 0.488/0.570 ; T 0.824/0.849
+
+=== Partie C — mémoire de boucle (prompts d'évaluation pré-enregistrés)
+  gpt2  n 20 | L_f médian 0.963 | M médian 1.085 | portes relèvement max 1.2e-04
+  qwen  n 10 | L_f médian 2.540 | M médian 6.143 | portes relèvement max 2.7e-04
+  gemma n  6 | L_f médian 5.421 | M médian 23.059 | portes relèvement max 2.1e-04
+C1 (facteur de boucle) : VRAI
+C2 (mémoire) : VRAI
+C3 (descriptif, Qwen 1–20) Spearman(ln L_f, θ_c^vrai) = -0.505 → FAUX

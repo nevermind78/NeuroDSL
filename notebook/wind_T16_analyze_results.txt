@@ -1,0 +1,28 @@
+prompts retenus 50 ; exclus (portes) []
+effets non finis par condition : {'TE': 0, 'TE_fn': 1, 'TE_fb': 1, 'TE_ff': 0, 'TE_fa': 0, 'TE_fan': 21}
+S1 (|TE| < |TE_fn| sur ≥ 60 % des couples actifs ET médiane φ ≥ 0,10) : VRAI  (0.717 ; médiane φ +0.247 ; n = 1825 couples)
+S2 (Σ|TE_fb − TE| ≥ Σ|TE_ff − TE|) : VRAI  (blocs 827.47 vs finale 606.80 ; rapport 1.36)
+S3 (médiane Spearman(TE_fan − TE_fa, a^AN − a^A) ≥ 0,7) : VRAI  (médiane 0.793 ; [Q1 0.624, Q3 0.872])
+S4 (Spearman(θ_c^AN, Φ_p) ≤ −0,3 et p < 0,05) : FAUX  (ρ -0.245 ; p 0.0416)
+S5 (Spearman(φ_c, cos²(δ_c, ŝ_c)) ≥ 0,2 sur les couples actifs) : FAUX  (+0.143)
+
+--- DESCRIPTIF ---
+compensation totale : normes Σ|TE_fn − TE| = 1189.06 ; réacheminement de l'attention Σ|TE_fa − TE| = 914.32 ; Σ|TE| = 1684.73
+  φ médian MHA couches 1–10  +0.389  (n = 308)
+  φ médian MHA 11–20         +0.223  (n = 253)
+  φ médian MHA 21–28         +0.137  (n = 222)
+  φ médian MLP couches 1–10  +0.484  (n = 342)
+  φ médian MLP 11–20         +0.214  (n = 364)
+  φ médian MLP 21–28         +0.164  (n = 336)
+  Φ médian tâche antonym    +0.099  (n = 6)
+  Φ médian tâche arith      +0.250  (n = 2)
+  Φ médian tâche code       +0.276  (n = 1)
+  Φ médian tâche fact       +0.345  (n = 17)
+  Φ médian tâche grammar    -0.039  (n = 1)
+  Φ médian tâche induction  +0.080  (n = 6)
+  Φ médian tâche ioi        +0.168  (n = 8)
+  Φ médian tâche phrase     +0.503  (n = 6)
+  Φ médian tâche sequence   +0.140  (n = 3)
+Portes : G0 max 0.0e+00 ; G1 max 0.0e+00
+sensibilité S1 : médiane φ avec divergences comptées φ = 1 : +0.247 (n = 1826)
+divergences TE_fan (prompt, composante) : [('5', 'MLP6'), ('9', 'MLP7'), ('10', 'MLP6'), ('11', 'MLP6'), ('14', 'MHA6'), ('14', 'MLP6'), ('20', 'MLP2'), ('21', 'MLP6'), ('22', 'MLP6'), ('26', 'MLP6'), ('31', 'MLP8'), ('36', 'MLP6'), ('37', 'MLP8'), ('39', 'MLP6'), ('41', 'MHA6'), ('41', 'MHA8'), ('41', 'MLP6'), ('41', 'MLP8'), ('43', 'MLP6'), ('44', 'MLP6'), ('48', 'MLP6')]

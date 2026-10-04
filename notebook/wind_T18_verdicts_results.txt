@@ -1,0 +1,10 @@
+n : GPT-2 50 ; Qwen 50
+  g_raw    médiane  GPT-2    1.162   Qwen    2.352
+  g_N      médiane  GPT-2    0.987   Qwen    2.373
+  c_rad    médiane  GPT-2    0.848   Qwen    0.468
+  c_rad_A  médiane  GPT-2    0.815   Qwen    0.354
+  c_dom    médiane  GPT-2    0.988   Qwen    0.527
+  p1_A     médiane  GPT-2    0.657   Qwen    0.354
+  p1_AN    médiane  GPT-2    0.636   Qwen    0.675
+H_rad (amplification effacée par la norme finale) : FAUSSE
+H_dom (GPT-2 déjà concentré, même direction dominante) : VRAIE

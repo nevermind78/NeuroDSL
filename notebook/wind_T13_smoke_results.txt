@@ -1,0 +1,6 @@
+
+WIND-T13 (GPU) facteurs exacts + gradients AA/AM/AN -- 2026-10-02T13:43:48Z   prompts [51]
+  p51  facteurs + 10 contrôles + gradients | G4 (AN vs WIND-T9) 0.0e+00 | 34 s
+
+WIND-T13 (CPU) reconstruction J^AA / J^AM + seuils -- 2026-10-02T13:44:38Z   prompts [51]
+  p51  ern(θ=1) AA  14.62 AM   2.85 | θ_c AA > 2,5 AM 0.988 | G1 2.0e-03 G2 3.8e-05/4.1e-05 G3 6.3e-05/8.0e-05 G4 0.0e+00 | retenu | 84 s

@@ -1,0 +1,34 @@
+
+WIND-T15 -- COLLECTE DES JACOBIENNES AH (règle du demi) PAR COUCHE (dernier token)
+Date : 2026-10-02T21:42:44Z
+Prompts : [51]   variantes : [:AH]   sortie : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\wind_data_T8   colonnes : 1536
+
+==========================================================================================
+PROMPT 51 : "The capital of Italy is" (5 tokens)
+==========================================================================================
+top-1 id=21718 (logit 18.591)  top-2 id=32671 (logit 18.427)
+G2 MLP analytique vs DF : max err rel = 7.96e-05  (seuil 1e-3) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [AH] couches 0..6 faites (82 s)
+  [AH] couches 0..13 faites (162 s)
+  [AH] couches 0..20 faites (243 s)
+  [AH] couches 0..27 faites (327 s)
+[AH] collecte : 327 s
+G1 [AH] eps vs 2eps : médiane 2.71e-05  max 4.57e-05  (seuils 1e-3 / 1e-2) -> OK
+G1b [AH] J(colonnes)·v vs JVP directionnelle : médiane 3.50e-05  max 5.11e-05
+  G3 [AH] s= 1 t= 8 ||Jv||=    0.5722  eps=5e-03: err=2.00e-04  eps=1e-02: err=1.25e-04
+  G3 [AH] s= 1 t=28 ||Jv||=    0.5459  eps=5e-03: err=1.18e-03  eps=1e-02: err=6.00e-04
+  G3 [AH] s= 7 t=14 ||Jv||=    0.5315  eps=5e-03: err=1.12e-04  eps=1e-02: err=8.07e-05
+  G3 [AH] s= 7 t=28 ||Jv||=    0.5104  eps=5e-03: err=4.93e-04  eps=1e-02: err=2.58e-04
+  G3 [AH] s=14 t=21 ||Jv||=    0.5985  eps=5e-03: err=8.02e-05  eps=1e-02: err=5.26e-05
+  G3 [AH] s=14 t=28 ||Jv||=    0.6705  eps=5e-03: err=2.45e-04  eps=1e-02: err=1.75e-04
+  G3 [AH] s=21 t=28 ||Jv||=    1.1663  eps=5e-03: err=1.18e-04  eps=1e-02: err=6.64e-05
+G3 [AH] médiane err = 1.25e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p51_{AH}.bin + wind_meta_T15_p51.json
+
+WIND-T15 attributions règle du demi -- 2026-10-02T21:49:08Z   prompts [51]
+  p51  porte forward 0.0e+00 | GV 3.6e-05 | 27 s
+
+WIND-T15 (CPU) seuils sous la règle du demi -- 2026-10-02T21:49:44Z
+  p51  ern_AH(θ=1) 100.11 | θ_c^AH 1.737 | 46 s

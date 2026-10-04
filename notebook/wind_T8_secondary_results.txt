@@ -1,0 +1,15 @@
+
+WIND-T8 SECONDAIRE (S1–S4, F1–F2) -- 2026-10-02T13:05:09Z
+  p50  ern T 42.65 A 44.74 AN 5.45 | τ_A/τ_T 1.00 τ_AN/τ_T   p50  ern T 42.65 A 44.74 AN 5.45 | τ_A/τ_T 1.00 τ_AN/τ_T 1.08 | S4 au-dessus | F1 c 0.81 <−2σ | F2 0.662 | 130 s
+
+WIND-T8 SECONDAIRE (S1–S4, F1–F2) -- 2026-10-02T13:08:01Z
+
+WIND-T8 SECONDAIRE (S1–S4, F1–F2) -- 2026-10-02T13:08:13Z
+
+VERDICTS H2/H3 (n = 50 prompts)
+S1 (τ_A/τ_T et τ_AN/τ_T ∈ [0,7;1,1] sur ≥ 80 %) : VRAI  (0.900)
+S2 (ern ≤ 3 ⟺ b ≥ 2,6 sur ≥ 95 % des couples) : VRAI  (0.993 sur 150)
+S3 (q ≥ 0,975 et |cos| ≥ 0,9 sur ≥ 80 % des effondrés) : VRAI  (0.917 sur 12)
+S4 (T au-dessus de la médiane du nul QK sur ≥ 80 %) : VRAI  (0.800)
+F1 (T < moyenne − 2σ sur ≥ 80 % ET médiane c ≤ 0,6) : VRAI  (0.960 ; c médian 0.333)
+F2 (médiane cos² top-10 T vs AN ≥ 0,5) : VRAI  (0.649)

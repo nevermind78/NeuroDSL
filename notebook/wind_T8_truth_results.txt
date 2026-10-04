@@ -1,0 +1,62 @@
+
+WIND-T8 VÉRITÉ -- 2026-10-02T05:02:10Z   prédictions : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\wind_T8_predictions.json
+  p1   θ_c^true 1.466 (mod r=2 : 1.554) | ern A 11.80 AN 9.07 | b A 0.94 AN 0.82 | porte relèvement 2.3e-04 | 67 s
+  p2   θ_c^true 1.135 (mod r=2 : 1.187) | ern A 9.97 AN 4.72 | b A 0.87 AN 1.28 | porte relèvement 2.2e-04 | 69 s
+  p3   θ_c^true 1.098 (mod r=2 : 1.049) | ern A 48.63 AN 5.04 | b A 0.41 AN 1.66 | porte relèvement 2.0e-04 | 63 s
+  p4   θ_c^true 1.277 (mod r=2 : 1.250) | ern A 16.36 AN 6.47 | b A 0.74 AN 1.21 | porte relèvement 2.2e-04 | 66 s
+  p5   θ_c^true 1.269 (mod r=2 : 1.478) | ern A 18.68 AN 7.34 | b A 0.67 AN 1.08 | porte relèvement 2.5e-04 | 66 s
+  p6   θ_c^true 1.649 (mod r=2 : 1.662) | ern A 24.25 AN 18.87 | b A 0.72 AN 0.78 | porte relèvement 2.0e-04 | 66 s
+  p7   θ_c^true 0.826 (mod r=2 : 0.837) | ern A 5.14 AN 2.21 | b A 1.45 AN 2.51 | porte relèvement 2.2e-04 | 67 s
+  p8   θ_c^true 0.833 (mod r=2 : 0.854) | ern A 21.76 AN 1.42 | b A 0.62 AN 4.39 | porte relèvement 1.7e-04 | 65 s
+  p9   θ_c^true 1.288 (mod r=2 : 1.336) | ern A 17.83 AN 8.17 | b A 0.67 AN 1.03 | porte relèvement 2.5e-04 | 65 s
+  p10  θ_c^true 1.114 (mod r=2 : 1.099) | ern A 26.91 AN 4.42 | b A 0.56 AN 1.71 | porte relèvement 2.1e-04 | 65 s
+  p11  θ_c^true 1.040 (mod r=2 : 0.988) | ern A 10.68 AN 3.31 | b A 0.85 AN 1.66 | porte relèvement 2.1e-04 | 65 s
+  p12  θ_c^true 1.262 (mod r=2 : 1.266) | ern A 11.01 AN 5.78 | b A 0.99 AN 1.17 | porte relèvement 2.3e-04 | 68 s
+  p13  θ_c^true 0.545 (mod r=2 : 0.566) | ern A 6.27 AN 1.66 | b A 1.40 AN 3.60 | porte relèvement 1.5e-04 | 66 s
+  p14  θ_c^true 1.103 (mod r=2 : 1.081) | ern A 17.77 AN 4.33 | b A 0.78 AN 1.67 | porte relèvement 2.6e-04 | 63 s
+  p15  θ_c^true 0.820 (mod r=2 : 0.804) | ern A 21.61 AN 1.34 | b A 0.77 AN 5.05 | porte relèvement 1.2e-04 | 67 s
+  p16  θ_c^true 1.555 (mod r=2 : 1.550) | ern A 11.00 AN 11.16 | b A 1.01 AN 0.79 | porte relèvement 2.7e-04 | 66 s
+  p17  θ_c^true 1.320 (mod r=2 : 1.384) | ern A 10.82 AN 6.93 | b A 0.89 AN 1.08 | porte relèvement 2.3e-04 | 66 s
+  p18  θ_c^true 1.026 (mod r=2 : 0.997) | ern A 16.29 AN 3.19 | b A 0.76 AN 1.99 | porte relèvement 2.2e-04 | 74 s
+  p19  θ_c^true 1.621 (mod r=2 : 1.624) | ern A 17.00 AN 11.37 | b A 1.02 AN 1.13 | porte relèvement 1.8e-04 | 70 s
+  p20  θ_c^true 1.203 (mod r=2 : 1.155) | ern A 16.38 AN 5.63 | b A 0.77 AN 1.42 | porte relèvement 2.6e-04 | 73 s
+  p21  θ_c^true 1.116 (mod r=2 : 1.110) | ern A 41.08 AN 6.43 | b A 0.48 AN 1.46 | porte relèvement 2.2e-04 | 74 s
+  p22  θ_c^true 1.747 (mod r=2 : 2.074) | ern A 3.54 AN 3.74 | b A 1.96 AN 1.84 | porte relèvement 2.2e-04 | 71 s
+  p23  θ_c^true 1.218 (mod r=2 : 1.271) | ern A 28.66 AN 6.51 | b A 0.54 AN 1.37 | porte relèvement 2.3e-04 | 67 s
+  p24  θ_c^true 1.133 (mod r=2 : 1.095) | ern A 19.93 AN 4.68 | b A 0.72 AN 1.60 | porte relèvement 1.9e-04 | 67 s
+  p25  θ_c^true 0.439 (mod r=2 : 0.458) | ern A 5.02 AN 1.28 | b A 1.40 AN 5.17 | porte relèvement 1.5e-04 | 67 s
+  p26  θ_c^true 0.692 (mod r=2 : 0.699) | ern A 11.81 AN 1.45 | b A 0.91 AN 4.29 | porte relèvement 2.5e-04 | 66 s
+  p27  θ_c^true 0.797 (mod r=2 : 0.814) | ern A 21.82 AN 1.37 | b A 0.73 AN 4.77 | porte relèvement 2.4e-04 | 67 s
+  p28  θ_c^true 1.293 (mod r=2 : 1.403) | ern A 12.72 AN 7.24 | b A 0.78 AN 0.98 | porte relèvement 2.2e-04 | 64 s
+  p29  θ_c^true 1.291 (mod r=2 : 1.353) | ern A 17.64 AN 6.89 | b A 0.73 AN 1.16 | porte relèvement 2.4e-04 | 65 s
+  p30  θ_c^true 0.450 (mod r=2 : 0.451) | ern A 6.95 AN 1.42 | b A 1.20 AN 4.36 | porte relèvement 2.2e-04 | 61 s
+  p31  θ_c^true 1.256 (mod r=2 : 1.346) | ern A 27.93 AN 7.52 | b A 0.52 AN 1.26 | porte relèvement 2.7e-04 | 65 s
+  p32  θ_c^true 0.714 (mod r=2 : 0.719) | ern A 27.27 AN 1.24 | b A 0.68 AN 6.09 | porte relèvement 1.7e-04 | 65 s
+  p33  θ_c^true 1.240 (mod r=2 : 1.306) | ern A 18.82 AN 7.06 | b A 0.64 AN 1.22 | porte relèvement 2.3e-04 | 63 s
+  p34  θ_c^true 1.408 (mod r=2 : 1.387) | ern A 17.96 AN 10.19 | b A 0.73 AN 0.87 | porte relèvement 2.3e-04 | 64 s
+  p35  θ_c^true 1.322 (mod r=2 : 1.339) | ern A 38.17 AN 10.46 | b A 0.65 AN 1.22 | porte relèvement 2.2e-04 | 63 s
+  p36  θ_c^true 0.904 (mod r=2 : 0.916) | ern A 26.37 AN 2.11 | b A 0.50 AN 2.79 | porte relèvement 2.0e-04 | 62 s
+  p37  θ_c^true 1.127 (mod r=2 : 1.159) | ern A 38.96 AN 6.33 | b A 0.53 AN 1.42 | porte relèvement 2.2e-04 | 67 s
+  p38  θ_c^true 1.291 (mod r=2 : 1.287) | ern A 13.35 AN 8.10 | b A 0.93 AN 1.07 | porte relèvement 2.2e-04 | 68 s
+  p39  θ_c^true 1.371 (mod r=2 : 1.405) | ern A 28.13 AN 9.78 | b A 0.57 AN 1.12 | porte relèvement 2.9e-04 | 65 s
+  p40  θ_c^true 1.126 (mod r=2 : 1.129) | ern A 19.39 AN 4.25 | b A 0.74 AN 1.63 | porte relèvement 2.3e-04 | 63 s
+  p41  θ_c^true 1.026 (mod r=2 : 1.032) | ern A 15.38 AN 3.15 | b A 0.83 AN 2.03 | porte relèvement 2.9e-04 | 61 s
+  p42  θ_c^true 1.221 (mod r=2 : 1.288) | ern A 15.25 AN 5.06 | b A 0.77 AN 1.41 | porte relèvement 2.2e-04 | 65 s
+  p43  θ_c^true 0.521 (mod r=2 : 0.527) | ern A 11.36 AN 1.16 | b A 1.11 AN 7.53 | porte relèvement 1.3e-04 | 63 s
+  p44  θ_c^true 1.360 (mod r=2 : 1.349) | ern A 24.50 AN 12.89 | b A 0.72 AN 0.80 | porte relèvement 2.0e-04 | 65 s
+  p45  θ_c^true 1.516 (mod r=2 : 1.454) | ern A 12.98 AN 7.89 | b A 1.04 AN 1.19 | porte relèvement 2.1e-04 | 64 s
+  p46  θ_c^true 1.347 (mod r=2 : 1.283) | ern A 26.33 AN 10.13 | b A 0.57 AN 1.01 | porte relèvement 2.2e-04 | 63 s
+  p47  θ_c^true 1.137 (mod r=2 : 1.142) | ern A 17.48 AN 4.69 | b A 0.67 AN 1.52 | porte relèvement 2.2e-04 | 62 s
+  p48  θ_c^true 1.123 (mod r=2 : 1.041) | ern A 37.12 AN 4.37 | b A 0.53 AN 1.58 | porte relèvement 1.7e-04 | 63 s
+  p49  θ_c^true 0.575 (mod r=2 : 0.567) | ern A 13.24 AN 1.16 | b A 0.98 AN 7.60 | porte relèvement 1.4e-04 | 63 s
+  p50  θ_c^true 1.110 (mod r=2 : 1.187) | ern A 44.74 AN 5.45 | b A 0.50 AN 1.59 | porte relèvement 1.8e-04 | 70 s
+
+VERDICTS H1 (n = 50 prompts ; porte relèvement max 2.9e-04)
+  ordre 1 : Spearman = 0.866 ; C2 : 50 prompts avec θ_c^mod ≤ 2,3, fraction à ±15 % = 0.880
+  ordre 2 : Spearman = 0.971 ; C2 : 50 prompts avec θ_c^mod ≤ 2,3, fraction à ±15 % = 0.980
+  ordre 3 : Spearman = 0.977 ; C2 : 50 prompts avec θ_c^mod ≤ 2,3, fraction à ±15 % = 1.000
+C1 (Spearman ordre 2 ≥ 0,7) : VRAI  (0.971)
+C2 (fraction à ±15 % ≥ 0,7) : VRAI  (0.98 sur 50)
+C3 (exactitude équilibrée ≥ 0,8) : VRAI  (0.974 ; VP 12 FN 0 VN 36 FP 2)
+C4 (ordre 2 nécessaire) : VRAI  (Spearman r=1 0.866 vs r=2 0.971 ; C2 r=1 0.880 vs r=2 0.980 ; r=3 descriptif 0.977 / 1.000)
+D1 : effondrements AN (ern_true(1) ≤ 3) = 12 / 50 = 0.240  (IC95 Wilson [0.143 ; 0.374])

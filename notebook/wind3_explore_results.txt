@@ -1,0 +1,55 @@
+WIND-3 -- EXPLORATOIRE (post hoc, NON pré-enregistré)
+
+── PROMPT 5 ("The capital of the country where the Eiffel Tower stands is") ; R = 0.362
+  s=0 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.272 ; ‖x_{1,s}‖ = 0.8 ; ‖g^AN_1‖/‖g^A_1‖ = 12.5
+  s=1 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.156 ; ‖x_{1,s}‖ = 33.2 ; ‖g^AN_1‖/‖g^A_1‖ = 7.0
+  s=2 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.279 ; ‖x_{1,s}‖ = 4955.8 ; ‖g^AN_1‖/‖g^A_1‖ = 1.4
+  fenêtre-5 (mask) : cellule max hors puits ℓ=12 i=11 (" Tower") ΔR=+0.908 ; puits max |ΔR| = 2.676 (ℓ=20)
+  fenêtre-5, Σ_ℓ|ΔR| par position : 1:The 17.93 | 2:capital 4.03 | 3:of 2.06 | 4:the 0.81 | 5:country 2.36 | 6:where 3.43 | 7:the 0.42 | 8:E 0.42 | 9:iff 1.57 | 10:el 1.87 | 11:Tower 6.83 | 12:stands 4.67
+  p5 fenêtre-5 Σ|ΔR| sujet (8-11) par ℓ : 0.04 0.09 0.12 0.13 0.20 0.14 0.22 0.63 0.72 0.81 0.86 1.04 0.83 0.92 0.76 0.57 0.17 0.17 0.19 0.06 0.31 0.34 0.36 0.43 0.25 0.23 0.04 0.04
+  p5 fenêtre-5 Σ|ΔR| relation (2-6) par ℓ : 0.10 0.29 0.55 0.44 0.48 0.63 0.75 0.86 0.91 0.98 0.69 0.79 0.54 0.64 0.62 0.41 0.36 0.41 0.18 0.31 0.40 0.30 0.27 0.29 0.13 0.10 0.11 0.14
+  p5 : ℓ du max sujet = 12 ; ℓ du max relation = 10
+  p5 mono-couche remove : ℓ du max sujet = 23 ; ℓ du max relation = 10
+
+── PROMPT 6 ("If a train travels 60 miles in 2 hours, its speed is") ; R = 0.646
+  s=0 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.425 ; ‖x_{1,s}‖ = 0.8 ; ‖g^AN_1‖/‖g^A_1‖ = 12.3
+  s=1 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.121 ; ‖x_{1,s}‖ = 26.2 ; ‖g^AN_1‖/‖g^A_1‖ = 4.9
+  s=2 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.418 ; ‖x_{1,s}‖ = 5681.3 ; ‖g^AN_1‖/‖g^A_1‖ = 1.1
+  fenêtre-5 (mask) : cellule max hors puits ℓ=15 i=15 (" speed") ΔR=+0.981 ; puits max |ΔR| = 1.466 (ℓ=15)
+  fenêtre-5, Σ_ℓ|ΔR| par position : 1:If 13.88 | 2:a 1.10 | 3:train 0.71 | 4:travels 1.09 | 5: 0.51 | 6:6 0.58 | 7:0 0.45 | 8:miles 1.02 | 9:in 0.41 | 10: 0.92 | 11:2 0.71 | 12:hours 1.79 | 13:, 4.76 | 14:its 3.81 | 15:speed 8.71
+
+── PROMPT 12 ("It was a bright cold day in April, and the clocks were striking") ; R = 1.048
+  s=0 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.456 ; ‖x_{1,s}‖ = 0.8 ; ‖g^AN_1‖/‖g^A_1‖ = 65.5
+  s=1 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.305 ; ‖x_{1,s}‖ = 26.4 ; ‖g^AN_1‖/‖g^A_1‖ = 29.1
+  s=2 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.300 ; ‖x_{1,s}‖ = 5631.1 ; ‖g^AN_1‖/‖g^A_1‖ = 3.0
+  fenêtre-5 (mask) : cellule max hors puits ℓ=3 i=12 (" clocks") ΔR=+4.269 ; puits max |ΔR| = 7.549 (ℓ=11)
+  fenêtre-5, Σ_ℓ|ΔR| par position : 1:It 68.49 | 2:was 2.81 | 3:a 0.64 | 4:bright 1.73 | 5:cold 7.76 | 6:day 2.96 | 7:in 2.03 | 8:April 7.02 | 9:, 3.99 | 10:and 3.90 | 11:the 3.79 | 12:clocks 43.17 | 13:were 15.65
+
+── PROMPT 17 ("Q: What is the largest planet in the solar system?\nA:") ; R = 3.177
+  s=0 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.041 ; ‖x_{1,s}‖ = 1.0 ; ‖g^AN_1‖/‖g^A_1‖ = 3.0
+  s=1 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.029 ; ‖x_{1,s}‖ = 23.2 ; ‖g^AN_1‖/‖g^A_1‖ = 5.1
+  s=2 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.441 ; ‖x_{1,s}‖ = 5365.4 ; ‖g^AN_1‖/‖g^A_1‖ = 1.1
+  fenêtre-5 (mask) : cellule max hors puits ℓ=21 i=7 (" planet") ΔR=+1.559 ; puits max |ΔR| = 2.458 (ℓ=24)
+  fenêtre-5, Σ_ℓ|ΔR| par position : 1:Q 23.07 | 2:: 3.90 | 3:What 2.00 | 4:is 0.62 | 5:the 0.70 | 6:largest 1.01 | 7:planet 7.09 | 8:in 1.13 | 9:the 0.19 | 10:solar 1.22 | 11:system 1.45 | 12:? 5.46 | 13:A 5.01
+
+── PROMPT 22 ("The key is under the mat. The key is under the") ; R = 0.545
+  s=0 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.070 ; ‖x_{1,s}‖ = 0.8 ; ‖g^AN_1‖/‖g^A_1‖ = 4.5
+  s=1 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.038 ; ‖x_{1,s}‖ = 33.2 ; ‖g^AN_1‖/‖g^A_1‖ = 3.5
+  s=2 : part de Σ‖x‖²‖g^A−g^AN‖² portée par la position 1 = 0.288 ; ‖x_{1,s}‖ = 4955.8 ; ‖g^AN_1‖/‖g^A_1‖ = 1.8
+  fenêtre-5 (mask) : cellule max hors puits ℓ=2 i=11 (" under") ΔR=-3.436 ; puits max |ΔR| = 1.928 (ℓ=24)
+  fenêtre-5, Σ_ℓ|ΔR| par position : 1:The 19.21 | 2:key 0.39 | 3:is 0.59 | 4:under 1.59 | 5:the 6.04 | 6:mat 11.18 | 7:. 9.38 | 8:The 2.66 | 9:key 3.57 | 10:is 3.95 | 11:under 15.50
+  p22 mono-couche remove, position 6 ('mat') par ℓ : +0.03 +0.09 -0.00 +0.01 +0.06 +0.02 +0.04 +0.04 +0.14 -0.00 +0.03 +0.11 -0.03 +0.01 -0.19 -0.09 -0.14 -0.00 -0.28 +0.23 -0.23 +0.17 +0.18 +0.45 -0.38 +0.01 +0.28 +0.41
+  p22 mono-couche remove, position 5 ('the') par ℓ : +0.10 +0.11 -0.01 -0.01 +0.00 -0.35 -0.32 -0.02 -0.95 +0.00 -0.00 -0.00 -0.01 -0.01 -0.04 -0.06 -0.03 -0.13 +0.00 -0.07 -0.03 -0.01 -0.13 -0.02 -0.05 +0.00 +0.08 -0.04
+  p22 fenêtre-5 mask, position 6 ('mat') par ℓ : -0.03 -0.01 +0.04 +0.07 +0.07 +0.20 +0.42 +0.29 +0.38 +0.33 +0.11 +0.07 -0.27 -0.29 -0.65 -0.44 -0.59 -0.51 -0.83 -0.47 -0.21 +0.09 +0.07 +0.29 +0.70 +1.85 +0.57 +1.35
+  p22 : rang de la position 6 par Σ_ℓ|K^rem| hors puits = 2 / 10
+
+── Médianes (5 prompts), SOURCES i ∈ 2..n−1 SEULEMENT (puits exclu), s = 0..27
+  E^H (T vs AN)   : 7.07 4.49 3.25 2.27 1.77 1.31 1.06 0.97 0.85 0.79 0.77 0.75 0.73 0.71 0.67 0.66 0.65 0.62 0.59 0.60 0.72 0.67 0.70 0.67 0.67 0.66 0.70 0.67
+  E^{H,QK} (T/A)  : 0.88 0.85 0.88 0.86 0.87 0.85 0.83 0.74 0.67 0.66 0.63 0.62 0.61 0.58 0.54 0.56 0.59 0.54 0.53 0.54 0.61 0.62 0.66 0.66 0.63 0.66 0.69 0.66
+  E^{H,N} (A/AN)  : 8.93 4.67 3.93 2.07 1.65 1.26 0.93 0.68 0.56 0.47 0.45 0.45 0.43 0.43 0.41 0.32 0.26 0.25 0.25 0.22 0.22 0.17 0.14 0.14 0.14 0.15 0.24 0.28
+  fraction s∈1..20 avec médiane E^H > 0.3 (puits exclu) : 1.00
+  h^T_s (part horizontale, puits exclu des deux côtés), s=0..28 : 0.90 0.88 0.85 0.85 0.82 0.82 0.79 0.79 0.78 0.77 0.76 0.74 0.75 0.73 0.72 0.70 0.65 0.61 0.52 0.48 0.47 0.42 0.36 0.35 0.27 0.25 0.25 0.22 0.00
+
+── Puits : ΔR (remove) par couche, médiane des |ΔR| : 0.04 0.14 0.05 0.07 0.04 0.06 0.08 0.04 0.10 0.08 0.19 0.22 0.03 0.07 0.15 0.11 0.17 0.19 0.15 0.11 0.17 0.42 0.03 0.44 0.27 0.46 0.54 0.01
+   Puits : ΔR (mask)   par couche, médiane des |ΔR| : 0.02 0.05 0.11 0.08 0.40 0.11 0.25 0.31 0.75 0.25 0.25 0.45 0.37 0.06 0.36 0.54 0.33 0.45 0.23 0.39 0.49 0.40 0.28 0.42 0.36 0.52 0.17 0.01
+   part de Σ_ℓ|K^rem_{ℓ,1}| venant des couches 19-28 (médiane) : 0.60

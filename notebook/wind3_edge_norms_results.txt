@@ -1,0 +1,90 @@
+WIND-3 -- EXPLORATOIRE : normes des contributions d'arête (dernier token ← i)
+
+PROMPT 5 : contrôle de reconstruction Σ_i δ = sortie MHA[n] : pire err rel = 3.80e-07
+  position : moyenne_ℓ ‖δ_{ℓ,i}‖ (contribution pondérée)  |  moyenne_ℓ ‖(v_i W_O^h)_h‖ (non pondérée)
+    1 "The"         5.608  |    11.928
+    2 " capital"    1.885  |    53.328
+    3 " of"         1.901  |    35.349
+    4 " the"        0.742  |    29.911
+    5 " country"    1.206  |    42.441
+    6 " where"      2.131  |    35.366
+    7 " the"        0.660  |    27.720
+    8 " E"          0.431  |    53.933
+    9 "iff"         1.478  |    51.537
+   10 "el"          0.947  |    44.770
+   11 " Tower"      2.585  |    43.331
+   12 " stands"     2.321  |    45.797
+   13 " is"         5.007  |    30.900
+  part du puits dans Σ_{ℓ,i<n} ‖δ‖ : 0.256 ; norme non pondérée du puits / médiane des autres : 0.275
+
+PROMPT 6 : contrôle de reconstruction Σ_i δ = sortie MHA[n] : pire err rel = 3.86e-07
+  position : moyenne_ℓ ‖δ_{ℓ,i}‖ (contribution pondérée)  |  moyenne_ℓ ‖(v_i W_O^h)_h‖ (non pondérée)
+    1 "If"          5.362  |    12.981
+    2 " a"          0.939  |    28.613
+    3 " train"      0.498  |    44.383
+    4 " travels"    0.695  |    41.270
+    5 " "           0.445  |    38.308
+    6 "6"           0.549  |    46.629
+    7 "0"           0.333  |    40.820
+    8 " miles"      1.089  |    45.840
+    9 " in"         0.405  |    39.054
+   10 " "           0.570  |    40.013
+   11 "2"           0.629  |    46.333
+   12 " hours"      0.999  |    41.582
+   13 ","           2.843  |    28.944
+   14 " its"        2.364  |    31.259
+   15 " speed"      4.850  |    44.108
+   16 " is"         4.646  |    29.624
+  part du puits dans Σ_{ℓ,i<n} ‖δ‖ : 0.238 ; norme non pondérée du puits / médiane des autres : 0.316
+
+PROMPT 12 : contrôle de reconstruction Σ_i δ = sortie MHA[n] : pire err rel = 3.56e-07
+  position : moyenne_ℓ ‖δ_{ℓ,i}‖ (contribution pondérée)  |  moyenne_ℓ ‖(v_i W_O^h)_h‖ (non pondérée)
+    1 "It"          6.194  |    12.983
+    2 " was"        0.480  |    31.528
+    3 " a"          0.299  |    28.005
+    4 " bright"     0.444  |    45.654
+    5 " cold"       1.153  |    52.116
+    6 " day"        0.925  |    43.147
+    7 " in"         1.333  |    40.270
+    8 " April"      2.004  |    48.074
+    9 ","           1.448  |    33.108
+   10 " and"        1.250  |    38.958
+   11 " the"        0.783  |    35.672
+   12 " clocks"     4.611  |    50.606
+   13 " were"       2.486  |    41.069
+   14 " striking"    5.689  |    48.093
+  part du puits dans Σ_{ℓ,i<n} ‖δ‖ : 0.265 ; norme non pondérée du puits / médiane des autres : 0.319
+
+PROMPT 17 : contrôle de reconstruction Σ_i δ = sortie MHA[n] : pire err rel = 4.04e-07
+  position : moyenne_ℓ ‖δ_{ℓ,i}‖ (contribution pondérée)  |  moyenne_ℓ ‖(v_i W_O^h)_h‖ (non pondérée)
+    1 "Q"           4.975  |    13.338
+    2 ":"           2.288  |    38.990
+    3 " What"       0.907  |    32.294
+    4 " is"         0.340  |    30.402
+    5 " the"        0.401  |    28.055
+    6 " largest"    1.118  |    41.581
+    7 " planet"     3.109  |    42.356
+    8 " in"         0.530  |    33.847
+    9 " the"        0.222  |    30.491
+   10 " solar"      0.475  |    48.526
+   11 " system"     1.031  |    37.684
+   12 "?\n"         3.324  |    31.096
+   13 "A"           2.942  |    40.393
+   14 ":"           4.993  |    29.313
+  part du puits dans Σ_{ℓ,i<n} ‖δ‖ : 0.230 ; norme non pondérée du puits / médiane des autres : 0.373
+
+PROMPT 22 : contrôle de reconstruction Σ_i δ = sortie MHA[n] : pire err rel = 3.96e-07
+  position : moyenne_ℓ ‖δ_{ℓ,i}‖ (contribution pondérée)  |  moyenne_ℓ ‖(v_i W_O^h)_h‖ (non pondérée)
+    1 "The"         4.879  |    11.928
+    2 " key"        0.262  |    49.405
+    3 " is"         0.478  |    32.572
+    4 " under"      0.933  |    46.400
+    5 " the"        1.898  |    36.819
+    6 " mat"        4.738  |    47.754
+    7 "."           2.986  |    29.161
+    8 " The"        1.042  |    26.003
+    9 " key"        2.689  |    53.018
+   10 " is"         2.065  |    35.247
+   11 " under"      4.963  |    45.352
+   12 " the"        4.388  |    35.142
+  part du puits dans Σ_{ℓ,i<n} ‖δ‖ : 0.181 ; norme non pondérée du puits / médiane des autres : 0.290

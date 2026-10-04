@@ -1,0 +1,203 @@
+WIND-3 -- COLLECTE (vent horizontal)
+Date : 2026-09-29T17:19:29Z
+VRAM avant chargement : 303 MiB
+
+====================================================================================================
+PROMPT 5 : "The capital of the country where the Eiffel Tower stands is" (13 tokens)
+====================================================================================================
+Porte R0 (x_{n,k} k=0..28 et logits top-1/top-2 == WIND-1, bit à bit) : OK
+R propre = 0.361622 (logit-diff WIND-1 = 0.361633)
+  backward [T] : 8.0 s
+  backward [A] : 0.1 s
+  Porte G4b (forward normes gelées vs propre) : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+  backward [AN] : 0.2 s
+  Porte GV [T ] : pire err rel (s=1..27) = 3.40e-04 (seuil 1e-2) -> OK ; s=0 : 6.39e-03
+  Porte GV [A ] : pire err rel (s=1..27) = 2.43e-04 (seuil 1e-2) -> OK ; s=0 : 6.12e-03
+  Porte GV [AN] : pire err rel (s=1..27) = 1.98e-04 (seuil 1e-2) -> OK ; s=0 : 7.79e-03
+    GF [T ] i= 1 s= 3 ‖g‖=1.823e-02 : 2.4e-05 1.0e-05 3.0e-06 3.2e-05
+    GF [T ] i= 1 s=14 ‖g‖=1.550e-02 : 2.3e-05 2.2e-05 1.7e-06 1.4e-05
+    GF [T ] i= 2 s= 1 ‖g‖=4.540e-01 : 1.7e-04 3.2e-05 3.7e-04 4.6e-05
+    GF [T ] i= 7 s= 7 ‖g‖=8.196e-02 : 1.9e-04 6.4e-05 7.2e-04 1.4e-03
+    GF [T ] i=12 s=20 ‖g‖=4.057e-02 : 5.0e-04 1.7e-04 1.5e-04 5.7e-05
+    GF [T ] i=12 s=26 ‖g‖=4.789e-03 : 1.2e-03 8.2e-04 1.6e-03 3.3e-04
+    GF [T ] i=13 s=10 ‖g‖=1.014e+00 : 2.8e-05 1.8e-06 5.2e-06 6.7e-05
+  Porte GF [T ] : e_v médiane 6.04e-05 max 1.59e-03 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [A ] i= 1 s= 3 ‖g‖=1.757e-02 : 5.3e-06 4.9e-06 8.7e-06 1.9e-06
+    GF [A ] i= 1 s=14 ‖g‖=1.550e-02 : 2.2e-06 2.1e-06 9.1e-06 8.8e-06
+    GF [A ] i= 2 s= 1 ‖g‖=4.171e-01 : 1.6e-05 2.4e-04 1.9e-04 2.5e-05
+    GF [A ] i= 7 s= 7 ‖g‖=5.572e-02 : 8.5e-04 6.6e-06 8.4e-04 1.4e-04
+    GF [A ] i=12 s=20 ‖g‖=3.480e-02 : 1.7e-04 6.2e-04 9.6e-04 5.3e-05
+    GF [A ] i=12 s=26 ‖g‖=4.318e-03 : 7.3e-04 2.6e-04 1.2e-03 5.6e-04
+    GF [A ] i=13 s=10 ‖g‖=9.686e-01 : 3.2e-06 2.6e-05 8.7e-06 1.1e-05
+  Porte GF [A ] : e_v médiane 2.57e-05 max 1.16e-03 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [AN] i= 1 s= 3 ‖g‖=1.882e-02 : 4.3e-06 1.3e-05 1.9e-06 7.3e-06
+    GF [AN] i= 1 s=14 ‖g‖=1.568e-02 : 2.9e-05 1.1e-06 8.2e-06 9.9e-06
+    GF [AN] i= 2 s= 1 ‖g‖=1.420e+00 : 6.9e-03 4.6e-05 3.6e-05 1.9e-05
+    GF [AN] i= 7 s= 7 ‖g‖=7.214e-02 : 8.7e-04 5.7e-04 7.8e-05 2.2e-04
+    GF [AN] i=12 s=20 ‖g‖=3.372e-02 : 2.2e-04 9.4e-04 3.4e-04 2.3e-04
+    GF [AN] i=12 s=26 ‖g‖=4.239e-03 : 2.0e-04 1.1e-03 1.9e-03 2.5e-04
+    GF [AN] i=13 s=10 ‖g‖=9.574e-01 : 6.6e-05 4.7e-05 5.9e-05 7.4e-05
+  Porte GF [AN] : e_v médiane 6.97e-05 max 6.88e-03 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+  Porte K0 (knockout sans blocage bit-identique) : OK
+  knockouts : 336 × 3 en 62 s ; état restauré bit-identique : true
+Écrit : wind3_G_p5_{T,A,AN}.bin + wind3_meta_p5.json  (118 s)
+
+====================================================================================================
+PROMPT 6 : "If a train travels 60 miles in 2 hours, its speed is" (16 tokens)
+====================================================================================================
+Porte R0 (x_{n,k} k=0..28 et logits top-1/top-2 == WIND-1, bit à bit) : OK
+R propre = 0.646154 (logit-diff WIND-1 = 0.646145)
+  backward [T] : 0.2 s
+  backward [A] : 0.2 s
+  Porte G4b (forward normes gelées vs propre) : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+  backward [AN] : 0.1 s
+  Porte GV [T ] : pire err rel (s=1..27) = 2.94e-04 (seuil 1e-2) -> OK ; s=0 : 9.55e-03
+  Porte GV [A ] : pire err rel (s=1..27) = 2.20e-04 (seuil 1e-2) -> OK ; s=0 : 1.56e-02
+  Porte GV [AN] : pire err rel (s=1..27) = 2.03e-04 (seuil 1e-2) -> OK ; s=0 : 1.58e-02
+    GF [T ] i= 1 s= 3 ‖g‖=1.905e-02 : 1.6e-05 1.3e-05 2.6e-06 6.2e-06
+    GF [T ] i= 1 s=14 ‖g‖=1.555e-02 : 3.5e-05 4.5e-07 5.2e-07 1.8e-05
+    GF [T ] i= 2 s= 1 ‖g‖=2.884e-01 : 5.8e-04 8.8e-05 2.3e-05 4.3e-04
+    GF [T ] i= 8 s= 7 ‖g‖=3.522e-01 : 2.8e-05 1.6e-04 1.2e-04 2.9e-06
+    GF [T ] i=15 s=20 ‖g‖=9.693e-02 : 4.2e-05 1.2e-04 2.2e-05 9.7e-06
+    GF [T ] i=15 s=26 ‖g‖=1.046e-02 : 6.0e-04 1.7e-04 4.1e-04 1.0e-04
+    GF [T ] i=16 s=10 ‖g‖=1.172e+00 : 2.8e-06 1.5e-06 2.4e-05 3.6e-05
+  Porte GF [T ] : e_v médiane 2.57e-05 max 6.02e-04 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [A ] i= 1 s= 3 ‖g‖=1.913e-02 : 1.4e-04 1.9e-07 5.2e-08 6.6e-08
+    GF [A ] i= 1 s=14 ‖g‖=1.537e-02 : 5.5e-05 2.0e-07 2.0e-06 1.6e-06
+    GF [A ] i= 2 s= 1 ‖g‖=2.319e-01 : 5.5e-04 1.6e-04 6.3e-05 9.1e-05
+    GF [A ] i= 8 s= 7 ‖g‖=3.426e-01 : 9.7e-06 5.2e-05 2.4e-05 2.5e-04
+    GF [A ] i=15 s=20 ‖g‖=8.878e-02 : 1.0e-04 3.3e-05 1.5e-04 1.3e-04
+    GF [A ] i=15 s=26 ‖g‖=8.022e-03 : 6.6e-04 3.7e-06 2.1e-06 1.9e-04
+    GF [A ] i=16 s=10 ‖g‖=1.141e+00 : 3.2e-05 4.1e-05 3.4e-05 5.6e-05
+  Porte GF [A ] : e_v médiane 4.67e-05 max 6.64e-04 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [AN] i= 1 s= 3 ‖g‖=1.919e-02 : 1.5e-04 6.7e-06 5.4e-06 6.7e-06
+    GF [AN] i= 1 s=14 ‖g‖=1.522e-02 : 2.7e-05 2.8e-07 9.4e-07 1.7e-06
+    GF [AN] i= 2 s= 1 ‖g‖=5.632e-01 : 8.6e-05 5.2e-05 1.1e-04 1.0e-04
+    GF [AN] i= 8 s= 7 ‖g‖=3.273e-01 : 6.6e-05 2.4e-05 7.3e-05 7.0e-05
+    GF [AN] i=15 s=20 ‖g‖=8.771e-02 : 2.6e-05 6.2e-05 9.3e-05 1.0e-04
+    GF [AN] i=15 s=26 ‖g‖=8.117e-03 : 2.3e-05 8.5e-05 5.8e-04 3.6e-04
+    GF [AN] i=16 s=10 ‖g‖=1.183e+00 : 7.0e-05 4.2e-05 1.8e-05 3.8e-05
+  Porte GF [AN] : e_v médiane 5.67e-05 max 5.78e-04 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+  Porte K0 (knockout sans blocage bit-identique) : OK
+  knockouts : 420 × 3 en 75 s ; état restauré bit-identique : true
+Écrit : wind3_G_p6_{T,A,AN}.bin + wind3_meta_p6.json  (101 s)
+
+====================================================================================================
+PROMPT 12 : "It was a bright cold day in April, and the clocks were striking" (14 tokens)
+====================================================================================================
+Porte R0 (x_{n,k} k=0..28 et logits top-1/top-2 == WIND-1, bit à bit) : OK
+R propre = 1.048220 (logit-diff WIND-1 = 1.048210)
+  backward [T] : 0.3 s
+  backward [A] : 0.1 s
+  Porte G4b (forward normes gelées vs propre) : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+  backward [AN] : 0.1 s
+  Porte GV [T ] : pire err rel (s=1..27) = 3.35e-04 (seuil 1e-2) -> OK ; s=0 : 5.38e-03
+  Porte GV [A ] : pire err rel (s=1..27) = 3.36e-04 (seuil 1e-2) -> OK ; s=0 : 6.71e-04
+  Porte GV [AN] : pire err rel (s=1..27) = 2.70e-04 (seuil 1e-2) -> OK ; s=0 : 1.73e-03
+    GF [T ] i= 1 s= 3 ‖g‖=4.350e-02 : 6.1e-04 1.8e-05 8.3e-06 2.5e-06
+    GF [T ] i= 1 s=14 ‖g‖=3.197e-02 : 2.6e-04 1.8e-06 1.7e-05 1.8e-05
+    GF [T ] i= 2 s= 1 ‖g‖=7.283e-01 : 1.5e-04 4.8e-05 4.3e-04 5.5e-04
+    GF [T ] i= 7 s= 7 ‖g‖=4.124e-01 : 2.0e-04 8.6e-06 9.8e-05 1.7e-05
+    GF [T ] i=13 s=20 ‖g‖=2.084e-01 : 4.2e-05 2.5e-04 3.6e-04 2.0e-04
+    GF [T ] i=13 s=26 ‖g‖=9.626e-03 : 1.0e-03 6.2e-04 1.4e-04 5.4e-04
+    GF [T ] i=14 s=10 ‖g‖=3.464e+00 : 1.8e-04 6.8e-06 5.1e-06 1.4e-05
+  Porte GF [T ] : e_v médiane 1.17e-04 max 1.02e-03 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [A ] i= 1 s= 3 ‖g‖=4.442e-02 : 1.0e-03 9.0e-06 1.9e-06 3.2e-06
+    GF [A ] i= 1 s=14 ‖g‖=3.014e-02 : 2.0e-04 2.7e-06 1.0e-06 3.7e-06
+    GF [A ] i= 2 s= 1 ‖g‖=8.238e-01 : 4.0e-04 7.2e-05 2.5e-04 2.7e-04
+    GF [A ] i= 7 s= 7 ‖g‖=3.136e-01 : 4.9e-04 1.4e-04 3.1e-04 5.3e-04
+    GF [A ] i=13 s=20 ‖g‖=1.877e-01 : 1.6e-05 6.3e-05 4.3e-06 3.8e-05
+    GF [A ] i=13 s=26 ‖g‖=7.041e-03 : 9.1e-04 6.1e-04 1.4e-04 1.6e-05
+    GF [A ] i=14 s=10 ‖g‖=3.027e+00 : 6.5e-05 3.8e-06 3.3e-05 2.4e-05
+  Porte GF [A ] : e_v médiane 6.42e-05 max 1.05e-03 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [AN] i= 1 s= 3 ‖g‖=7.065e-02 : [non résolue e=9.7e-03 c=5.1e-02] 4.3e-06 1.2e-05 3.7e-06
+    GF [AN] i= 1 s=14 ‖g‖=3.062e-02 : 1.9e-04 8.2e-07 1.3e-05 5.7e-06
+    GF [AN] i= 2 s= 1 ‖g‖=3.446e+00 : 3.5e-04 7.1e-05 1.4e-05 1.8e-05
+    GF [AN] i= 7 s= 7 ‖g‖=4.571e-01 : 6.1e-05 2.7e-04 2.6e-04 5.9e-06
+    GF [AN] i=13 s=20 ‖g‖=1.959e-01 : 1.9e-04 3.7e-05 6.3e-05 3.0e-04
+    GF [AN] i=13 s=26 ‖g‖=7.152e-03 : 5.7e-04 1.1e-03 4.1e-04 7.9e-04
+    GF [AN] i=14 s=10 ‖g‖=3.019e+00 : 5.2e-05 7.9e-06 1.4e-05 2.6e-05
+  Porte GF [AN] : e_v médiane 5.16e-05 max 1.08e-03 sur 27 résolues ; 1 non résolues (seuils 1e-2 / 5e-2) -> OK
+  Porte K0 (knockout sans blocage bit-identique) : OK
+  knockouts : 364 × 3 en 65 s ; état restauré bit-identique : true
+Écrit : wind3_G_p12_{T,A,AN}.bin + wind3_meta_p12.json  (91 s)
+
+====================================================================================================
+PROMPT 17 : "Q: What is the largest planet in the solar system?\nA:" (14 tokens)
+====================================================================================================
+Porte R0 (x_{n,k} k=0..28 et logits top-1/top-2 == WIND-1, bit à bit) : OK
+R propre = 3.176773 (logit-diff WIND-1 = 3.176735)
+  backward [T] : 0.3 s
+  backward [A] : 0.2 s
+  Porte G4b (forward normes gelées vs propre) : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+  backward [AN] : 0.1 s
+  Porte GV [T ] : pire err rel (s=1..27) = 5.21e-04 (seuil 1e-2) -> OK ; s=0 : 1.71e-02
+  Porte GV [A ] : pire err rel (s=1..27) = 3.66e-04 (seuil 1e-2) -> OK ; s=0 : 1.30e-02
+  Porte GV [AN] : pire err rel (s=1..27) = 2.35e-04 (seuil 1e-2) -> OK ; s=0 : 1.08e-02
+    GF [T ] i= 1 s= 3 ‖g‖=2.781e-02 : 1.4e-03 1.4e-05 4.3e-06 2.8e-08
+    GF [T ] i= 1 s=14 ‖g‖=2.455e-02 : 1.5e-03 3.0e-06 5.8e-06 2.1e-06
+    GF [T ] i= 2 s= 1 ‖g‖=1.104e+00 : 6.9e-05 3.7e-05 3.4e-05 1.5e-05
+    GF [T ] i= 7 s= 7 ‖g‖=6.583e-01 : 1.3e-04 1.6e-05 4.8e-07 3.8e-05
+    GF [T ] i=13 s=20 ‖g‖=1.028e-01 : 3.9e-05 7.9e-05 1.4e-04 1.1e-04
+    GF [T ] i=13 s=26 ‖g‖=2.229e-02 : 3.4e-05 1.1e-04 1.7e-04 1.3e-04
+    GF [T ] i=14 s=10 ‖g‖=1.353e+00 : 1.2e-04 4.4e-05 1.3e-05 9.0e-08
+  Porte GF [T ] : e_v médiane 3.71e-05 max 1.49e-03 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [A ] i= 1 s= 3 ‖g‖=2.531e-02 : 1.7e-03 2.0e-06 8.3e-06 1.1e-05
+    GF [A ] i= 1 s=14 ‖g‖=2.354e-02 : 1.9e-03 1.3e-05 1.2e-06 2.6e-06
+    GF [A ] i= 2 s= 1 ‖g‖=7.831e-01 : 6.0e-05 9.7e-05 2.3e-04 1.3e-05
+    GF [A ] i= 7 s= 7 ‖g‖=6.150e-01 : 1.2e-05 1.0e-04 9.0e-05 6.3e-06
+    GF [A ] i=13 s=20 ‖g‖=7.800e-02 : 9.0e-05 6.1e-05 3.6e-04 1.3e-04
+    GF [A ] i=13 s=26 ‖g‖=1.336e-02 : 3.1e-04 2.2e-04 2.8e-04 1.8e-04
+    GF [A ] i=14 s=10 ‖g‖=1.009e+00 : 6.8e-05 1.8e-05 6.0e-05 8.8e-06
+  Porte GF [A ] : e_v médiane 6.42e-05 max 1.94e-03 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [AN] i= 1 s= 3 ‖g‖=2.631e-02 : 5.3e-04 3.1e-06 6.9e-06 4.5e-06
+    GF [AN] i= 1 s=14 ‖g‖=2.150e-02 : 2.6e-04 1.1e-05 3.4e-06 1.7e-06
+    GF [AN] i= 2 s= 1 ‖g‖=2.866e+00 : [non résolue e=6.2e-02 c=2.9e-01] 7.7e-05 4.6e-05 3.4e-05
+    GF [AN] i= 7 s= 7 ‖g‖=8.119e-01 : 2.6e-06 2.7e-05 4.3e-06 5.4e-05
+    GF [AN] i=13 s=20 ‖g‖=7.956e-02 : 1.5e-04 1.2e-04 9.5e-07 5.4e-04
+    GF [AN] i=13 s=26 ‖g‖=1.315e-02 : 3.7e-04 1.5e-04 3.8e-04 2.7e-04
+    GF [AN] i=14 s=10 ‖g‖=1.195e+00 : 5.4e-05 9.4e-06 4.1e-05 3.6e-05
+  Porte GF [AN] : e_v médiane 4.11e-05 max 5.40e-04 sur 27 résolues ; 1 non résolues (seuils 1e-2 / 5e-2) -> OK
+  Porte K0 (knockout sans blocage bit-identique) : OK
+  knockouts : 364 × 3 en 63 s ; état restauré bit-identique : true
+Écrit : wind3_G_p17_{T,A,AN}.bin + wind3_meta_p17.json  (88 s)
+
+====================================================================================================
+PROMPT 22 : "The key is under the mat. The key is under the" (12 tokens)
+====================================================================================================
+Porte R0 (x_{n,k} k=0..28 et logits top-1/top-2 == WIND-1, bit à bit) : OK
+R propre = 0.545496 (logit-diff WIND-1 = 0.545504)
+  backward [T] : 0.2 s
+  backward [A] : 0.2 s
+  Porte G4b (forward normes gelées vs propre) : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+  backward [AN] : 0.1 s
+  Porte GV [T ] : pire err rel (s=1..27) = 3.43e-04 (seuil 1e-2) -> OK ; s=0 : 1.99e-02
+  Porte GV [A ] : pire err rel (s=1..27) = 2.35e-04 (seuil 1e-2) -> OK ; s=0 : 5.50e-03
+  Porte GV [AN] : pire err rel (s=1..27) = 1.99e-04 (seuil 1e-2) -> OK ; s=0 : 1.23e-03
+    GF [T ] i= 1 s= 3 ‖g‖=3.808e-02 : 2.6e-04 9.2e-06 3.8e-07 6.8e-06
+    GF [T ] i= 1 s=14 ‖g‖=2.639e-02 : 2.8e-04 9.8e-06 1.7e-05 3.2e-06
+    GF [T ] i= 2 s= 1 ‖g‖=2.014e+00 : 7.3e-05 2.5e-04 7.8e-05 3.7e-05
+    GF [T ] i= 6 s= 7 ‖g‖=1.263e+00 : 8.6e-06 1.6e-05 2.6e-05 7.4e-07
+    GF [T ] i=11 s=20 ‖g‖=2.212e-01 : 1.8e-06 1.0e-04 5.0e-05 8.9e-06
+    GF [T ] i=11 s=26 ‖g‖=2.372e-02 : 5.8e-04 4.0e-04 2.9e-04 2.5e-05
+    GF [T ] i=12 s=10 ‖g‖=1.197e+00 : 1.8e-05 2.0e-07 1.1e-05 1.6e-05
+  Porte GF [T ] : e_v médiane 1.78e-05 max 5.76e-04 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [A ] i= 1 s= 3 ‖g‖=2.239e-02 : 1.9e-04 6.7e-06 2.1e-06 5.3e-06
+    GF [A ] i= 1 s=14 ‖g‖=1.678e-02 : 9.7e-05 8.5e-06 2.3e-06 1.3e-05
+    GF [A ] i= 2 s= 1 ‖g‖=8.309e-01 : 2.4e-05 1.2e-04 2.2e-05 1.1e-04
+    GF [A ] i= 6 s= 7 ‖g‖=8.091e-01 : 1.2e-04 1.0e-04 9.0e-06 1.8e-05
+    GF [A ] i=11 s=20 ‖g‖=1.444e-01 : 1.2e-04 3.2e-05 3.4e-06 2.1e-04
+    GF [A ] i=11 s=26 ‖g‖=1.166e-02 : 5.3e-04 2.4e-04 3.6e-04 2.8e-04
+    GF [A ] i=12 s=10 ‖g‖=7.494e-01 : 4.2e-05 1.3e-06 3.8e-05 3.2e-05
+  Porte GF [A ] : e_v médiane 3.50e-05 max 5.31e-04 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+    GF [AN] i= 1 s= 3 ‖g‖=2.746e-02 : 1.2e-03 9.0e-06 7.4e-07 9.9e-06
+    GF [AN] i= 1 s=14 ‖g‖=1.752e-02 : 1.9e-04 9.0e-06 8.6e-06 5.0e-06
+    GF [AN] i= 2 s= 1 ‖g‖=2.701e+00 : 1.3e-02 6.2e-05 5.7e-05 2.0e-07
+    GF [AN] i= 6 s= 7 ‖g‖=8.084e-01 : 8.3e-05 2.8e-05 1.2e-04 6.3e-05
+    GF [AN] i=11 s=20 ‖g‖=1.487e-01 : 5.4e-05 1.7e-04 8.8e-05 4.4e-05
+    GF [AN] i=11 s=26 ‖g‖=1.149e-02 : 4.2e-05 2.9e-04 3.1e-04 3.1e-04
+    GF [AN] i=12 s=10 ‖g‖=8.025e-01 : 4.3e-05 6.2e-05 8.2e-07 7.3e-05
+  Porte GF [AN] : e_v médiane 5.92e-05 max 1.31e-02 sur 28 résolues ; 0 non résolues (seuils 1e-2 / 5e-2) -> OK
+  Porte K0 (knockout sans blocage bit-identique) : OK
+  knockouts : 308 × 3 en 56 s ; état restauré bit-identique : true
+Écrit : wind3_G_p22_{T,A,AN}.bin + wind3_meta_p22.json  (83 s)

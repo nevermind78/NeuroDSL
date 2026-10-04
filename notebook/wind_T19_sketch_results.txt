@@ -1,0 +1,40 @@
+
+WIND-T19 esquisse Gemma -- 2026-10-03T22:53:19Z   prompts [1]
+  p1   G4b 0.0e+00 | E3 A 1.5e-03 AN 1.2e-03 | retenu | 177 s
+
+WIND-T19 esquisse Gemma -- 2026-10-04T07:30:55Z   prompts [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+  p16  G4b 0.0e+00 | E3 A 8.8e-04 AN 9.2e-04 | retenu | 268 s
+  p17  G4b 0.0e+00 | E3 A 1.2e-03 AN 9.1e-04 | retenu | 219 s
+  p18  G4b 0.0e+00 | E3 A 1.5e-03 AN 8.2e-04 | retenu | 196 s
+  p19  G4b 0.0e+00 | E3 A 7.7e-04 AN 8.4e-04 | retenu | 187 s
+  p20  G4b 0.0e+00 | E3 A 2.1e-03 AN 1.6e-03 | retenu | 192 s
+  p21  G4b 0.0e+00 | E3 A 2.3e-03 AN 1.6e-03 | retenu | 189 s
+  p22  G4b 0.0e+00 | E3 A 1.2e-03 AN 1.0e-03 | retenu | 191 s
+  p23  G4b 0.0e+00 | E3 A 1.5e-03 AN 1.0e-03 | retenu | 203 s
+  p24  G4b 0.0e+00 | E3 A 1.5e-03 AN 1.1e-03 | retenu | 196 s
+  p25  G4b 0.0e+00 | E3 A 8.0e-04 AN 7.7e-04 | retenu | 217 s
+  p26  G4b 0.0e+00 | E3 A 1.4e-03 AN 1.3e-03 | retenu | 229 s
+  p27  G4b 0.0e+00 | E3 A 1.0e-03 AN 2.6e-03 | retenu | 232 s
+  p28  G4b 0.0e+00 | E3 A 1.3e-03 AN 7.8e-04 | retenu | 235 s
+  p29  G4b 0.0e+00 | E3 A 1.5e-03 AN 1.0e-03 | retenu | 218 s
+  p30  G4b 0.0e+00 | E3 A 8.6e-04 AN 1.1e-03 | retenu | 214 s
+  p31  G4b 0.0e+00 | E3 A 1.2e-03 AN 1.2e-03 | retenu | 211 s
+  p32  G4b 0.0e+00 | E3 A 1.0e-03 AN 2.2e-03 | retenu | 212 s
+  p33  G4b 0.0e+00 | E3 A 1.2e-03 AN 8.4e-04 | retenu | 208 s
+  p34  G4b 0.0e+00 | E3 A 1.6e-03 AN 1.3e-03 | retenu | 214 s
+  p35  G4b 0.0e+00 | E3 A 6.6e-04 AN 6.8e-04 | retenu | 239 s
+  p36  G4b 0.0e+00 | E3 A 1.3e-03 AN 1.2e-03 | retenu | 215 s
+  p37  G4b 0.0e+00 | E3 A 1.4e-03 AN 7.7e-04 | retenu | 209 s
+  p38  G4b 0.0e+00 | E3 A 1.3e-03 AN 1.3e-03 | retenu | 210 s
+  p39  G4b 0.0e+00 | E3 A 1.9e-03 AN 1.1e-03 | retenu | 214 s
+  p40  G4b 0.0e+00 | E3 A 1.5e-03 AN 1.4e-03 | retenu | 208 s
+  p41  G4b 0.0e+00 | E3 A 2.0e-03 AN 1.9e-03 | retenu | 214 s
+  p42  G4b 0.0e+00 | E3 A 1.4e-03 AN 1.1e-03 | retenu | 207 s
+  p43  G4b 0.0e+00 | E3 A 1.1e-03 AN 8.3e-04 | retenu | 210 s
+  p44  G4b 0.0e+00 | E3 A 2.0e-03 AN 1.0e-03 | retenu | 208 s
+  p45  G4b 0.0e+00 | E3 A 1.7e-03 AN 1.4e-03 | retenu | 209 s
+  p46  G4b 0.0e+00 | E3 A 1.9e-03 AN 1.7e-03 | retenu | 216 s
+  p47  G4b 0.0e+00 | E3 A 1.3e-03 AN 1.3e-03 | retenu | 230 s
+  p48  G4b 0.0e+00 | E3 A 6.8e-04 AN 8.3e-04 | retenu | 210 s
+  p49  G4b 0.0e+00 | E3 A 1.2e-03 AN 1.3e-03 | retenu | 207 s
+  p50  G4b 0.0e+00 | E3 A 1.3e-03 AN 1.1e-03 | retenu | 210 s

@@ -189,3 +189,20 @@ CV_Khemais_Senior_DataScientist_AI_Architect.*
 cover.*
 cv2.*
 cover2.
+
+# ── Ajouts du 2026-10-04 : sources LaTeX et gros artefacts d'expérience ─────
+# Toutes les sources LaTeX restent locales, partout dans le dépôt (pas seulement
+# artilce/). N'agit pas sur les .tex DÉJÀ suivis (voir git rm --cached).
+*.tex
+theo.pdf
+# Article en préparation (sources, figures, PDF) : local uniquement
+paper_frozen_norms/
+# Poids de modèles téléchargés et checkpoints NeuroDSL convertis (dizaines de Go)
+notebook/gemma-2-2b/
+notebook/gpt2/
+# Données brutes des campagnes WIND : Jacobiennes, esquisses, méta (≈ 76 Go)
+notebook/wind_data*/
+# Journaux d'erreur des processus détachés
+*.err
+# Correctif du motif « cover2. » ci-dessus, qui ne correspondait à rien
+cover2.*

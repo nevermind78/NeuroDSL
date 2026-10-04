@@ -1,0 +1,83 @@
+WIND-T6 -- tests pré-enregistrés P6.1–P6.4 (EXPLORATOIRE) -- 2026-09-30T23:35:32Z
+K = 40 tirages de signes par ensemble ; q = fraction des tirages strictement inférieurs à la vraie configuration
+
+==================== PROMPT 5 ====================
+  réel : ern T/A/AN = 15.75 / 20.65 / 15.51 ; σ₁ = 1.976e+01 / 1.583e+01 / 1.796e+01 ; τ = 25.94 / 19.93 / 23.30 (τ_A/τ_T = 0.77, τ_AN/τ_T = 0.90)
+  Lemme 1 [T] : 1/p₁ = 2.724 ≤ ern = 15.755 ≤ 200.425 -> OK
+  Lemme 1 [A] : 1/p₁ = 2.584 ≤ ern = 20.649 ≤ 175.038 -> OK
+  Lemme 1 [AN] : 1/p₁ = 2.684 ≤ ern = 15.509 ≤ 193.091 -> OK
+  ensemble QK   : vrai ern =   15.75 (q = 0.775) ; nul ern médiane 12.67 [min 2.44, max 22.13] | vrai σ₁ = 1.976e+01 (q = 0.075) ; nul σ₁ médiane 2.506e+01 [min 1.704e+01, max 1.053e+02] ; σ₁(N·P_A) = 1.583e+01
+  ensemble norm : vrai ern =   15.51 (q = 0.225) ; nul ern médiane 18.95 [min 6.91, max 25.24] | vrai σ₁ = 1.796e+01 (q = 0.675) ; nul σ₁ médiane 1.674e+01 [min 1.387e+01, max 2.957e+01] ; σ₁(N·P_A) = 1.583e+01
+  P6.3 ‖U_kᵀΔ̂_k‖² k=1..27 : 0.17 0.20 0.31 0.38 0.17 0.60 0.68 0.56 0.69 0.78 0.45 0.64 0.54 0.78 0.70 0.64 0.82 0.79 0.87 0.79 0.73 0.79 0.76 0.85 0.90 0.94 0.96
+  P6.3 médiane = 0.696 (couches 1–10 : 0.473 ; 11–27 : 0.787)
+  P6.4 |cos(u₁(N·P_AN), z)| = 0.684   (hasard ≈ 0.026)
+  ordre 1 (Walsh) : ern(N·(P_A + Σ_k W_{k}^R)) = 19.30 (AN 15.51) ; ern(N·(P_A + Σ_k W_{k}^Q)) = 14.49 (T 15.75)
+  entrelacement σ_{i+54}(AN) ≤ σ_i(A) et réciproque : violation max = -7.29e-15 (relative à σ₁(A) : -4.6e-16)
+  encadrement τ_AN : √Σ_{i≥3}σ_i(N P_A + D_rest)² = 18.73 ≤ τ_AN = 23.30 ≤ ‖N P_A + D_rest‖_F = 25.99 ; σ₂/σ₁(NΔ) = 0.419 ; ‖D_rest‖_F/‖N P_A‖_F = 0.322
+  (177 s)
+
+==================== PROMPT 6 ====================
+  réel : ern T/A/AN = 47.60 / 62.62 / 51.51 ; σ₁ = 1.192e+01 / 8.968e+00 / 9.566e+00 ; τ = 20.51 / 19.08 / 20.63 (τ_A/τ_T = 0.93, τ_AN/τ_T = 1.01)
+  Lemme 1 [T] : 1/p₁ = 3.960 ≤ ern = 47.601 ≤ 423.676 -> OK
+  Lemme 1 [A] : 1/p₁ = 5.526 ≤ ern = 62.616 ≤ 652.955 -> OK
+  Lemme 1 [AN] : 1/p₁ = 5.652 ≤ ern = 51.513 ≤ 668.480 -> OK
+  ensemble QK   : vrai ern =   47.60 (q = 0.725) ; nul ern médiane 44.50 [min 22.96, max 55.28] | vrai σ₁ = 1.192e+01 (q = 0.375) ; nul σ₁ médiane 1.248e+01 [min 1.009e+01, max 1.928e+01] ; σ₁(N·P_A) = 8.968e+00
+  ensemble norm : vrai ern =   51.51 (q = 0.500) ; nul ern médiane 51.62 [min 33.40, max 58.94] | vrai σ₁ = 9.566e+00 (q = 0.500) ; nul σ₁ médiane 9.568e+00 [min 8.877e+00, max 1.380e+01] ; σ₁(N·P_A) = 8.968e+00
+  P6.3 ‖U_kᵀΔ̂_k‖² k=1..27 : 0.06 0.33 0.41 0.59 0.07 0.60 0.60 0.62 0.67 0.71 0.51 0.80 0.60 0.65 0.54 0.55 0.74 0.79 0.83 0.76 0.78 0.89 0.79 0.91 0.85 0.83 0.94
+  P6.3 médiane = 0.674 (couches 1–10 : 0.594 ; 11–27 : 0.786)
+  P6.4 |cos(u₁(N·P_AN), z)| = 0.669   (hasard ≈ 0.026)
+  ordre 1 (Walsh) : ern(N·(P_A + Σ_k W_{k}^R)) = 64.27 (AN 51.51) ; ern(N·(P_A + Σ_k W_{k}^Q)) = 44.53 (T 47.60)
+  entrelacement σ_{i+54}(AN) ≤ σ_i(A) et réciproque : violation max = -2.12e-15 (relative à σ₁(A) : -2.4e-16)
+  encadrement τ_AN : √Σ_{i≥3}σ_i(N P_A + D_rest)² = 18.72 ≤ τ_AN = 20.63 ≤ ‖N P_A + D_rest‖_F = 21.45 ; σ₂/σ₁(NΔ) = 0.441 ; ‖D_rest‖_F/‖N P_A‖_F = 0.278
+  (179 s)
+
+==================== PROMPT 12 ====================
+  réel : ern T/A/AN = 13.11 / 2.31 / 1.02 ; σ₁ = 7.525e+01 / 1.861e+02 / 1.673e+03 ; τ = 77.80 / 71.01 / 74.18 (τ_A/τ_T = 0.91, τ_AN/τ_T = 0.95)
+  Lemme 1 [T] : 1/p₁ = 2.069 ≤ ern = 13.105 ≤ 88.473 -> OK
+  Lemme 1 [A] : 1/p₁ = 1.146 ≤ ern = 2.310 ≤ 3.717 -> OK
+  Lemme 1 [AN] : 1/p₁ = 1.002 ≤ ern = 1.021 ≤ 1.029 -> OK
+  ensemble QK   : vrai ern =   13.11 (q = 0.925) ; nul ern médiane 3.97 [min 1.36, max 16.29] | vrai σ₁ = 7.525e+01 (q = 0.075) ; nul σ₁ médiane 1.485e+02 [min 6.134e+01, max 5.031e+02] ; σ₁(N·P_A) = 1.861e+02
+  ensemble norm : vrai ern =    1.02 (q = 0.025) ; nul ern médiane 2.49 [min 1.02, max 10.98] | vrai σ₁ = 1.673e+03 (q = 0.975) ; nul σ₁ médiane 1.973e+02 [min 7.397e+01, max 1.730e+03] ; σ₁(N·P_A) = 1.861e+02
+  P6.3 ‖U_kᵀΔ̂_k‖² k=1..27 : 0.69 0.23 0.56 0.69 0.64 0.73 0.78 0.83 0.82 0.78 0.52 0.74 0.55 0.82 0.71 0.61 0.71 0.78 0.85 0.73 0.72 0.84 0.84 0.89 0.91 0.93 0.89
+  P6.3 médiane = 0.738 (couches 1–10 : 0.710 ; 11–27 : 0.782)
+  P6.4 |cos(u₁(N·P_AN), z)| = 0.998   (hasard ≈ 0.026)
+  ordre 1 (Walsh) : ern(N·(P_A + Σ_k W_{k}^R)) = 1.21 (AN 1.02) ; ern(N·(P_A + Σ_k W_{k}^Q)) = 1.86 (T 13.11)
+  entrelacement σ_{i+54}(AN) ≤ σ_i(A) et réciproque : violation max = -3.14e-13 (relative à σ₁(A) : -1.7e-15)
+  encadrement τ_AN : √Σ_{i≥3}σ_i(N P_A + D_rest)² = 66.24 ≤ τ_AN = 74.18 ≤ ‖N P_A + D_rest‖_F = 171.76 ; σ₂/σ₁(NΔ) = 0.057 ; ‖D_rest‖_F/‖N P_A‖_F = 0.486
+  (185 s)
+
+==================== PROMPT 17 ====================
+  réel : ern T/A/AN = 8.47 / 10.12 / 7.76 ; σ₁ = 4.851e+01 / 3.483e+01 / 4.621e+01 ; τ = 52.42 / 42.27 / 47.95 (τ_A/τ_T = 0.81, τ_AN/τ_T = 0.91)
+  Lemme 1 [T] : 1/p₁ = 2.168 ≤ ern = 8.470 ≤ 103.774 -> OK
+  Lemme 1 [A] : 1/p₁ = 2.473 ≤ ern = 10.118 ≤ 155.167 -> OK
+  Lemme 1 [AN] : 1/p₁ = 2.076 ≤ ern = 7.761 ≤ 89.627 -> OK
+  ensemble QK   : vrai ern =    8.47 (q = 0.775) ; nul ern médiane 7.68 [min 2.11, max 9.99] | vrai σ₁ = 4.851e+01 (q = 0.100) ; nul σ₁ médiane 5.742e+01 [min 4.487e+01, max 1.956e+02] ; σ₁(N·P_A) = 3.483e+01
+  ensemble norm : vrai ern =    7.76 (q = 0.050) ; nul ern médiane 9.13 [min 6.74, max 11.14] | vrai σ₁ = 4.621e+01 (q = 0.975) ; nul σ₁ médiane 3.779e+01 [min 3.296e+01, max 5.005e+01] ; σ₁(N·P_A) = 3.483e+01
+  P6.3 ‖U_kᵀΔ̂_k‖² k=1..27 : 0.07 0.15 0.36 0.59 0.00 0.78 0.70 0.74 0.79 0.77 0.42 0.60 0.54 0.85 0.63 0.63 0.77 0.72 0.84 0.49 0.71 0.80 0.72 0.80 0.88 0.94 0.95
+  P6.3 médiane = 0.718 (couches 1–10 : 0.646 ; 11–27 : 0.721)
+  P6.4 |cos(u₁(N·P_AN), z)| = 0.917   (hasard ≈ 0.026)
+  ordre 1 (Walsh) : ern(N·(P_A + Σ_k W_{k}^R)) = 10.75 (AN 7.76) ; ern(N·(P_A + Σ_k W_{k}^Q)) = 8.47 (T 8.47)
+  entrelacement σ_{i+54}(AN) ≤ σ_i(A) et réciproque : violation max = -4.84e-16 (relative à σ₁(A) : -1.4e-17)
+  encadrement τ_AN : √Σ_{i≥3}σ_i(N P_A + D_rest)² = 37.70 ≤ τ_AN = 47.95 ≤ ‖N P_A + D_rest‖_F = 58.63 ; σ₂/σ₁(NΔ) = 0.334 ; ‖D_rest‖_F/‖N P_A‖_F = 0.367
+  (194 s)
+
+==================== PROMPT 22 ====================
+  réel : ern T/A/AN = 27.63 / 32.96 / 1.83 ; σ₁ = 1.676e+01 / 1.331e+01 / 7.586e+01 ; τ = 25.78 / 22.27 / 22.63 (τ_A/τ_T = 0.86, τ_AN/τ_T = 0.88)
+  Lemme 1 [T] : 1/p₁ = 3.366 ≤ ern = 27.634 ≤ 318.944 -> OK
+  Lemme 1 [A] : 1/p₁ = 3.800 ≤ ern = 32.965 ≤ 396.207 -> OK
+  Lemme 1 [AN] : 1/p₁ = 1.089 ≤ ern = 1.828 ≤ 2.417 -> OK
+  ensemble QK   : vrai ern =   27.63 (q = 0.950) ; nul ern médiane 15.73 [min 3.29, max 37.07] | vrai σ₁ = 1.676e+01 (q = 0.075) ; nul σ₁ médiane 2.552e+01 [min 1.187e+01, max 6.314e+01] ; σ₁(N·P_A) = 1.331e+01
+  ensemble norm : vrai ern =    1.83 (q = 0.000) ; nul ern médiane 21.16 [min 5.78, max 33.95] | vrai σ₁ = 7.586e+01 (q = 1.000) ; nul σ₁ médiane 1.763e+01 [min 1.202e+01, max 3.560e+01] ; σ₁(N·P_A) = 1.331e+01
+  P6.3 ‖U_kᵀΔ̂_k‖² k=1..27 : 0.18 0.06 0.59 0.59 0.05 0.67 0.73 0.70 0.75 0.70 0.52 0.73 0.57 0.67 0.74 0.53 0.71 0.56 0.73 0.73 0.71 0.73 0.76 0.83 0.84 0.88 0.94
+  P6.3 médiane = 0.706 (couches 1–10 : 0.631 ; 11–27 : 0.727)
+  P6.4 |cos(u₁(N·P_AN), z)| = 0.995   (hasard ≈ 0.026)
+  ordre 1 (Walsh) : ern(N·(P_A + Σ_k W_{k}^R)) = 8.74 (AN 1.83) ; ern(N·(P_A + Σ_k W_{k}^Q)) = 13.51 (T 27.63)
+  entrelacement σ_{i+54}(AN) ≤ σ_i(A) et réciproque : violation max = -1.25e-15 (relative à σ₁(A) : -9.4e-17)
+  encadrement τ_AN : √Σ_{i≥3}σ_i(N P_A + D_rest)² = 21.09 ≤ τ_AN = 22.63 ≤ ‖N P_A + D_rest‖_F = 25.95 ; σ₂/σ₁(NΔ) = 0.124 ; ‖D_rest‖_F/‖N P_A‖_F = 0.430
+  (198 s)
+
+VERDICTS (pré-enregistrés) :
+P6.1 : FAUX  (p12 : q_ern = 0.925, q_σ₁ = 0.075 ; autres q_ern : p5 0.775 p6 0.725 p17 0.775 p22 0.950)
+P6.2 : VRAI  (q_σ₁ / q_ern : p12 0.975/0.025, p22 1.000/0.000 ; p5 q_ern 0.225, p6 q_ern 0.500 ; p17 (descriptif) 0.975/0.050)
+P6.3 : VRAI  (médianes : p5 0.696, p6 0.674, p12 0.738, p17 0.718, p22 0.706)
+P6.4 : VRAI  (p12 0.998, p22 0.995 ; descriptif p5 0.684 p6 0.669 p17 0.917)

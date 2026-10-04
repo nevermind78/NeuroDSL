@@ -1,0 +1,22 @@
+p1   exact A  11.80 AN   9.07 rapport 0.768 | esquisse A  10.35 AN   8.58 rapport 0.829
+p2   exact A   9.97 AN   4.72 rapport 0.473 | esquisse A   9.23 AN   4.63 rapport 0.501
+p3   exact A  48.63 AN   5.04 rapport 0.104 | esquisse A  41.65 AN   4.99 rapport 0.120
+p4   exact A  16.36 AN   6.47 rapport 0.396 | esquisse A  14.18 AN   5.23 rapport 0.369
+p5   exact A  18.68 AN   7.34 rapport 0.393 | esquisse A  17.67 AN   6.67 rapport 0.377
+p6   exact A  24.25 AN  18.87 rapport 0.778 | esquisse A  22.89 AN  18.02 rapport 0.787
+p7   exact A   5.14 AN   2.21 rapport 0.431 | esquisse A   4.68 AN   2.35 rapport 0.501
+p8   exact A  21.76 AN   1.42 rapport 0.065 | esquisse A  19.16 AN   1.42 rapport 0.074
+p9   exact A  17.83 AN   8.17 rapport 0.458 | esquisse A  16.19 AN   8.39 rapport 0.518
+p10  exact A  26.91 AN   4.42 rapport 0.164 | esquisse A  25.94 AN   4.69 rapport 0.181
+p11  exact A  10.68 AN   3.31 rapport 0.310 | esquisse A  10.61 AN   3.00 rapport 0.283
+p12  exact A  11.01 AN   5.78 rapport 0.525 | esquisse A   9.21 AN   4.79 rapport 0.520
+p13  exact A   6.27 AN   1.66 rapport 0.266 | esquisse A   6.18 AN   1.65 rapport 0.266
+p14  exact A  17.77 AN   4.33 rapport 0.244 | esquisse A  15.28 AN   4.23 rapport 0.277
+p15  exact A  21.61 AN   1.34 rapport 0.062 | esquisse A  19.83 AN   1.31 rapport 0.066
+p16  exact A  11.00 AN  11.16 rapport 1.014 | esquisse A   9.53 AN  10.27 rapport 1.077
+p17  exact A  10.82 AN   6.93 rapport 0.640 | esquisse A   9.91 AN   6.69 rapport 0.675
+p18  exact A  16.29 AN   3.19 rapport 0.196 | esquisse A  12.94 AN   2.57 rapport 0.199
+p19  exact A  17.00 AN  11.37 rapport 0.669 | esquisse A  12.69 AN   9.04 rapport 0.712
+p20  exact A  16.38 AN   5.63 rapport 0.344 | esquisse A  15.08 AN   5.94 rapport 0.394
+
+E1 : erreur absolue médiane du rapport 0.027 (seuil 0,05) ; accord de classe < 0,5 : 85 % (seuil 90 %) -> ÉCHEC

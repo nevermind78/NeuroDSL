@@ -1,0 +1,32 @@
+
+WIND-T8 -- COLLECTE CONFIRMATOIRE DES JACOBIENNES PAR COUCHE (dernier token)
+Date : 2026-10-01T17:31:21Z
+Prompts : [51]   variantes : [:A, :AN]   sortie : C:\Users\Nevermind\Desktop\NeuroDSL\notebook\wind_data_T8   colonnes : 1536
+
+==========================================================================================
+PROMPT 51 : "The capital of Italy is" (5 tokens)
+==========================================================================================
+top-1 id=21718 (logit 18.591)  top-2 id=32671 (logit 18.427)
+G2 MLP analytique vs DF : max err rel = 7.96e-05  (seuil 1e-3) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [A] couches 0..6 faites (80 s)
+  [A] couches 0..13 faites (157 s)
+  [A] couches 0..20 faites (233 s)
+  [A] couches 0..27 faites (312 s)
+[A] collecte : 312 s
+G1 [A] eps vs 2eps : médiane 8.45e-05  max 3.96e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 5.10e-05  max 1.11e-02
+  G3 [A] s= 7 t=21 ||Jv||=    0.7113  eps=5e-03: err=1.81e-04  eps=1e-02: err=2.39e-04
+G3 [A] médiane err = 1.81e-04 (seuil 1e-2) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [AN] couches 0..6 faites (77 s)
+  [AN] couches 0..13 faites (159 s)
+  [AN] couches 0..20 faites (235 s)
+  [AN] couches 0..27 faites (313 s)
+[AN] collecte : 313 s
+G1 [AN] eps vs 2eps : médiane 6.34e-05  max 6.51e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 4.68e-05  max 7.06e-03
+  G3 [AN] s= 7 t=21 ||Jv||=    0.7283  eps=5e-03: err=1.74e-04  eps=1e-02: err=2.63e-04
+G3 [AN] médiane err = 1.74e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p51_{A,AN}.bin + wind_meta_p51.json

@@ -1,0 +1,21 @@
+=== Test A — ln‖J_k x̂_k‖ (lemme « Lyapunov Inversion »)
+qwen  exact(T) : frac s>0 0.207 | médiane s -0.044 | max s 0.319   ||  AN : frac s>0 0.956 | médiane ‖J x̂‖ 1.217 | min ‖J x̂‖ 0.758
+      A : frac s>0 0.207 | médiane s -0.044
+gpt2  exact(T) : frac s>0 0.382 | médiane s -0.010 | max s 0.484   ||  AN : frac s>0 0.991 | médiane ‖J x̂‖ 1.552 | min ‖J x̂‖ 0.992
+      A : frac s>0 0.391 | médiane s -0.010
+gemma exact(A) : frac s>0 0.416 | médiane s -0.013 | max s 0.106   ||  AN : frac s>0 0.912 | médiane ‖J x̂‖ 1.215 | min ‖J x̂‖ 0.844
+A1 (s^exact ≤ 0 partout) : FAUX | A2 (s^AN > 0 partout) : FAUX | A3 (médiane ‖J^AN x̂‖ ≥ 2) : FAUX
+
+=== Test B — θ_c « Ho–Kalman/Sylvester » du texte : det(I₂ − θ H₂) = 0, H₂ = C(I − J^A)⁻¹B, par bloc
+theta_min : n fini 50/50 | Spearman 0.282 | fraction ±15 % 0.020 | médiane θ_pred 0.219 (θ_c vrai médian 1.136)
+theta_med : n fini 50/50 | Spearman 0.215 | fraction ±15 % 0.300 | médiane θ_pred 0.991 (θ_c vrai médian 1.136)
+porte rang 2 (‖ΔJ − BC‖/‖ΔJ‖) max 4.8e-03 | κ(I − J^A_k) médiane 1.64e+05, max 8.79e+07 (prompts 1–10)
+B1 (Spearman ≥ 0,7) : FAUX | B2 (±15 % sur ≥ 70 %) : FAUX
+
+=== Test C — erank de g_k = T_{k→L}ᵀT_{k→L} (« Riemannian Funnel »), Qwen, variante T
+pr   médiane par k (k = 1, 5, 10, 15, 19, 23, 26, 27) : 4.4 ; 5.2 ; 6.1 ; 13.7 ; 33.5 ; 224.3 ; 489.6 ; 452.0
+ent  médiane par k (k = 1, 5, 10, 15, 19, 23, 26, 27) : 13.5 ; 16.2 ; 23.8 ; 56.7 ; 141.5 ; 574.1 ; 1026.6 ; 1172.6
+prN  médiane par k (k = 1, 5, 10, 15, 19, 23, 26, 27) : 4.7 ; 5.7 ; 7.5 ; 14.8 ; 40.0 ; 183.1 ; 306.8 ; 321.5
+entN médiane par k (k = 1, 5, 10, 15, 19, 23, 26, 27) : 12.9 ; 17.3 ; 26.5 ; 52.9 ; 141.5 ; 513.9 ; 893.3 ; 1053.4
+C1 (décroissance pour k ≥ 19 et erank_PR(g_27) ≤ 30) : FAUX | fraction erank_PR(g_27) > erank_PR(g_1) : 1.00
+C2 (noyau numérique σ_min/σ_max ≤ 1e-8) : VRAI | min σ_min/σ_max observé 9.05e-23

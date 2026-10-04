@@ -1,0 +1,51 @@
+WIND-T2b -- J_{1→28} avant / après la RMSNorm finale, vrai vs substituts à spectres fixés
+Date : 2026-09-30T21:56:33Z   NSUR = 4
+er/s21/rad = avant la norme (rad = |cos(u₁, x̂_28)|) ; ern/s21n = après N = Jacobien de la norme finale
+
+PROMPT 5   (‖x_28‖ = 233.0)
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  er       20.002         48.06 ± 4.93             59.09 ± 3.77 
+  s21       0.844          0.88 ± 0.13              0.90 ± 0.09 
+  rad       0.196          0.15 ± 0.10              0.08 ± 0.07 
+  ern      15.755         47.99 ± 5.39             58.64 ± 3.47 
+  s21n      0.723          0.89 ± 0.13              0.87 ± 0.08 
+
+PROMPT 6   (‖x_28‖ = 217.7)
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  er       53.269         65.74 ± 3.64             63.89 ± 2.30 
+  s21       0.598          0.92 ± 0.02              0.93 ± 0.04 
+  rad       0.103          0.11 ± 0.10              0.12 ± 0.08 
+  ern      47.601         65.04 ± 4.22             63.61 ± 2.96 
+  s21n      0.501          0.88 ± 0.05              0.93 ± 0.01 
+
+PROMPT 12   (‖x_28‖ = 253.7)
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  er       15.435         28.37 ± 3.57             38.62 ± 3.58 
+  s21       0.479          0.70 ± 0.02              0.65 ± 0.19 
+  rad       0.125          0.03 ± 0.01              0.05 ± 0.04 
+  ern      13.105         28.19 ± 3.37             38.66 ± 3.14 
+  s21n      0.434          0.69 ± 0.01              0.66 ± 0.17 
+
+PROMPT 17   (‖x_28‖ = 249.8)
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  er       10.072         34.31 ± 1.84             39.36 ± 1.50 
+  s21       0.740          0.83 ± 0.08              0.80 ± 0.06 
+  rad       0.574          0.10 ± 0.03              0.12 ± 0.09 
+  ern       8.470         34.16 ± 2.06             39.49 ± 1.61 
+  s21n      0.628          0.83 ± 0.07              0.83 ± 0.07 
+
+PROMPT 22   (‖x_28‖ = 283.4)
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  er       23.999         46.45 ± 6.85             53.76 ± 0.90 
+  s21       0.496          0.78 ± 0.08              0.90 ± 0.03 
+  rad       0.462          0.07 ± 0.04              0.08 ± 0.04 
+  ern      27.634         45.81 ± 7.04             52.52 ± 0.89 
+  s21n      0.604          0.76 ± 0.09              0.85 ± 0.09 
+
+MÉDIANES sur les prompts :
+            vrai     (S) signes    (H) Haar
+  er      20.002      46.451       53.760
+  s21      0.598       0.831        0.899
+  rad      0.196       0.102        0.079
+  ern     15.755      45.812       52.522
+  s21n     0.604       0.832        0.852

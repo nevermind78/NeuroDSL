@@ -1,0 +1,45 @@
+WIND-T2 -- substituts à spectres fixés pour J_{1→28} (couches k = 1..27, variante T)
+Date : 2026-09-30T21:48:27Z   NSUR = 4
+G = log10(Π σ₁(J_k) / σ₁(J_{1→28}))   erank = exp(H(σ²/Σσ²))   fro = log10 ‖J_{1→28}‖_F²   s21 = σ₂/σ₁
+
+PROMPT 5
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  G         17.06         17.63 ± 0.07             17.75 ± 0.07 
+  er        20.00         48.06 ± 4.93             59.09 ± 3.77 
+  fro        3.42          2.67 ± 0.03              2.56 ± 0.02 
+  s21        0.84          0.88 ± 0.13              0.90 ± 0.09 
+
+PROMPT 6
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  G         16.13         16.65 ± 0.03             16.66 ± 0.03 
+  er        53.27         65.74 ± 3.64             63.89 ± 2.30 
+  fro        3.16          2.52 ± 0.02              2.58 ± 0.01 
+  s21        0.60          0.92 ± 0.02              0.93 ± 0.04 
+
+PROMPT 12
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  G         17.63         17.97 ± 0.05             18.05 ± 0.07 
+  er        15.44         28.37 ± 3.57             38.62 ± 3.58 
+  fro        4.57          4.13 ± 0.04              4.05 ± 0.01 
+  s21        0.48          0.70 ± 0.02              0.65 ± 0.19 
+
+PROMPT 17
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  G         18.10         18.66 ± 0.03             18.66 ± 0.03 
+  er        10.07         34.31 ± 1.84             39.36 ± 1.50 
+  fro        4.14          3.43 ± 0.02              3.48 ± 0.01 
+  s21        0.74          0.83 ± 0.08              0.80 ± 0.06 
+
+PROMPT 22
+            vrai        (S) signes, P_k gardés    (H) Haar, spectres seuls
+  G         17.00         17.48 ± 0.09             17.54 ± 0.02 
+  er        24.00         46.45 ± 6.85             53.76 ± 0.90 
+  fro        3.63          3.10 ± 0.03              3.13 ± 0.01 
+  s21        0.50          0.78 ± 0.08              0.90 ± 0.03 
+
+MÉDIANES sur les prompts :
+            vrai     (S) signes    (H) Haar
+  G        17.06       17.63        17.75
+  er       20.00       46.45        53.76
+  fro       3.63        3.10         3.13
+  s21       0.60        0.83         0.90

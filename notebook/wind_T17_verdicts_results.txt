@@ -1,0 +1,12 @@
+prompts retenus 50 ; exclus (portes GPT-2) []
+L1 (Euler GPT-2 ≤ 1,3 ET Qwen ≥ 1,7) : FAUX  (GPT-2 1.465 ; Qwen 1.762)
+L2 (excès de gain GPT-2 < 0,5 × Qwen) : FAUX  (GPT-2 +0.474 ; Qwen +0.299)
+L3 (GPT-2-AN effondré ≤ 2/50 ET Qwen-12 ≥ 6/50) : FAUX  (GPT-2 10/50 ; Qwen-12 12/50)
+L4 (θ_c médian GPT-2 ≥ Qwen + 0,5) : VRAI  (GPT-2 1.841 ; Qwen 1.136)
+
+--- DESCRIPTIF ---
+ern médian GPT-2 : T 3.63 ; A 4.26 ; AN 4.65
+Qwen-12 ern médian 5.85 ; Qwen AN complet (T8) ern médian 5.25
+gain d'état médian : GPT-2 T 0.938 AN 1.411 ; Qwen T 0.846 AN 1.130
+Euler par couche (médiane) GPT-2 : [1.12, 1.19, 1.16, 2.46, 2.73, 1.37, 1.96, 2.1, 1.78, 1.34, 0.97, 3.09]
+Euler par couche (médiane) Qwen  : [1.92, -0.44, 0.69, 0.98, 1.22, 0.35, 1.6, 1.64, 1.59, 1.71, 1.7, 1.73, 1.72, 1.8, 1.63, 1.86, 1.89, 1.88, 1.92, 1.95, 1.88, 1.75, 1.71, 1.69, 1.79, 1.88, 1.97, 1.84]

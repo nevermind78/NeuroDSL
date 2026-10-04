@@ -1,0 +1,103 @@
+WIND-T3 -- localisation de la cohérence de phase de l'entonnoir (post-norme finale, variante T)
+Date : 2026-09-30T22:11:56Z   NSUR = 3
+ρ(W) = [log ern_aucune − log ern_W] / [log ern_aucune − log ern_vrai] ; 1 = entonnoir entièrement récupéré
+
+PROMPT 5 : ern vrai = 15.75   ern aucune = 48.86 ± 5.47
+   configuration        ern (moy ± sd)        ρ
+   aucune                 48.86 ± 5.47       +0.00
+   toutes (porte)         15.75 ± 0.00       +1.00
+   fenêtre 1-5            46.25 ± 4.92       +0.05
+   fenêtre 6-10           48.74 ± 1.84       +0.00
+   fenêtre 11-15          48.25 ± 1.40       +0.01
+   fenêtre 16-20          44.07 ± 3.98       +0.09
+   fenêtre 21-26          38.65 ± 4.12       +0.21
+   suffixe ≥6             14.29 ± 2.11       +1.09
+   suffixe ≥11            14.37 ± 0.77       +1.08
+   suffixe ≥16            20.39 ± 0.26       +0.77
+   préfixe ≤10            52.61 ± 1.29       -0.07
+   préfixe ≤15            57.36 ± 5.36       -0.14
+   préfixe ≤20            49.51 ± 3.70       -0.01
+
+PROMPT 6 : ern vrai = 47.60   ern aucune = 67.57 ± 1.63
+   configuration        ern (moy ± sd)        ρ
+   aucune                 67.57 ± 1.63       +0.00
+   toutes (porte)         47.60 ± 0.00       +1.00
+   fenêtre 1-5            67.93 ± 0.53       -0.02
+   fenêtre 6-10           70.66 ± 0.76       -0.13
+   fenêtre 11-15          67.18 ± 3.56       +0.02
+   fenêtre 16-20          56.91 ± 1.28       +0.49
+   fenêtre 21-26          57.74 ± 2.14       +0.45
+   suffixe ≥6             38.12 ± 1.70       +1.63
+   suffixe ≥11            34.15 ± 2.46       +1.95
+   suffixe ≥16            38.57 ± 1.95       +1.60
+   préfixe ≤10            77.89 ± 2.68       -0.41
+   préfixe ≤15            83.35 ± 3.78       -0.60
+   préfixe ≤20            80.64 ± 1.81       -0.51
+
+PROMPT 12 : ern vrai = 13.11   ern aucune = 30.94 ± 4.12
+   configuration        ern (moy ± sd)        ρ
+   aucune                 30.94 ± 4.12       +0.00
+   toutes (porte)         13.11 ± 0.00       +1.00
+   fenêtre 1-5            24.02 ± 2.95       +0.29
+   fenêtre 6-10           33.28 ± 3.67       -0.09
+   fenêtre 11-15          32.03 ± 3.53       -0.04
+   fenêtre 16-20          27.03 ± 7.05       +0.16
+   fenêtre 21-26          24.65 ± 5.61       +0.26
+   suffixe ≥6             17.28 ± 3.57       +0.68
+   suffixe ≥11            18.56 ± 3.10       +0.60
+   suffixe ≥16            19.00 ± 1.30       +0.57
+   préfixe ≤10            28.94 ± 1.61       +0.08
+   préfixe ≤15            27.03 ± 6.59       +0.16
+   préfixe ≤20            25.28 ± 1.96       +0.24
+
+PROMPT 17 : ern vrai = 8.47   ern aucune = 34.75 ± 2.95
+   configuration        ern (moy ± sd)        ρ
+   aucune                 34.75 ± 2.95       +0.00
+   toutes (porte)          8.47 ± 0.00       +1.00
+   fenêtre 1-5            33.80 ± 3.78       +0.02
+   fenêtre 6-10           35.76 ± 2.28       -0.02
+   fenêtre 11-15          29.46 ± 3.11       +0.12
+   fenêtre 16-20          28.47 ± 2.92       +0.14
+   fenêtre 21-26          27.16 ± 2.76       +0.17
+   suffixe ≥6              6.93 ± 0.45       +1.14
+   suffixe ≥11             7.65 ± 0.95       +1.07
+   suffixe ≥16            13.38 ± 1.12       +0.68
+   préfixe ≤10            34.04 ± 3.80       +0.01
+   préfixe ≤15            38.69 ± 3.12       -0.08
+   préfixe ≤20            31.77 ± 1.85       +0.06
+
+PROMPT 22 : ern vrai = 27.63   ern aucune = 47.33 ± 2.43
+   configuration        ern (moy ± sd)        ρ
+   aucune                 47.33 ± 2.43       +0.00
+   toutes (porte)         27.63 ± 0.00       +1.00
+   fenêtre 1-5            47.78 ± 1.57       -0.02
+   fenêtre 6-10           46.53 ± 0.62       +0.03
+   fenêtre 11-15          45.24 ± 4.92       +0.08
+   fenêtre 16-20          39.15 ± 6.04       +0.35
+   fenêtre 21-26          41.57 ± 3.71       +0.24
+   suffixe ≥6             24.49 ± 1.57       +1.22
+   suffixe ≥11            24.11 ± 1.31       +1.25
+   suffixe ≥16            29.81 ± 2.85       +0.86
+   préfixe ≤10            51.23 ± 1.33       -0.15
+   préfixe ≤15            52.28 ± 3.52       -0.19
+   préfixe ≤20            44.18 ± 1.34       +0.13
+
+PORTE GL : écart relatif max (toutes vs vrai) = 0.00e+00 -> OK
+
+MÉDIANES de ρ sur les prompts [min, max] :
+   aucune               +0.00   [+0.00, +0.00]
+   toutes (porte)       +1.00   [+1.00, +1.00]
+   fenêtre 1-5          +0.02   [-0.02, +0.29]
+   fenêtre 6-10         -0.02   [-0.13, +0.03]
+   fenêtre 11-15        +0.02   [-0.04, +0.12]
+   fenêtre 16-20        +0.16   [+0.09, +0.49]
+   fenêtre 21-26        +0.24   [+0.17, +0.45]
+   suffixe ≥6           +1.14   [+0.68, +1.63]
+   suffixe ≥11          +1.08   [+0.60, +1.95]
+   suffixe ≥16          +0.77   [+0.57, +1.60]
+   préfixe ≤10          -0.07   [-0.41, +0.08]
+   préfixe ≤15          -0.14   [-0.60, +0.16]
+   préfixe ≤20          +0.06   [-0.51, +0.24]
+
+HL1 (suffixe ≥16 ≥ 0,7 et préfixe ≤15 ≤ 0,3) : VRAI  (0.77 / -0.14)
+HL2 : DISTRIBUÉ  (meilleure fenêtre : fenêtre 21-26, médiane ρ = 0.24)

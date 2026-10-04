@@ -1,0 +1,218 @@
+WIND-1 -- COLLECTE DES JACOBIENNES PAR COUCHE (dernier token)
+Date : 2026-09-28T21:57:34Z
+Prompts : [5, 6, 12, 17, 22]   variantes : [:T, :A, :AN]   sortie : C:/Users/NEVERM~1/AppData/Local/Temp/claude/c--Users-Nevermind-Desktop-NeuroDSL/e5052320-c87b-4b5e-a6aa-e5856d4b5439/scratchpad/wind_data   colonnes : 1536
+
+==========================================================================================
+PROMPT 5 : "The capital of the country where the Eiffel Tower stands is" (13 tokens)
+==========================================================================================
+top-1 id=12095 (logit 20.531)  top-2 id=510 (logit 20.170)
+G2 MLP analytique vs DF : max err rel = 9.19e-05  (seuil 1e-3) -> OK
+  [T] couches 0..6 faites (100 s)
+  [T] couches 0..13 faites (190 s)
+  [T] couches 0..20 faites (270 s)
+  [T] couches 0..27 faites (351 s)
+[T] collecte : 351 s
+G1 [T] eps vs 2eps : médiane 8.85e-05  max 1.17e-03  (seuils 1e-3 / 1e-2) -> OK
+G1b [T] J(colonnes)·v vs JVP directionnelle : médiane 5.69e-05  max 1.43e-02
+  G3 [T] s= 1 t= 8 ||Jv||=    0.7953  eps=5e-03: err=3.51e-04  eps=1e-02: err=2.95e-04
+  G3 [T] s= 1 t=28 ||Jv||=    1.6232  eps=5e-03: err=1.20e-03  eps=1e-02: err=5.18e-04
+  G3 [T] s= 7 t=14 ||Jv||=    0.5958  eps=5e-03: err=2.43e-04  eps=1e-02: err=2.37e-04
+  G3 [T] s= 7 t=28 ||Jv||=    1.6123  eps=5e-03: err=3.99e-04  eps=1e-02: err=4.15e-04
+  G3 [T] s=14 t=21 ||Jv||=    1.0031  eps=5e-03: err=1.51e-04  eps=1e-02: err=2.79e-04
+  G3 [T] s=14 t=28 ||Jv||=    1.7648  eps=5e-03: err=2.47e-04  eps=1e-02: err=3.54e-04
+  G3 [T] s=21 t=28 ||Jv||=    1.9015  eps=5e-03: err=1.36e-04  eps=1e-02: err=2.27e-04
+G3 [T] médiane err = 2.47e-04 (seuil 1e-2) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [A] couches 0..6 faites (78 s)
+  [A] couches 0..13 faites (156 s)
+  [A] couches 0..20 faites (239 s)
+  [A] couches 0..27 faites (322 s)
+[A] collecte : 322 s
+G1 [A] eps vs 2eps : médiane 8.49e-05  max 5.75e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 4.94e-05  max 1.39e-02
+  G3 [A] s= 7 t=21 ||Jv||=    0.6273  eps=5e-03: err=2.23e-04  eps=1e-02: err=2.48e-04
+G3 [A] médiane err = 2.23e-04 (seuil 1e-2) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [AN] couches 0..6 faites (129 s)
+  [AN] couches 0..13 faites (207 s)
+  [AN] couches 0..20 faites (284 s)
+  [AN] couches 0..27 faites (364 s)
+[AN] collecte : 364 s
+G1 [AN] eps vs 2eps : médiane 6.16e-05  max 2.04e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 4.88e-05  max 1.85e-02
+  G3 [AN] s= 7 t=21 ||Jv||=    0.5095  eps=5e-03: err=2.58e-04  eps=1e-02: err=2.43e-04
+G3 [AN] médiane err = 2.43e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p5_{T,A,AN}.bin + wind_meta_p5.json
+
+==========================================================================================
+PROMPT 6 : "If a train travels 60 miles in 2 hours, its speed is" (16 tokens)
+==========================================================================================
+top-1 id=220 (logit 22.653)  top-2 id=510 (logit 22.007)
+G2 MLP analytique vs DF : max err rel = 8.44e-05  (seuil 1e-3) -> OK
+  [T] couches 0..6 faites (88 s)
+  [T] couches 0..13 faites (182 s)
+  [T] couches 0..20 faites (279 s)
+  [T] couches 0..27 faites (379 s)
+[T] collecte : 379 s
+G1 [T] eps vs 2eps : médiane 8.95e-05  max 7.85e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [T] J(colonnes)·v vs JVP directionnelle : médiane 6.18e-05  max 1.02e-02
+  G3 [T] s= 1 t= 8 ||Jv||=    0.5677  eps=5e-03: err=3.84e-04  eps=1e-02: err=3.56e-04
+  G3 [T] s= 1 t=28 ||Jv||=    1.0810  eps=5e-03: err=1.20e-03  eps=1e-02: err=7.07e-04
+  G3 [T] s= 7 t=14 ||Jv||=    0.5334  eps=5e-03: err=2.37e-04  eps=1e-02: err=2.37e-04
+  G3 [T] s= 7 t=28 ||Jv||=    1.1084  eps=5e-03: err=5.76e-04  eps=1e-02: err=5.08e-04
+  G3 [T] s=14 t=21 ||Jv||=    0.8183  eps=5e-03: err=1.95e-04  eps=1e-02: err=3.82e-04
+  G3 [T] s=14 t=28 ||Jv||=    2.1631  eps=5e-03: err=2.95e-04  eps=1e-02: err=3.69e-04
+  G3 [T] s=21 t=28 ||Jv||=    1.8990  eps=5e-03: err=2.07e-04  eps=1e-02: err=2.47e-04
+G3 [T] médiane err = 2.95e-04 (seuil 1e-2) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [A] couches 0..6 faites (82 s)
+  [A] couches 0..13 faites (162 s)
+  [A] couches 0..20 faites (243 s)
+  [A] couches 0..27 faites (324 s)
+[A] collecte : 324 s
+G1 [A] eps vs 2eps : médiane 8.84e-05  max 2.73e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 5.09e-05  max 9.08e-03
+  G3 [A] s= 7 t=21 ||Jv||=    0.5608  eps=5e-03: err=2.81e-04  eps=1e-02: err=2.37e-04
+G3 [A] médiane err = 2.37e-04 (seuil 1e-2) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [AN] couches 0..6 faites (80 s)
+  [AN] couches 0..13 faites (162 s)
+  [AN] couches 0..20 faites (248 s)
+  [AN] couches 0..27 faites (330 s)
+[AN] collecte : 330 s
+G1 [AN] eps vs 2eps : médiane 6.68e-05  max 1.74e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 5.03e-05  max 1.00e-02
+  G3 [AN] s= 7 t=21 ||Jv||=    0.5548  eps=5e-03: err=2.77e-04  eps=1e-02: err=1.86e-04
+G3 [AN] médiane err = 1.86e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p6_{T,A,AN}.bin + wind_meta_p6.json
+
+==========================================================================================
+PROMPT 12 : "It was a bright cold day in April, and the clocks were striking" (14 tokens)
+==========================================================================================
+top-1 id=60659 (logit 20.243)  top-2 id=2326 (logit 19.195)
+G2 MLP analytique vs DF : max err rel = 8.61e-05  (seuil 1e-3) -> OK
+  [T] couches 0..6 faites (104 s)
+  [T] couches 0..13 faites (224 s)
+  [T] couches 0..20 faites (366 s)
+  [T] couches 0..27 faites (486 s)
+[T] collecte : 486 s
+G1 [T] eps vs 2eps : médiane 8.49e-05  max 4.60e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [T] J(colonnes)·v vs JVP directionnelle : médiane 6.07e-05  max 6.65e-03
+  G3 [T] s= 1 t= 8 ||Jv||=    0.7008  eps=5e-03: err=5.17e-04  eps=1e-02: err=3.24e-04
+  G3 [T] s= 1 t=28 ||Jv||=    3.1269  eps=5e-03: err=1.28e-03  eps=1e-02: err=7.87e-04
+  G3 [T] s= 7 t=14 ||Jv||=    0.9877  eps=5e-03: err=1.70e-04  eps=1e-02: err=3.04e-04
+  G3 [T] s= 7 t=28 ||Jv||=    3.9813  eps=5e-03: err=4.54e-04  eps=1e-02: err=7.56e-04
+  G3 [T] s=14 t=21 ||Jv||=    1.2000  eps=5e-03: err=1.98e-04  eps=1e-02: err=5.78e-04
+  G3 [T] s=14 t=28 ||Jv||=    4.2313  eps=5e-03: err=2.98e-04  eps=1e-02: err=5.23e-04
+  G3 [T] s=21 t=28 ||Jv||=    3.3673  eps=5e-03: err=2.07e-04  eps=1e-02: err=4.10e-04
+G3 [T] médiane err = 2.98e-04 (seuil 1e-2) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [A] couches 0..6 faites (116 s)
+  [A] couches 0..13 faites (209 s)
+  [A] couches 0..20 faites (294 s)
+  [A] couches 0..27 faites (375 s)
+[A] collecte : 375 s
+G1 [A] eps vs 2eps : médiane 8.53e-05  max 3.30e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 6.05e-05  max 6.29e-03
+  G3 [A] s= 7 t=21 ||Jv||=    1.0416  eps=5e-03: err=2.21e-04  eps=1e-02: err=3.62e-04
+G3 [A] médiane err = 2.21e-04 (seuil 1e-2) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [AN] couches 0..6 faites (86 s)
+  [AN] couches 0..13 faites (176 s)
+  [AN] couches 0..20 faites (263 s)
+  [AN] couches 0..27 faites (349 s)
+[AN] collecte : 349 s
+G1 [AN] eps vs 2eps : médiane 5.96e-05  max 1.22e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 5.82e-05  max 5.94e-03
+  G3 [AN] s= 7 t=21 ||Jv||=    1.3001  eps=5e-03: err=1.92e-04  eps=1e-02: err=3.81e-04
+G3 [AN] médiane err = 1.92e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p12_{T,A,AN}.bin + wind_meta_p12.json
+
+==========================================================================================
+PROMPT 17 : "Q: What is the largest planet in the solar system?\nA:" (14 tokens)
+==========================================================================================
+top-1 id=49689 (logit 25.076)  top-2 id=619 (logit 21.899)
+G2 MLP analytique vs DF : max err rel = 8.47e-05  (seuil 1e-3) -> OK
+  [T] couches 0..6 faites (107 s)
+  [T] couches 0..13 faites (223 s)
+  [T] couches 0..20 faites (324 s)
+  [T] couches 0..27 faites (438 s)
+[T] collecte : 438 s
+G1 [T] eps vs 2eps : médiane 1.03e-04  max 8.24e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [T] J(colonnes)·v vs JVP directionnelle : médiane 6.67e-05  max 1.07e-02
+  G3 [T] s= 1 t= 8 ||Jv||=    1.2018  eps=5e-03: err=3.76e-04  eps=1e-02: err=3.35e-04
+  G3 [T] s= 1 t=28 ||Jv||=    4.3620  eps=5e-03: err=5.23e-04  eps=1e-02: err=2.65e-04
+  G3 [T] s= 7 t=14 ||Jv||=    0.5992  eps=5e-03: err=2.15e-04  eps=1e-02: err=2.88e-04
+  G3 [T] s= 7 t=28 ||Jv||=    1.3568  eps=5e-03: err=7.22e-04  eps=1e-02: err=9.83e-04
+  G3 [T] s=14 t=21 ||Jv||=    0.9013  eps=5e-03: err=1.96e-04  eps=1e-02: err=3.81e-04
+  G3 [T] s=14 t=28 ||Jv||=    3.1070  eps=5e-03: err=2.53e-04  eps=1e-02: err=3.12e-04
+  G3 [T] s=21 t=28 ||Jv||=    2.0424  eps=5e-03: err=1.93e-04  eps=1e-02: err=2.37e-04
+G3 [T] médiane err = 2.53e-04 (seuil 1e-2) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [A] couches 0..6 faites (115 s)
+  [A] couches 0..13 faites (229 s)
+  [A] couches 0..20 faites (339 s)
+  [A] couches 0..27 faites (455 s)
+[A] collecte : 455 s
+G1 [A] eps vs 2eps : médiane 9.20e-05  max 4.35e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 5.91e-05  max 1.76e-02
+  G3 [A] s= 7 t=21 ||Jv||=    0.6219  eps=5e-03: err=2.68e-04  eps=1e-02: err=3.62e-04
+G3 [A] médiane err = 2.68e-04 (seuil 1e-2) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [AN] couches 0..6 faites (97 s)
+  [AN] couches 0..13 faites (183 s)
+  [AN] couches 0..20 faites (289 s)
+  [AN] couches 0..27 faites (398 s)
+[AN] collecte : 398 s
+G1 [AN] eps vs 2eps : médiane 6.80e-05  max 8.19e-05  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 6.12e-05  max 6.74e-03
+  G3 [AN] s= 7 t=21 ||Jv||=    0.8199  eps=5e-03: err=2.37e-04  eps=1e-02: err=2.88e-04
+G3 [AN] médiane err = 2.37e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p17_{T,A,AN}.bin + wind_meta_p17.json
+
+==========================================================================================
+PROMPT 22 : "The key is under the mat. The key is under the" (12 tokens)
+==========================================================================================
+top-1 id=32671 (logit 20.289)  top-2 id=5517 (logit 19.744)
+G2 MLP analytique vs DF : max err rel = 7.62e-05  (seuil 1e-3) -> OK
+  [T] couches 0..6 faites (121 s)
+  [T] couches 0..13 faites (254 s)
+  [T] couches 0..20 faites (347 s)
+  [T] couches 0..27 faites (427 s)
+[T] collecte : 427 s
+G1 [T] eps vs 2eps : médiane 8.63e-05  max 6.83e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [T] J(colonnes)·v vs JVP directionnelle : médiane 6.08e-05  max 1.49e-02
+  G3 [T] s= 1 t= 8 ||Jv||=    0.7205  eps=5e-03: err=4.01e-04  eps=1e-02: err=3.82e-04
+  G3 [T] s= 1 t=28 ||Jv||=    2.5339  eps=5e-03: err=6.73e-04  eps=1e-02: err=4.00e-04
+  G3 [T] s= 7 t=14 ||Jv||=    0.8009  eps=5e-03: err=1.95e-04  eps=1e-02: err=2.58e-04
+  G3 [T] s= 7 t=28 ||Jv||=    1.4154  eps=5e-03: err=5.26e-04  eps=1e-02: err=4.99e-04
+  G3 [T] s=14 t=21 ||Jv||=    0.9767  eps=5e-03: err=1.67e-04  eps=1e-02: err=3.04e-04
+  G3 [T] s=14 t=28 ||Jv||=    1.9226  eps=5e-03: err=3.23e-04  eps=1e-02: err=3.96e-04
+  G3 [T] s=21 t=28 ||Jv||=    2.0118  eps=5e-03: err=1.77e-04  eps=1e-02: err=2.21e-04
+G3 [T] médiane err = 3.23e-04 (seuil 1e-2) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [A] couches 0..6 faites (80 s)
+  [A] couches 0..13 faites (161 s)
+  [A] couches 0..20 faites (241 s)
+  [A] couches 0..27 faites (323 s)
+[A] collecte : 323 s
+G1 [A] eps vs 2eps : médiane 8.24e-05  max 3.27e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 5.28e-05  max 1.48e-02
+  G3 [A] s= 7 t=21 ||Jv||=    0.8941  eps=5e-03: err=2.19e-04  eps=1e-02: err=2.91e-04
+G3 [A] médiane err = 2.19e-04 (seuil 1e-2) -> OK
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 27) : OK
+  [AN] couches 0..6 faites (80 s)
+  [AN] couches 0..13 faites (161 s)
+  [AN] couches 0..20 faites (238 s)
+  [AN] couches 0..27 faites (318 s)
+[AN] collecte : 318 s
+G1 [AN] eps vs 2eps : médiane 6.04e-05  max 2.58e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 5.02e-05  max 1.44e-02
+  G3 [AN] s= 7 t=21 ||Jv||=    1.4020  eps=5e-03: err=1.77e-04  eps=1e-02: err=4.75e-04
+G3 [AN] médiane err = 1.77e-04 (seuil 1e-2) -> OK
+Écrit : wind_J_p22_{T,A,AN}.bin + wind_meta_p22.json

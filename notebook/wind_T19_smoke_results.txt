@@ -1,0 +1,36 @@
+
+WIND-T19 -- GEMMA-2-2B : COLLECTE DES JACOBIENNES PAR COUCHE (dernier token)
+Date : 2026-10-03T22:49:10Z
+Prompts : [1]   variantes : [:A, :AN]   sortie : notebook/wind_data_GEMMA_smoke   colonnes : 96
+*** TEST DE FUMÉE : Jacobiennes incomplètes, résultats NON utilisables ***
+
+==========================================================================================
+PROMPT 1 : "The opposite of up is" (6 tokens)
+==========================================================================================
+top-1 id=1706 (logit 26.994)  top-2 id=780 (logit 23.536)
+G2 MLP analytique vs DF : max err rel = 9.25e-05  (seuil 1e-3) -> OK
+Degré d'Euler effectif du MLP (norme figée) : médiane 1.554 [min 0.746, max 1.922]
+G4a épinglage attention sans perturbation (couches 14, 26) : OK
+  [A] couches 0..6 faites (11 s)
+  [A] couches 0..13 faites (20 s)
+  [A] couches 0..20 faites (34 s)
+[A] collecte : 40 s
+G1 [A] eps vs 2eps : médiane 7.51e-05  max 1.28e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [A] J(colonnes)·v vs JVP directionnelle : médiane 5.10e-01  max 7.96e-01
+  G3 [A] s= 1 t=13 ||Jv||=    0.9811  eps=5e-03: err=1.03e+00  eps=1e-02: err=1.03e+00
+  G3 [A] s= 7 t=21 ||Jv||=    0.9979  eps=5e-03: err=1.27e+00  eps=1e-02: err=1.27e+00
+  G3 [A] s=13 t=26 ||Jv||=    0.9956  eps=5e-03: err=2.54e+00  eps=1e-02: err=2.54e+00
+G3 [A] médiane err = 1.27e+00 (seuil 1e-2) -> ÉCHEC
+G4b forward normes gelées vs propre : err rel logits = 0.00e+00 (seuil 1e-5) -> OK
+G4a épinglage attention sans perturbation (couches 14, 26) : OK
+  [AN] couches 0..6 faites (13 s)
+  [AN] couches 0..13 faites (23 s)
+  [AN] couches 0..20 faites (34 s)
+[AN] collecte : 41 s
+G1 [AN] eps vs 2eps : médiane 6.02e-05  max 1.53e-04  (seuils 1e-3 / 1e-2) -> OK
+G1b [AN] J(colonnes)·v vs JVP directionnelle : médiane 5.08e-01  max 7.84e-01
+  G3 [AN] s= 1 t=13 ||Jv||=    0.9871  eps=5e-03: err=1.15e+00  eps=1e-02: err=1.15e+00
+  G3 [AN] s= 7 t=21 ||Jv||=    1.0028  eps=5e-03: err=1.87e+00  eps=1e-02: err=1.87e+00
+  G3 [AN] s=13 t=26 ||Jv||=    1.0048  eps=5e-03: err=1.50e+00  eps=1e-02: err=1.50e+00
+G3 [AN] médiane err = 1.50e+00 (seuil 1e-2) -> ÉCHEC
+Écrit : wind_J_p1_{A,AN}.bin + wind_meta_p1.json

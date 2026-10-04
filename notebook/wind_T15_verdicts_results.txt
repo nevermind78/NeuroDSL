@@ -1,0 +1,13 @@
+prompts retenus 50 ; exclus (portes) []
+CRITÈRE PRINCIPAL : SUPPRIMÉ  (AH s'effondre sur 0/12 des effondrés AN ; 0/50 au total)
+D1 (θ_c^AH > θ_c^AN, médiane appariée, p < 0,05) : VRAI  (médianes 1.812 vs 1.136 ; diff +0.669 ; p 1.8e-15 ; Spearman -0.324)
+F1 (médiane ρ_AH − ρ_AN ≥ +0,10 sur 14 effondrés prédits, p < 0,05) : FAUX  (-0.109, p 9.8e-01)
+F2 (Δ_AH ≥ −0,05) : FAUX  (-0.163)
+
+--- DESCRIPTIF : ρ médian (effondrés / non effondrés) ---
+  T   0.840 / 0.824
+  A   0.658 / 0.693
+  AN  0.454 / 0.566
+  AH  0.325 / 0.488
+  AHf 0.450 / 0.490
+ern_AH(1) médian 91.95 (AN 5.25) ; portes GV max 7.1e-05

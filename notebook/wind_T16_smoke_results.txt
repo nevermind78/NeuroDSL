@@ -1,0 +1,3 @@
+
+WIND-T16 auto-réparation par les normes -- 2026-10-03T12:17:06Z   prompts [51]
+  p51  R   2.87 | Σ|TE| 14.01 Σ|TE_fn| 15.28 Σ|TE_fa| 12.53 | G0 0.0e+00 G1 0.0e+00 | retenu | 38 s

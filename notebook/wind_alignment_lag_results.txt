@@ -1,0 +1,19 @@
+WIND-2b -- CONTRÔLE POST-HOC (non pré-enregistré) : E_amp en fonction de la distance entre couches
+Date : 2026-09-29T16:49:07Z
+prompt 5 : SVD faites
+prompt 6 : SVD faites
+prompt 12 : SVD faites
+prompt 17 : SVD faites
+prompt 22 : SVD faites
+
+   j   médiane E_amp(k,k+j)  [Q1, Q3]        z médian (nul de Haar)   inter-prompts E_amp médiane
+   1        1.171          [1.101, 1.266]           14.9                  1.045
+   2        1.205          [1.121, 1.304]           17.2                  1.081
+   3        1.174          [1.097, 1.238]           14.8                  1.068
+   5        1.092          [1.047, 1.150]            7.9                  1.038
+   8        1.043          [1.020, 1.079]            3.8                  1.018
+  12        1.036          [1.006, 1.058]            3.0                  1.013
+  20        1.016          [1.000, 1.031]            1.2                  1.008
+
+Lecture : courbe plate en j et inter-prompts ≈ intra-prompt -> anisotropie globale ;
+          décroissance en j et intra > inter -> couplage local, spécifique au prompt.
